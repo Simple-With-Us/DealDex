@@ -192,7 +192,11 @@ jobs:
             if [ -z "$val" ]; then
               continue
             fi
-            if [[ "$val" == *$'\n'* || "$val" == *$'\r'* ]]; then
+            if [[ "$name" == IOS_DIST_P12_BASE64 ]]; then
+              # Base64 encoders may wrap the certificate; discard only CR/LF.
+              val="${val//$'\n'/}"
+              val="${val//$'\r'/}"
+            elif [[ "$val" == *$'\n'* || "$val" == *$'\r'* ]]; then
               echo "::error::Signing field $name must be single-line; correct Infisical formatting." >&2
               exit 1
             fi

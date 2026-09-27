@@ -78,6 +78,9 @@ cat > "$tmp_dir/workspace/scripts/ios-appstore-gm-prepare.sh" <<'IMPORT'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ -n "${IOS_DIST_P12_BASE64:-}" && -n "${IOS_DIST_P12_PASSWORD:-}" && -s "${ASC_KEY_PATH:-}" ]]
+if [[ "${ASC_TEST_MULTILINE_P12:-}" == 1 ]]; then
+  [[ "$IOS_DIST_P12_BASE64" == SYNTHETIC-P12-FIRSTSYNTHETIC-P12-CONTINUATION ]]
+fi
 touch "$ASC_TEST_IMPORT_MARKER"
 IMPORT
 cat > "$tmp_dir/bin/infisical" <<'CLI'
@@ -120,24 +123,22 @@ if grep -q '^IOS_DIST_P12_' "$tmp_dir/workflow-env"; then
   exit 1
 fi
 
-# Wrapped P12 text must fail before add-mask can print continuation lines.
+# Wrapped P12 must be normalized before masking/import, without crossing GITHUB_ENV.
 : > "$tmp_dir/multiline-env"
-if env -u ASC_KEY_P8 PATH="$tmp_dir/bin:$PATH" \
+env -u ASC_KEY_P8 PATH="$tmp_dir/bin:$PATH" \
   GITHUB_WORKSPACE="$tmp_dir/workspace" GITHUB_ENV="$tmp_dir/multiline-env" \
   INFISICAL_PROJECT_ID=synthetic-project \
   INFISICAL_UNIVERSAL_AUTH_CLIENT_ID=synthetic-client \
   INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET=synthetic-secret \
-  ASC_TEST_FIXTURE="$tmp_dir/fixture" ASC_TEST_IMPORT_MARKER="$tmp_dir/unexpected-import" \
+  ASC_TEST_FIXTURE="$tmp_dir/fixture" ASC_TEST_IMPORT_MARKER="$tmp_dir/wrapped-import" \
   ASC_TEST_MULTILINE_P12=1 bash "$tmp_dir/workflow-load.sh" \
-  > "$tmp_dir/multiline-stdout" 2> "$tmp_dir/multiline-stderr"; then
-  echo 'multiline certificate credential was accepted' >&2
+  > "$tmp_dir/multiline-stdout" 2> "$tmp_dir/multiline-stderr"
+[[ -e "$tmp_dir/wrapped-import" ]]
+if grep -Fq 'SYNTHETIC-P12-' "$tmp_dir/multiline-env" "$tmp_dir/multiline-stderr" ||
+   grep -v '^::add-mask::' "$tmp_dir/multiline-stdout" | grep -Fq 'SYNTHETIC-P12-'; then
+  echo 'wrapped certificate material leaked outside import' >&2
   exit 1
 fi
-[[ ! -e "$tmp_dir/unexpected-import" ]]
-if grep -Fq 'SYNTHETIC-P12-' "$tmp_dir/multiline-env" "$tmp_dir/multiline-stdout" "$tmp_dir/multiline-stderr"; then
-  echo 'multiline certificate material leaked before import' >&2
-  exit 1
-fi
-grep -q 'must be single-line' "$tmp_dir/multiline-stderr"
+[[ ! -s "$tmp_dir/multiline-stderr" ]]
 
 echo 'synthetic ASC key-file and workflow handoff passed'
