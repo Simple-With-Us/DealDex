@@ -33,7 +33,7 @@ Second follow-up (branch `muse/playwright-visual-webfonts`): with naming fixed, 
 
 Board: fleet Playwright rollout (parent-orchestrated).  Branch `muse/playwright-visual-dealdex`.
 
-## Follow-up 3 — committed webfont fixtures (branch `muse/playwright-visual-font-rendering`, PR #377)
+## Follow-up 3 — committed webfont fixtures (branch `muse/playwright-visual-font-rendering`, PR #378)
 
 PR #376 (real webfonts, awaited via `document.fonts.load`) still failed all six visual tests in CI with 6k–34k pixel diffs — even though CI downloads the exact same Chrome-for-Testing 153.0.8010.12 (Playwright chromium v1243) that generated the baselines.  Root-causing with the CI failure artifact showed two real problems, and the "webfonts" fix had never actually worked:
 
