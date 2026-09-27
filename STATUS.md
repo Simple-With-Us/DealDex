@@ -2,7 +2,7 @@
 
 ## 2026-09-27 CODEX — Public footer attribution and reference-value wording
 
-PR #361 merged the Simple With Us footer attribution and qualified reference-value availability on the public site.  The source change is complete; production has served the full SWU image at `/swu-logo-wide.webp` (HTTP 200).  Confirm the visible footer and production commit before marking board `f1f1f303e51a44d9bfd76e1738f49e99` and issue #360 Deployed.  The Vercel automatic three-hour build guard still applies; use the documented manual override only if the final site change is skipped.  See `docs/rollouts/2026-09-27-swu-public-attribution.md`.
+PR #361 merged the Simple With Us footer attribution and qualified reference-value availability on the public site; PR #363 added the required handoff docs.  The live `dealdex.net` footer was visually checked, the full SWU WebP returned HTTP 200, and board `f1f1f303e51a44d9bfd76e1738f49e99` is Deployed with issue #360 closed.  No manual Vercel override was needed.  See `docs/rollouts/2026-09-27-swu-public-attribution.md`.
 
 ## 2026-09-19 BF-FIXER — iOS listings lost their photos (on-device parser dropped the image)
 

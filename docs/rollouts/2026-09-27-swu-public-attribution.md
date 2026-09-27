@@ -6,6 +6,6 @@ PR #361 adds a quiet Simple With Us link in the public footer with the complete 
 
 ## Verification and release
 
-Local `npm run typecheck` and `git diff --check` passed.  The full 1920×200 WebP asset was checked locally, and `https://dealdex.net/swu-logo-wide.webp` returned HTTP 200 after merge.  Confirm the visible footer and the production deployment commit before marking the work Deployed.  Vercel production builds from `main`; `docs/HOSTING.md` documents its three-hour automatic guard and manual final-release exception.
+Local `npm run typecheck` and `git diff --check` passed.  The full 1920×200 WebP asset was checked locally, and `https://dealdex.net/swu-logo-wide.webp` returned HTTP 200 after merge.  The live footer was visually verified in a browser with the complete signature and conditional reference-value wording, so the board is Deployed.  Vercel production builds from `main`; `docs/HOSTING.md` documents its three-hour automatic guard and manual final-release exception.
 
 Board `f1f1f303e51a44d9bfd76e1738f49e99`; GitHub issue #360; PR #361.  This note addresses the required chronological handoff flagged on PR #361.
