@@ -1,7 +1,6 @@
 # DealDex — agent notes
 
-Pokémon listing desk.  User-facing subtitle: **Find the best-priced Pokémon card
-listings**.  Scan live eBay and Mercari Buy It Now singles, then score
+Pokémon listing desk.  User-facing subtitle: **Compare Pokémon card listing prices**.  Scan live eBay and Mercari Buy It Now singles, then score
 the ask against TCGPlayer, Cardmarket, TCGCSV, eBay solds, and optional paid
 desks. Website name **DealDex**. Android and iPhone apps scan on the device;
 they do not wrap the website. API keys live on the phone and must never reach a

@@ -1,3 +1,7 @@
+## 2026-09-27 — Public comparison wording (CODEX, #367)
+
+The website subtitle, intro, metadata, README, and current copy guidance now describe listing-price comparisons instead of promising the best price.  Reference coverage is conditional on listing/source access and configured paid services.  Native binaries and scan/key behavior are unchanged; native wording updates belong to a later native release.  PR #365 contains this copy unit plus the corrected effort-log lifecycle placement.  Hosted CI and production verification are pending.
+
 # Current Handoff
 
 ## 2026-09-27 CODEX — Public footer attribution and reference-value wording
