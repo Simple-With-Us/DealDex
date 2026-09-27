@@ -27,6 +27,13 @@ jobs:
           node-version: "22"
           cache: npm
 
+      - name: iOS signing key-file handoff
+        run: |
+          bash -n scripts/ios-stage-asc-key.sh
+          bash -n scripts/test-ios-stage-asc-key.sh
+          bash -n scripts/ios-appstore-gm-prepare.sh
+          bash scripts/test-ios-stage-asc-key.sh
+
       - name: Install dependencies
         # `npm ci` is what vercel.json runs, so CI has to prove that exact
         # command works. The lockfile drifted out of sync on npm 10 (Node 22)
