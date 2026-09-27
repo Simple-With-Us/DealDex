@@ -4,6 +4,10 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 # Current Handoff
 
+## 2026-09-27 MUSE — Playwright visual regression testing (follow-up)
+
+PR #372 merged as `ba4e08e4` but its e2e check failed after the merge: the repo config had no `snapshotPathTemplate`, so CI used Playwright's default (`{arg}-{projectName}-{platform}{ext}`) and looked for e.g. `home-full-chromium-linux.png` while the committed baselines are the canonical `home-full.png`.  (Auto-merge fired while e2e was still pending — verify + gitleaks were green, and e2e is not a required check in branch protection.)  Follow-up PR #374 pins `snapshotPathTemplate` to `{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}` and adds the HTML reporter so the failure artifact exists; verified locally 7/7 against the committed baselines.  Auto-merge armed 2026-09-27T20:13:10Z.  Recommendation for Jay: make the "E2E (Playwright)" check required in branch protection so a red visual suite blocks merges.
+
 ## 2026-09-27 MUSE — Playwright visual regression testing
 
 Fleet rollout (owner approved 2026-09-27).  Branch `muse/playwright-visual-dealdex`, PR #372 (auto-merge armed 2026-09-27T19:54:05Z; merges on green checks via squash).
@@ -640,3 +644,4 @@ Updated: 2026-08-25 (CURSOR — pin AppUpdatePrompt.swift; Apple IDs off Swift)
   `scripts/ios-ship-testflight.sh` (fleet key `dealdex`, bundle
   `net.dealdex`).  Do not `--force-ship` from this seat.
 - Remaining seats start from `main` in their own worktrees.
+
