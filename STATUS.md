@@ -1,6 +1,6 @@
 ## 2026-09-27 — Public comparison wording (CODEX, #367)
 
-The website subtitle, intro, metadata, README, and current copy guidance now describe listing-price comparisons instead of promising the best price.  Reference coverage is conditional on listing/source access and configured paid services.  Native binaries and scan/key behavior are unchanged; native wording updates belong to a later native release.  PR #365 contains this copy unit plus the corrected effort-log lifecycle placement.  Hosted CI and production verification are pending.
+The website subtitle, intro, metadata, README, and current copy guidance now describe listing-price comparisons instead of promising the best price.  Reference coverage is conditional on listing/source access and configured paid services.  Native binaries and scan/key behavior are unchanged; native wording updates belong to a later native release.  PR #365 contains this copy unit plus the corrected effort-log lifecycle placement.  Hosted verification and E2E passed.  PR #365 merged as `333a0d0788c5bc786221ae23f8695a4e5cbe97d8`; exact-source Vercel production `dpl_GrXCSNHt4E2AjtW6SYKkSNjKx9Mf` is READY.  The live homepage and metadata returned the revised text, and the full footer logo was visually checked and byte-matched to source.  The documented one-off `VERCEL_FORCE_DEPLOY=1` exception was used after the automatic cooldown canceled its build; project deployment settings were unchanged.
 
 # Current Handoff
 
