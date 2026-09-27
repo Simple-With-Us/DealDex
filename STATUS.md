@@ -4,6 +4,10 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 # Current Handoff
 
+## 2026-09-27 MUSE — Playwright visual regression testing (webfonts follow-up)
+
+PR #374 merged, but its e2e check failed again in CI — real pixel diffs this time (6k-34k pixels, ratio 0.01-0.03 on all six visual tests).  Root cause: the baselines were generated with Google Fonts aborted, so text rendered in system fallback fonts, and the GitHub runner's system fonts differ from the baseline machine's.  Fix: load the real webfonts (Fraunces, IBM Plex Sans, IBM Plex Mono — every weight the app uses, explicitly awaited via `document.fonts.load` before each screenshot) and regenerate the baselines; two consecutive clean local runs (7/7) confirm determinism.  PR #376, branch `muse/playwright-visual-webfonts` (auto-merge armed 2026-09-27T20:24:43Z).
+
 ## 2026-09-27 MUSE — Playwright visual regression testing (follow-up)
 
 PR #372 merged as `ba4e08e4` but its e2e check failed after the merge: the repo config had no `snapshotPathTemplate`, so CI used Playwright's default (`{arg}-{projectName}-{platform}{ext}`) and looked for e.g. `home-full-chromium-linux.png` while the committed baselines are the canonical `home-full.png`.  (Auto-merge fired while e2e was still pending — verify + gitleaks were green, and e2e is not a required check in branch protection.)  Follow-up PR #374 pins `snapshotPathTemplate` to `{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}` and adds the HTML reporter so the failure artifact exists; verified locally 7/7 against the committed baselines.  Auto-merge armed 2026-09-27T20:13:10Z.  Recommendation for Jay: make the "E2E (Playwright)" check required in branch protection so a red visual suite blocks merges.
@@ -14,7 +18,7 @@ Fleet rollout (owner approved 2026-09-27).  Branch `muse/playwright-visual-deald
 
 What changed: `tests/e2e/visual.spec.ts` adds six full-page `toHaveScreenshot` assertions (`/`, `/login`, `/install`, `/alerts`, `/saved`, `/privacy`) with committed baselines under `tests/e2e/visual.spec.ts-snapshots/` (Chromium, Linux, 1280x720).  `package.json` gains a `test:e2e` script.  The E2E workflow is renamed to "E2E (Playwright)" and runs the full suite (smoke + visual) with the Playwright report uploaded on failure.  `AGENTS.md` gains the automated-visual-verification policy.  `.gitignore` now ignores `test-results/` and `playwright-report/`.  No app code changed.
 
-Deterministic controls: animations disabled; telemetry, Google Fonts, and TanStack server functions aborted at the network layer (the home Scanner/MarketBoard and the install phone mockup auto-fire live market scans on mount — aborting forces their designed empty states); the scan-failure toast hidden via CSS; the header auth slot awaited until the guest menu settles (a real 340px flake when the shot landed mid-transition); the MarketBoard grid additionally masked.
+Deterministic controls: animations disabled; telemetry and TanStack server functions aborted at the network layer; Google Fonts loaded for real and explicitly awaited (identical webfonts locally and in CI) (the home Scanner/MarketBoard and the install phone mockup auto-fire live market scans on mount — aborting forces their designed empty states); the scan-failure toast hidden via CSS; the header auth slot awaited until the guest menu settles (a real 340px flake when the shot landed mid-transition); the MarketBoard grid additionally masked.
 
 Verified: baselines generated with stock Chrome-for-Testing 153 (`--no-sandbox`), then two consecutive clean runs without `--update-snapshots` (7/7 both times).  `npm run lint` (0 errors), `npm run typecheck`, `npm test` (278 pass), `npm run build` all green.
 
@@ -644,4 +648,5 @@ Updated: 2026-08-25 (CURSOR — pin AppUpdatePrompt.swift; Apple IDs off Swift)
   `scripts/ios-ship-testflight.sh` (fleet key `dealdex`, bundle
   `net.dealdex`).  Do not `--force-ship` from this seat.
 - Remaining seats start from `main` in their own worktrees.
+
 

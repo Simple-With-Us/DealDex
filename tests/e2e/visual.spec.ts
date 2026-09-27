@@ -10,9 +10,12 @@ import { test, expect, type Page } from "@playwright/test";
 //   - Telemetry and third-party scripts (Vercel Analytics/Speed Insights,
 //     the Grok App Builder bridge) are aborted at the network layer: they
 //     can neither change the render nor flake it.
-//   - Google Fonts are aborted: text always renders in system fallback
-//     fonts, so a slow or failed font fetch can never shift text metrics
-//     between runs (local or CI).
+//   - Google Fonts are loaded for real and explicitly awaited (every
+//     family/weight the app uses) before each screenshot.  Aborting them
+//     was tried first, but then text fell back to system fonts — and the
+//     GitHub runner's system fonts differ from the baseline machine's, so
+//     every text pixel drifted in CI.  Identical webfonts on both sides is
+//     the only cross-environment-stable choice.
 //   - TanStack Start server functions (`/_serverFn/**`) are aborted.  The
 //     home page's MarketBoard and Scanner, and the install page's phone
 //     mockup, all fire live market scans on mount; aborting forces their
@@ -41,8 +44,6 @@ test.beforeEach(async ({ page }) => {
   await page.route("https://va.vercel-scripts.com/**", (route) => route.abort());
   await page.route("https://vitals.vercel-insights.com/**", (route) => route.abort());
   await page.route("https://grok.com/grok-app-builder/**", (route) => route.abort());
-  await page.route("https://fonts.googleapis.com/**", (route) => route.abort());
-  await page.route("https://fonts.gstatic.com/**", (route) => route.abort());
   // Live market scans (MarketBoard, install-page phone mockup) -> designed
   // empty states.  See the header comment.
   await page.route("**/_serverFn/**", (route) => route.abort());
@@ -67,15 +68,30 @@ async function gotoSettled(
     // between flakes the header pixels, so wait for the settled state.
     await page.getByRole("button", { name: "Menu" }).waitFor({ timeout: 15000 });
   }
-  // Web fonts (Fraunces / IBM Plex) shift text metrics if they land late.
-  await page
-    .evaluate(() =>
-      Promise.race([
-        document.fonts.ready,
-        new Promise((resolve) => setTimeout(resolve, 5000)),
-      ]),
-    )
-    .catch(() => undefined);
+  // Web fonts must be fully loaded before the screenshot: with identical
+  // webfont files on both sides, text renders the same locally and in CI.
+  // document.fonts.ready alone is not enough — explicitly load every
+  // family/weight the app uses (see the Google Fonts URL in
+  // src/routes/__root.tsx), then wait for the set to settle.
+  await page.evaluate(async () => {
+    const faces = [
+      "500 16px Fraunces",
+      "600 16px Fraunces",
+      '400 16px "IBM Plex Sans"',
+      '500 16px "IBM Plex Sans"',
+      '600 16px "IBM Plex Sans"',
+      '400 16px "IBM Plex Mono"',
+      '500 16px "IBM Plex Mono"',
+    ];
+    await Promise.race([
+      Promise.all(faces.map((f) => document.fonts.load(f))).then(
+        () => document.fonts.ready,
+      ),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("webfont load timed out")), 30000),
+      ),
+    ]);
+  });
   await page.waitForTimeout(500);
 }
 
