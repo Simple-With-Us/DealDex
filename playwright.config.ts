@@ -13,7 +13,12 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4173';
 export default defineConfig({
   testDir: './tests/e2e',
   timeout: 60_000,
-  reporter: 'list',
+  // Single canonical baseline set: no per-project / per-platform suffixes,
+  // so baselines generated locally (stock Chrome-for-Testing) are the exact
+  // files CI compares against.
+  snapshotPathTemplate:
+    '{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}',
+  reporter: [['list'], ['html', { open: 'never' }]],
   use: { baseURL },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: {

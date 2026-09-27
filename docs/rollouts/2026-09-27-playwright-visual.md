@@ -10,6 +10,7 @@ Files:
 - `package.json` — new `test:e2e` script (`playwright test`).
 - `.github/workflows/e2e.yml` — renamed from "E2E smoke" to "E2E (Playwright)"; now runs the full suite (smoke + visual), npm cache enabled, Playwright report uploaded as an artifact on failure.
 - `AGENTS.md` — automated visual-verification policy added to "Verify before claiming done": web UI is verified via Playwright screenshot assertions with committed baselines; Jay never takes manual screenshots or runs local UI preview sessions; native Mac UI is verified through code review and CI.
+- `playwright.config.ts` — `snapshotPathTemplate` pins a single canonical baseline set (`{arg}{ext}`, no per-project/per-platform suffixes) so the baselines generated locally are the exact files CI compares against; HTML reporter added so the failure artifact the workflow uploads actually exists.
 - `.gitignore` — `test-results/` and `playwright-report/` ignored (Playwright run artifacts).
 
 ## Deterministic controls
@@ -25,5 +26,7 @@ Files:
 ## Verification
 
 Baselines generated locally with stock Chrome-for-Testing 153 (`--no-sandbox`) against the dev server.  The first baselines flaked on repeat runs (header auth-slot race, live scan results changing page height and phone-mockup content, font-rendering drift); the deterministic controls above were added to fix each root cause, baselines were regenerated, and then the suite passed **two consecutive clean runs** without `--update-snapshots` (7/7 both times: smoke + six visual).  `npm run lint` (0 errors), `npm run typecheck`, `npm test` (278 pass), and `npm run build` all green.  CI runs the same suite on every PR and push to main.
+
+Follow-up fix (PR #374, branch `muse/playwright-visual-snapshot-naming`): the first CI run failed all six visual tests with "A snapshot doesn't exist" — the repo config had no `snapshotPathTemplate`, so CI used Playwright's default (`{arg}-{projectName}-{platform}{ext}`) and looked for e.g. `home-full-chromium-linux.png` while the committed baselines are the canonical `home-full.png`.  Fixed by pinning `snapshotPathTemplate` to `{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}` and verified locally (7/7 against the committed baselines).  Note: PR #372 auto-merged while the e2e check was still pending (verify + gitleaks were green; e2e is not a required check in branch protection), so the failure landed on main and the follow-up repairs it there.
 
 Board: fleet Playwright rollout (parent-orchestrated).  Branch `muse/playwright-visual-dealdex`.
