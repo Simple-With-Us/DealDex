@@ -2,6 +2,8 @@
 
 Find the best-priced Pokémon card listings.  Scan live eBay and Mercari Buy It Now singles, then score the ask against TCGPlayer, Cardmarket, TCGCSV, eBay solds, and optional paid desks (JustTCG, PriceCharting, pokemontcg.io).
 
+**Site:** [dealdex.net](https://dealdex.net) · **From:** [Simple With Us](https://simplewithus.com/)
+
 Website name: **DealDex**.  Android and iPhone apps scan on the device.  They do not wrap the website.  API keys live on the phone; scanning never sends one and the scan endpoint refuses a keys payload outright.  The only time a key leaves the phone is an explicit Push Phone Keys to Account.  A scan on the **website** runs on the server, so keys saved in the browser are sent with the request; if you want no key to leave your device, use the phone apps.  Sign-in is optional if you want an encrypted backup.
 
 ## Source of truth
