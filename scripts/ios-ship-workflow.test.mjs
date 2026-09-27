@@ -53,7 +53,7 @@ test("ios-ship.yml targets dealdex / native/ios on GitHub-hosted macos-latest", 
   assert.doesNotMatch(wrapper, /R2FAW69NPD/);
   assert.doesNotMatch(wrapper, /me\.grok\.dealdex/);
 
-  assert.match(prepare, /ASC_KEY_P8 required/);
+  assert.match(prepare, /ASC_KEY_P8 or ASC_KEY_PATH required/);
   assert.doesNotMatch(prepare, /echo "\$ASC_KEY_P8"/);
   assert.doesNotMatch(prepare, /echo "\$IOS_DIST_P12/);
 });

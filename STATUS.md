@@ -1,5 +1,9 @@
 # Current Handoff
 
+## 2026-09-27 CODEX — ASC signing file handoff
+
+PR #366, issue #364, board `332fe8d6`: source changes stage the multiline signing key in a private file and pass only its path between Actions steps.  Synthetic workflow-block and shell syntax checks pass.  The `ios-ship` workflow remains manually disabled pending credential recovery; no release or signing validation is claimed.  Next: finish PR checks, complete credential replacement separately, and validate the repaired release path before re-enabling the workflow.  See `docs/rollouts/2026-09-27-ios-signing-file-handoff.md`.
+
 ## 2026-09-27 CODEX — Public footer attribution and reference-value wording
 
 PR #361 merged the Simple With Us footer attribution and qualified reference-value availability on the public site.  The source change is complete; production has served the full SWU image at `/swu-logo-wide.webp` (HTTP 200).  Confirm the visible footer and production commit before marking board `f1f1f303e51a44d9bfd76e1738f49e99` and issue #360 Deployed.  The Vercel automatic three-hour build guard still applies; use the documented manual override only if the final site change is skipped.  See `docs/rollouts/2026-09-27-swu-public-attribution.md`.
