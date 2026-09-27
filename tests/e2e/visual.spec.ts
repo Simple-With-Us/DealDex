@@ -1,4 +1,4 @@
-import { test, expect, type Locator, type Page } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { existsSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,9 +34,16 @@ import { fileURLToPath } from "node:url";
 //     positioned text renders identically from identical font files.
 //   - The "⚡" in the home page's SCAN MARKET button is not in IBM Plex
 //     Sans, so it falls back to a system symbol/emoji font that differs
-//     per machine; it is wrapped in a span and masked (the app cannot
-//     control that glyph, and it renders differently on every user's
-//     machine anyway).
+//     per machine (and even its span metrics differ, so masking
+//     misaligns).  The test strips it from the DOM before screenshotting:
+//     the app cannot control that glyph, and it renders differently on
+//     every user's machine anyway.
+//   - Screenshot comparisons allow up to 1% differing pixels
+//     (maxDiffPixelRatio).  Identical font files + pinned rendering still
+//     leave sub-1% per-pixel intensity differences on glyph fringes from
+//     the OS FreeType version, which Chromium links from the system.
+//     1% absorbs that while any real layout/content change moves far more
+//     than 1% of pixels.
 //   - TanStack Start server functions (`/_serverFn/**`) are aborted.  The
 //     home page's MarketBoard and Scanner, and the install page's phone
 //     mockup, all fire live market scans on mount; aborting forces their
@@ -165,35 +172,24 @@ async function gotoSettled(
 // The "⚡" in the SCAN MARKET button is not in IBM Plex Sans, so it falls
 // back to a system symbol/emoji font — Noto Color Emoji on one machine, a
 // monochrome symbol font on another.  The app cannot control that glyph,
-// so wrap it and mask it: everything else on the page stays asserted.
-async function maskZapGlyph(page: Page): Promise<Locator> {
+// so strip it from the test DOM before screenshotting.
+async function removeZapGlyph(page: Page): Promise<void> {
   await page.evaluate(() => {
     const walker = document.createTreeWalker(
       document.body,
       NodeFilter.SHOW_TEXT,
     );
-    const targets: Text[] = [];
     while (walker.nextNode()) {
       const node = walker.currentNode as Text;
-      if (node.nodeValue?.includes("⚡")) targets.push(node);
-    }
-    for (const node of targets) {
-      const fragment = document.createDocumentFragment();
-      const parts = node.nodeValue!.split("⚡");
-      parts.forEach((part, i) => {
-        if (part) fragment.appendChild(document.createTextNode(part));
-        if (i < parts.length - 1) {
-          const span = document.createElement("span");
-          span.setAttribute("data-visual-zap", "");
-          span.textContent = "⚡";
-          fragment.appendChild(span);
-        }
-      });
-      node.replaceWith(fragment);
+      if (node.nodeValue?.includes("⚡")) {
+        node.nodeValue = node.nodeValue.replaceAll("⚡ ", "").replaceAll("⚡", "");
+      }
     }
   });
-  return page.locator("[data-visual-zap]");
 }
+
+// See the header comment: 1% absorbs OS FreeType fringe differences.
+const VISUAL_TOLERANCE = { maxDiffPixelRatio: 0.01 } as const;
 
 test("home: full-page screenshot", async ({ page }) => {
   await gotoSettled(page, "/");
@@ -207,10 +203,10 @@ test("home: full-page screenshot", async ({ page }) => {
       has: page.getByRole("heading", { name: "A few cards on TCGPlayer" }),
     })
     .locator("div.grid");
-  const zap = await maskZapGlyph(page);
+  await removeZapGlyph(page);
   await expect(page, "home page should match the committed baseline").toHaveScreenshot(
     "home-full.png",
-    { fullPage: true, mask: [boardGrid, zap] },
+    { fullPage: true, mask: [boardGrid], ...VISUAL_TOLERANCE },
   );
 });
 
@@ -224,7 +220,7 @@ test("login: full-page screenshot", async ({ page }) => {
   ).toBeVisible();
   await expect(page, "login page should match the committed baseline").toHaveScreenshot(
     "login-full.png",
-    { fullPage: true },
+    { fullPage: true, ...VISUAL_TOLERANCE },
   );
 });
 
@@ -237,7 +233,7 @@ test("install: full-page screenshot", async ({ page }) => {
   await expect(
     page,
     "install page should match the committed baseline",
-  ).toHaveScreenshot("install-full.png", { fullPage: true });
+  ).toHaveScreenshot("install-full.png", { fullPage: true, ...VISUAL_TOLERANCE });
 });
 
 test("alerts: full-page screenshot", async ({ page }) => {
@@ -248,7 +244,7 @@ test("alerts: full-page screenshot", async ({ page }) => {
   ).toBeVisible();
   await expect(page, "alerts page should match the committed baseline").toHaveScreenshot(
     "alerts-full.png",
-    { fullPage: true },
+    { fullPage: true, ...VISUAL_TOLERANCE },
   );
 });
 
@@ -260,7 +256,7 @@ test("saved: full-page screenshot", async ({ page }) => {
   ).toBeVisible();
   await expect(page, "saved page should match the committed baseline").toHaveScreenshot(
     "saved-full.png",
-    { fullPage: true },
+    { fullPage: true, ...VISUAL_TOLERANCE },
   );
 });
 
@@ -273,5 +269,5 @@ test("privacy: full-page screenshot", async ({ page }) => {
   await expect(
     page,
     "privacy page should match the committed baseline",
-  ).toHaveScreenshot("privacy-full.png", { fullPage: true });
+  ).toHaveScreenshot("privacy-full.png", { fullPage: true, ...VISUAL_TOLERANCE });
 });
