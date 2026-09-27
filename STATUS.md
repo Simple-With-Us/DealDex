@@ -6,7 +6,7 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 ## 2026-09-27 MUSE — Playwright visual regression testing
 
-Fleet rollout (owner approved 2026-09-27).  Branch `muse/playwright-visual-dealdex` — PR not yet opened at the time of this writing; this section will be updated with the PR number once it exists.
+Fleet rollout (owner approved 2026-09-27).  Branch `muse/playwright-visual-dealdex`, PR #372 (auto-merge armed 2026-09-27T19:54:05Z; merges on green checks via squash).
 
 What changed: `tests/e2e/visual.spec.ts` adds six full-page `toHaveScreenshot` assertions (`/`, `/login`, `/install`, `/alerts`, `/saved`, `/privacy`) with committed baselines under `tests/e2e/visual.spec.ts-snapshots/` (Chromium, Linux, 1280x720).  `package.json` gains a `test:e2e` script.  The E2E workflow is renamed to "E2E (Playwright)" and runs the full suite (smoke + visual) with the Playwright report uploaded on failure.  `AGENTS.md` gains the automated-visual-verification policy.  `.gitignore` now ignores `test-results/` and `playwright-report/`.  No app code changed.
 
