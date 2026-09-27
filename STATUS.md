@@ -4,6 +4,18 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 # Current Handoff
 
+## 2026-09-27 MUSE — Playwright visual regression testing
+
+Fleet rollout (owner approved 2026-09-27).  Branch `muse/playwright-visual-dealdex` — PR not yet opened at the time of this writing; this section will be updated with the PR number once it exists.
+
+What changed: `tests/e2e/visual.spec.ts` adds six full-page `toHaveScreenshot` assertions (`/`, `/login`, `/install`, `/alerts`, `/saved`, `/privacy`) with committed baselines under `tests/e2e/visual.spec.ts-snapshots/` (Chromium, Linux, 1280x720).  `package.json` gains a `test:e2e` script.  The E2E workflow is renamed to "E2E (Playwright)" and runs the full suite (smoke + visual) with the Playwright report uploaded on failure.  `AGENTS.md` gains the automated-visual-verification policy.  `.gitignore` now ignores `test-results/` and `playwright-report/`.  No app code changed.
+
+Deterministic controls: animations disabled; telemetry, Google Fonts, and TanStack server functions aborted at the network layer (the home Scanner/MarketBoard and the install phone mockup auto-fire live market scans on mount — aborting forces their designed empty states); the scan-failure toast hidden via CSS; the header auth slot awaited until the guest menu settles (a real 340px flake when the shot landed mid-transition); the MarketBoard grid additionally masked.
+
+Verified: baselines generated with stock Chrome-for-Testing 153 (`--no-sandbox`), then two consecutive clean runs without `--update-snapshots` (7/7 both times).  `npm run lint` (0 errors), `npm run typecheck`, `npm test` (278 pass), `npm run build` all green.
+
+Deliberately excluded: `/settings` renders the app's error boundary under the Playwright dev server (pre-existing `node:crypto` server-import-chain bug — `src/routes/settings.tsx` imports `@/lib/server/tcg` and `@/lib/server/desk-keys` into the client bundle); `/card/$cardId` has live per-card data with no fixture; `/privacy-policy` redirects to `/privacy`.  Rollout note: `docs/rollouts/2026-09-27-playwright-visual.md`.
+
 ## 2026-09-27 CODEX — ASC signing file handoff
 
 Review follow-up in progress: scalar signing values reject CR/LF before masks, certificate credentials are scoped to the load/import step, and the decoded P12 is deleted after import.  Synthetic multiline-certificate tests pass.

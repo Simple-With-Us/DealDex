@@ -14,6 +14,8 @@ dist/
 screenshots/
 attachments/
 artifacts/
+test-results/
+playwright-report/
 native/android/.gradle/
 native/android/app/build/
 native/android/build/
