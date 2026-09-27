@@ -50,8 +50,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <footer className="border-t border-border/80">
         <div className={cn(PAGE, "flex flex-col gap-2 py-8 text-xs text-subtle sm:flex-row sm:items-start sm:justify-between sm:gap-8")}>
           <p>
-            Values from TCGPlayer, Cardmarket, eBay solds, and PriceCharting.  Not affiliated with
-            those markets or Pokémon.{" "}
+            Reference values may come from TCGPlayer, Cardmarket, eBay solds, and PriceCharting when available.  Not affiliated with those markets or Pokémon.{" "}
             <Link to="/privacy" className="underline decoration-border underline-offset-2 hover:text-fg">
               Privacy
             </Link>{" "}·{" "}
@@ -63,9 +62,17 @@ export function Shell({ children }: { children: ReactNode }) {
               Report a Problem
             </button>
           </p>
-          <p className="sm:max-w-sm sm:text-right">
-            Grade multipliers are estimates. Confirm authenticity before you buy.
-          </p>
+          <div className="sm:max-w-sm sm:text-right">
+            <p>Grade multipliers are estimates.  Confirm authenticity before you buy.</p>
+            <a
+              href="https://simplewithus.com/"
+              className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-subtle transition-colors hover:text-fg focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2"
+              aria-label="From Simple With Us"
+            >
+              <span>From</span>
+              <img src="/swu-logo-wide.webp" alt="Simple With Us by Jay Wedgeworth" width="288" height="30" className="h-auto max-w-[calc(100vw-92px)] rounded-sm bg-white" />
+            </a>
+          </div>
         </div>
       </footer>
     </div>
