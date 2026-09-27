@@ -138,10 +138,13 @@ Before every commit/push:
 
 ## Verify before claiming done
 
+Web UI is verified via Playwright screenshot assertions with committed baselines.  Jay never takes manual screenshots or runs local UI preview sessions.  Native Mac UI is verified through code review and CI.
+
 ```bash
 npm run lint
 npm run typecheck
 npm test
+npm run test:e2e       # Playwright: smoke + visual screenshot assertions
 npm run build          # vite build; db migrate no-ops without DATABASE_URL
 ```
 
