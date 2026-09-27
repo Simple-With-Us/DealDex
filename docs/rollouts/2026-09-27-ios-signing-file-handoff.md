@@ -29,7 +29,7 @@ All listed local checks passed.  Synthetic tests verify permissions, absent PEM 
 
 ## Next steps and blockers
 
-The `ios-ship` workflow remains manually disabled pending credential recovery.  Finish PR checks and land the source, then complete the separate owner credential decision and signing validation before explicitly re-enabling it.  No native bundle changes, TestFlight dispatch, credential revocation or log deletion occurred in this repair.
+The `ios-ship` workflow remains manually disabled pending credential recovery.  Source merged in PR #366 as `f9d0dcb7` after green checks.  Complete the separate owner credential decision and signing validation before explicitly re-enabling it.  No native bundle changes, TestFlight dispatch, credential revocation or log deletion occurred in this repair.
 
 ## Zero-code findings
 
