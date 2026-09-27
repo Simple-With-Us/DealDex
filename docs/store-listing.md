@@ -31,15 +31,15 @@ DealDex
 Best-priced card listings
 
 App Store subtitle is capped at 30 characters.  The in-app, website, and OG
-subtitle is Find the best-priced Pokémon card listings (42 characters).
+subtitle is Compare Pokémon card listing prices (35 characters).
 
 ## Promotional text
 
-Find the best-priced Pokémon card listings.  Scan live eBay and Mercari singles, then score the ask against TCGPlayer, Cardmarket, sold comps, and PriceCharting.
+Compare Pokémon card listing prices.  Search supported eBay and Mercari singles and compare asking prices with available market references.
 
 ## Description
 
-DealDex identifies best-priced Pokémon card listings.  Scan live eBay and Mercari Buy It Now singles, then score the ask against TCGPlayer, Cardmarket, TCGCSV, eBay solds, and optional paid desks.
+DealDex helps compare Pokémon card listing prices.  Search supported eBay and Mercari Buy It Now singles and compare asking prices with available market references.  Source coverage depends on the listing and configured data services.
 
 Keys you paste in Settings stay on the device.  The phone apps scan from the phone.  They do not wrap the website.  If the website is down, scan still uses those keys.
 

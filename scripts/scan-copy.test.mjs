@@ -5,24 +5,25 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SUBTITLE = "Find the best-priced Pokémon card listings";
+const SUBTITLE = "Compare Pokémon card listing prices";
+const LEGACY_NATIVE_SUBTITLE = "Find the best-priced Pokémon card listings";
 
 function read(rel) {
   return readFileSync(join(ROOT, rel), "utf8");
 }
 
-test("shared subtitle constant matches the owner string", () => {
+test("shared subtitle describes listing-price comparisons", () => {
   const copy = read("src/lib/copy.ts");
   assert.match(copy, new RegExp(SUBTITLE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
-test("site and apps use the new subtitle (OG card is logo-only)", () => {
+test("site uses shared comparison subtitle and native copy remains release-scoped", () => {
   assert.match(read("src/routes/index.tsx"), /APP_SUBTITLE/);
   assert.match(read("src/routes/__root.tsx"), /APP_SUBTITLE/);
   const og = read("scripts/og-dealdex.html");
   assert.doesNotMatch(og, new RegExp(SUBTITLE.replace("é", "é")));
   assert.match(og, /dealdex-wordmark\.png/);
-  assert.match(read("native/android/app/src/main/res/values/strings.xml"), new RegExp(SUBTITLE));
+  assert.match(read("native/android/app/src/main/res/values/strings.xml"), new RegExp(LEGACY_NATIVE_SUBTITLE));
   assert.doesNotMatch(read("src/routes/index.tsx"), /Find the best listings/);
   assert.doesNotMatch(read("src/routes/__root.tsx"), /Find the best listings/);
 });

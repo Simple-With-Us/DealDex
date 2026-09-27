@@ -1,6 +1,6 @@
 # DealDex
 
-Find the best-priced Pokémon card listings.  Scan live eBay and Mercari Buy It Now singles, then score the ask against TCGPlayer, Cardmarket, TCGCSV, eBay solds, and optional paid desks (JustTCG, PriceCharting, pokemontcg.io).
+Compare Pokémon card listing prices.  Search supported eBay and Mercari Buy It Now singles and compare asking prices with available market references.  Sources may include TCGPlayer, Cardmarket, TCGCSV, eBay solds, or paid desks you configure; coverage and freshness vary by listing and source.
 
 **Site:** [dealdex.net](https://dealdex.net) · **From:** [Simple With Us](https://simplewithus.com/)
 
