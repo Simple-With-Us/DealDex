@@ -6,6 +6,8 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 ## 2026-09-27 CODEX — ASC signing file handoff
 
+Review follow-up in progress: scalar signing values reject CR/LF before masks, certificate credentials are scoped to the load/import step, and the decoded P12 is deleted after import.  Synthetic multiline-certificate tests pass.
+
 PR #366 merged as `f9d0dcb7`; issue #364 and board `332fe8d6` are complete for source repair.  Source changes stage the multiline signing key in a private file and pass only its path between Actions steps.  Synthetic workflow-block and shell syntax checks pass.  The `ios-ship` workflow remains manually disabled pending credential recovery; no release or signing validation is claimed.  Next: complete credential replacement separately, and validate the repaired release path before re-enabling the workflow.  See `docs/rollouts/2026-09-27-ios-signing-file-handoff.md`.
 
 ## 2026-09-27 CODEX — Public footer attribution and reference-value wording
