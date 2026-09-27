@@ -6,7 +6,7 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 ## 2026-09-27 MUSE — Playwright visual regression testing (webfonts follow-up)
 
-PR #374 merged, but its e2e check failed again in CI — real pixel diffs this time (6k-34k pixels, ratio 0.01-0.03 on all six visual tests).  Root cause: the baselines were generated with Google Fonts aborted, so text rendered in system fallback fonts, and the GitHub runner's system fonts differ from the baseline machine's.  Fix: load the real webfonts (Fraunces, IBM Plex Sans, IBM Plex Mono — every weight the app uses, explicitly awaited via `document.fonts.load` before each screenshot) and regenerate the baselines; two consecutive clean local runs (7/7) confirm determinism.  Branch `muse/playwright-visual-webfonts`.
+PR #374 merged, but its e2e check failed again in CI — real pixel diffs this time (6k-34k pixels, ratio 0.01-0.03 on all six visual tests).  Root cause: the baselines were generated with Google Fonts aborted, so text rendered in system fallback fonts, and the GitHub runner's system fonts differ from the baseline machine's.  Fix: load the real webfonts (Fraunces, IBM Plex Sans, IBM Plex Mono — every weight the app uses, explicitly awaited via `document.fonts.load` before each screenshot) and regenerate the baselines; two consecutive clean local runs (7/7) confirm determinism.  PR #376, branch `muse/playwright-visual-webfonts` (auto-merge armed 2026-09-27T20:24:43Z).
 
 ## 2026-09-27 MUSE — Playwright visual regression testing (follow-up)
 
