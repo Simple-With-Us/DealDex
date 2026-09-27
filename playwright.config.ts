@@ -19,7 +19,22 @@ export default defineConfig({
   snapshotPathTemplate:
     '{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}',
   reporter: [['list'], ['html', { open: 'never' }]],
-  use: { baseURL },
+  use: {
+    baseURL,
+    // Deterministic cross-machine text rendering.  CI's GitHub runner and the
+    // baseline machine run the same Chrome-for-Testing build, but the browser
+    // links the OS libfreetype/libfontconfig/libharfbuzz, whose defaults
+    // differ per machine (subpixel order, hintstyle, fractional advances).
+    // These flags pin grayscale antialiasing, no hinting, and integer glyph
+    // positioning so identical font files render identical pixels anywhere.
+    launchOptions: {
+      args: [
+        '--disable-lcd-text',
+        '--font-render-hinting=none',
+        '--disable-font-subpixel-positioning',
+      ],
+    },
+  },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: {
     command: 'npm run dev -- --port 4173 --host 127.0.0.1',

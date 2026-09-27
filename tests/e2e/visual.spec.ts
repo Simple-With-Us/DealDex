@@ -1,4 +1,7 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
+import { existsSync, readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // Automated visual verification (owner directive 2026-09-27): Playwright
 // screenshot assertions with committed baselines for the DealDex web
@@ -10,12 +13,30 @@ import { test, expect, type Page } from "@playwright/test";
 //   - Telemetry and third-party scripts (Vercel Analytics/Speed Insights,
 //     the Grok App Builder bridge) are aborted at the network layer: they
 //     can neither change the render nor flake it.
-//   - Google Fonts are loaded for real and explicitly awaited (every
-//     family/weight the app uses) before each screenshot.  Aborting them
-//     was tried first, but then text fell back to system fonts — and the
-//     GitHub runner's system fonts differ from the baseline machine's, so
-//     every text pixel drifted in CI.  Identical webfonts on both sides is
-//     the only cross-environment-stable choice.
+//   - Google Fonts are served from committed fixtures, never the network.
+//     tests/e2e/fixtures/fonts/ holds the exact css2 response plus every
+//     woff2 it references for the app's font URL (see src/routes/__root.tsx),
+//     fetched once with a Chrome-on-Linux UA.  Serving byte-identical files
+//     on both sides is the only cross-environment-stable choice: aborting
+//     fonts fell back to system fonts (different on the baseline machine
+//     vs the CI runner), and even loading them live from Google is fragile —
+//     the css2 API can serve different files per UA/region over time, and a
+//     font outage would silently render fallback text.  (document.fonts.load
+//     resolves with an empty array, never rejects, on failure — the wait
+//     below asserts at least one face actually reached "loaded".)
+//   - Chromium's font rendering is pinned to OS-independent settings
+//     (--disable-lcd-text, --font-render-hinting=none,
+//     --disable-font-subpixel-positioning in playwright.config.ts).
+//     Chrome-for-Testing links the OS libfreetype/libfontconfig/
+//     libharfbuzz, whose defaults (subpixel order, hintstyle, fractional
+//     advances) differ between the baseline machine and the CI runner and
+//     shifted every glyph by subpixels.  Grayscale, unhinted, integer-
+//     positioned text renders identically from identical font files.
+//   - The "⚡" in the home page's SCAN MARKET button is not in IBM Plex
+//     Sans, so it falls back to a system symbol/emoji font that differs
+//     per machine; it is wrapped in a span and masked (the app cannot
+//     control that glyph, and it renders differently on every user's
+//     machine anyway).
 //   - TanStack Start server functions (`/_serverFn/**`) are aborted.  The
 //     home page's MarketBoard and Scanner, and the install page's phone
 //     mockup, all fire live market scans on mount; aborting forces their
@@ -40,7 +61,41 @@ import { test, expect, type Page } from "@playwright/test";
 //   - /privacy-policy 301-redirects to /privacy.
 test.use({ animations: "disabled" });
 
+// Committed webfont fixtures (see the header comment): serve the exact
+// Google Fonts CSS + woff2 files locally so no test depends on the network
+// for fonts.
+const fontsDir = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "fixtures",
+  "fonts",
+);
+const fontsCss = readFileSync(join(fontsDir, "fonts.css"), "utf8");
+function fontFixturePath(url: string): string | null {
+  const file = join(
+    fontsDir,
+    url.replace("https://fonts.gstatic.com/", "").replaceAll("/", "_"),
+  );
+  return existsSync(file) ? file : null;
+}
+
+async function serveLocalFonts(page: Page): Promise<void> {
+  await page.route("https://fonts.googleapis.com/css2**", (route) =>
+    route.fulfill({ contentType: "text/css", body: fontsCss }),
+  );
+  await page.route("https://fonts.gstatic.com/**", async (route) => {
+    const file = fontFixturePath(route.request().url());
+    // Every URL referenced by the fixture CSS has a committed file; abort
+    // loudly on anything unexpected rather than hitting the network.
+    if (file) {
+      await route.fulfill({ contentType: "font/woff2", path: file });
+    } else {
+      await route.abort();
+    }
+  });
+}
+
 test.beforeEach(async ({ page }) => {
+  await serveLocalFonts(page);
   await page.route("https://va.vercel-scripts.com/**", (route) => route.abort());
   await page.route("https://vitals.vercel-insights.com/**", (route) => route.abort());
   await page.route("https://grok.com/grok-app-builder/**", (route) => route.abort());
@@ -68,11 +123,11 @@ async function gotoSettled(
     // between flakes the header pixels, so wait for the settled state.
     await page.getByRole("button", { name: "Menu" }).waitFor({ timeout: 15000 });
   }
-  // Web fonts must be fully loaded before the screenshot: with identical
-  // webfont files on both sides, text renders the same locally and in CI.
-  // document.fonts.ready alone is not enough — explicitly load every
-  // family/weight the app uses (see the Google Fonts URL in
-  // src/routes/__root.tsx), then wait for the set to settle.
+  // Web fonts must be fully loaded before the screenshot.  They are served
+  // from committed fixtures (see serveLocalFonts), so the bytes are
+  // identical locally and in CI — explicitly load every family/weight the
+  // app uses (see the Google Fonts URL in src/routes/__root.tsx), then wait
+  // for the set to settle.
   await page.evaluate(async () => {
     const faces = [
       "500 16px Fraunces",
@@ -91,8 +146,53 @@ async function gotoSettled(
         setTimeout(() => reject(new Error("webfont load timed out")), 30000),
       ),
     ]);
+    // document.fonts.load() resolves with an empty array when the font
+    // request fails — it never rejects.  Without this check a blocked
+    // fonts.googleapis.com would silently fall back to system fonts and
+    // produce environment-dependent pixels instead of failing loudly.
+    const loadedCount = [...document.fonts].filter(
+      (f) => f.status === "loaded",
+    ).length;
+    if (loadedCount === 0) {
+      throw new Error(
+        "expected webfonts to load, but no font faces reached 'loaded'",
+      );
+    }
   });
   await page.waitForTimeout(500);
+}
+
+// The "⚡" in the SCAN MARKET button is not in IBM Plex Sans, so it falls
+// back to a system symbol/emoji font — Noto Color Emoji on one machine, a
+// monochrome symbol font on another.  The app cannot control that glyph,
+// so wrap it and mask it: everything else on the page stays asserted.
+async function maskZapGlyph(page: Page): Promise<Locator> {
+  await page.evaluate(() => {
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+    );
+    const targets: Text[] = [];
+    while (walker.nextNode()) {
+      const node = walker.currentNode as Text;
+      if (node.nodeValue?.includes("⚡")) targets.push(node);
+    }
+    for (const node of targets) {
+      const fragment = document.createDocumentFragment();
+      const parts = node.nodeValue!.split("⚡");
+      parts.forEach((part, i) => {
+        if (part) fragment.appendChild(document.createTextNode(part));
+        if (i < parts.length - 1) {
+          const span = document.createElement("span");
+          span.setAttribute("data-visual-zap", "");
+          span.textContent = "⚡";
+          fragment.appendChild(span);
+        }
+      });
+      node.replaceWith(fragment);
+    }
+  });
+  return page.locator("[data-visual-zap]");
 }
 
 test("home: full-page screenshot", async ({ page }) => {
@@ -107,9 +207,10 @@ test("home: full-page screenshot", async ({ page }) => {
       has: page.getByRole("heading", { name: "A few cards on TCGPlayer" }),
     })
     .locator("div.grid");
+  const zap = await maskZapGlyph(page);
   await expect(page, "home page should match the committed baseline").toHaveScreenshot(
     "home-full.png",
-    { fullPage: true, mask: [boardGrid] },
+    { fullPage: true, mask: [boardGrid, zap] },
   );
 });
 
