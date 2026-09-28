@@ -11,6 +11,6 @@ production deploy environment markers.
 npx @sentry/cli releases deploys "$VERSION" new -e production
 ```
 
-with `VERSION=$GITHUB_SHA` (40-char), `SENTRY_ORG=jays-services`,
+with `VERSION=$GITHUB_SHA` (40-char), `SENTRY_ORG=simple-with-us`,
 `SENTRY_PROJECT=dealdex`.  It does **not** call `releases new` (avoids fighting
 the integration / SDK).  Failures warn and exit 0.
