@@ -12,8 +12,17 @@ function read(rel: string): string {
 
 test("package.json ships @sentry/node next to @sentry/react", () => {
   const pkg = read("package.json");
-  assert.match(pkg, /"@sentry\/node":\s*"\^10\./);
-  assert.match(pkg, /"@sentry\/react":\s*"\^10\./);
+  // Both Sentry SDKs must stay on the same major: the v10 -> v11 bump breaks
+  // the build if they drift apart, and it removed `enableLogs` from
+  // BrowserOptions. Pin the major rather than an exact version so a patch
+  // bump does not need a test edit.
+  const major = (name: string) => {
+    const m = pkg.match(new RegExp(`"${name}":\\s*"\\^(\\d+)\\.`));
+    assert.ok(m, `${name} not found in package.json`);
+    return m[1];
+  };
+  assert.equal(major("@sentry/node"), major("@sentry/react"));
+  assert.equal(major("@sentry/react"), "11", "expected the v11 Sentry bump");
 });
 
 test("privacy discloses Sentry scan-hop traces without listing titles", () => {
@@ -36,7 +45,11 @@ test("Replay stays 100% on error, 10% session, masked, with Feedback widget", ()
   assert.match(src, /formTitle:\s*"Report a Problem"/);
   assert.match(src, /export function openSentryFeedback/);
   assert.match(src, /colorScheme:\s*"light"/);
-  assert.match(src, /enableLogs:\s*true/);
+  // The Sentry v11 SDK no longer accepts the top-level option that enabled
+  // logs in v10; it is unconditional there, so the init call must not set it.
+  // Assert on the call body only, so this rule is not confused by prose.
+  const initBody = src.slice(src.indexOf("Sentry.init("), src.indexOf("initialized = true"));
+  assert.doesNotMatch(initBody, /enableLogs/);
 });
 
 test("iOS Cocoa reads SENTRY_DSN from Info.plist only", () => {

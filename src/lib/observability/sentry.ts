@@ -8,6 +8,12 @@
  * public congress.trade surface; reserved Replay quota is org-level.
  * User Feedback is the consumer widget (auto-injected).  Privacy: mask
  * all text and block all media on Replay.
+ *
+ * Logs: Sentry v11 removed the top-level `enableLogs` option.  Logs are now
+ * always on in v11 (the flush pipeline is unconditional), so no flag is set
+ * here.  Console calls are still captured as breadcrumbs by the default
+ * `consoleIntegration`; to send them as Sentry *logs* instead, add
+ * `Sentry.consoleLoggingIntegration()` to `integrations`.
  */
 
 import * as Sentry from "@sentry/react";
@@ -40,7 +46,6 @@ export function initSentry(): void {
     dsn,
     environment: env,
     tracesSampleRate: Number.isFinite(tracesSampleRate) ? Math.min(Math.max(tracesSampleRate, 0), 1) : 0.2,
-    enableLogs: true,
     replaysSessionSampleRate: !replayDisabled && Number.isFinite(replaysSessionSampleRate) ? replaysSessionSampleRate : 0,
     replaysOnErrorSampleRate: !replayDisabled && Number.isFinite(replaysOnErrorSampleRate) ? replaysOnErrorSampleRate : 0,
     integrations: [
