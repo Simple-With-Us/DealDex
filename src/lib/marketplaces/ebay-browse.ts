@@ -29,6 +29,7 @@ import {
   titleMatchesQuery,
 } from "./html";
 import type { LiveListing } from "./types";
+import { defaultServerEnv } from "@/lib/server/app-settings";
 
 export const EBAY_BROWSE_SCOPE = "https://api.ebay.com/oauth/api_scope/buy.item.feed";
 const TOKEN_URL = "https://api.ebay.com/identity/v1/oauth2/token";
@@ -60,7 +61,7 @@ export type EbayBrowseConfig = {
   searchUrl?: string;
 };
 
-export function readEbayBrowseConfig(env: Record<string, string | undefined> = process.env): EbayBrowseConfig | null {
+export function readEbayBrowseConfig(env: Record<string, string | undefined> = defaultServerEnv()): EbayBrowseConfig | null {
   const appId = env.EBAY_APP_ID?.trim();
   const certId = env.EBAY_CERT_ID?.trim();
   if (!appId || !certId) return null;
@@ -75,7 +76,7 @@ export function readEbayBrowseConfig(env: Record<string, string | undefined> = p
   };
 }
 
-export function searchEbayBrowseEnabled(env: Record<string, string | undefined> = process.env): boolean {
+export function searchEbayBrowseEnabled(env: Record<string, string | undefined> = defaultServerEnv()): boolean {
   return Boolean(readEbayBrowseConfig(env));
 }
 
@@ -159,7 +160,7 @@ export type EbayBrowseSearchResult = {
 export async function searchEbayBrowsePage(
   query: string,
   options: EbayBrowseSearchOptions = {},
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = defaultServerEnv(),
   fetchImpl: typeof fetch = fetch,
 ): Promise<EbayBrowseSearchResult> {
   const cfg = readEbayBrowseConfig(env);
@@ -216,7 +217,7 @@ export async function searchEbayBrowsePage(
 export async function searchEbayBrowse(
   query: string,
   cap = 50,
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = defaultServerEnv(),
   fetchImpl: typeof fetch = fetch,
 ): Promise<LiveListing[]> {
   if (cap <= 0) return [];

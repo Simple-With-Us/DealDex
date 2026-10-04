@@ -203,6 +203,16 @@ Infisical is the sole source of truth for app runtime secrets when they exist.
 `infisical secrets` (it prints values). Use
 `scripts/infisical-secrets-safe.sh` when that helper is vendored here.
 
+App-level settings (secrets, env config, tunable knobs) live in the DealDex
+Infisical project and are loaded at startup into an in-memory cache — see
+`INFISICAL.md` (key inventory, per-user boundary, cache/refresh/write-through
+contract, rotation notes).  Server code reads them via
+`src/lib/server/app-settings.ts` (`getSetting` / `getNumberSetting` /
+`getBooleanSetting`); never add a new direct `process.env` read for an
+app-level setting — add a `SettingDef` and read through the settings module.
+Per-user settings (desk keys, alert rules, UI prefs) stay in the app's own
+stores and never go in Infisical.
+
 ## Delegation & model economics (fleet rule)
 
 - **Use sub-agents whenever they help.** Teams are the default for substantial work.

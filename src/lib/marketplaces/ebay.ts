@@ -10,6 +10,7 @@ import {
   titleMatchesQuery,
 } from "./html";
 import { fetchJina, parseJinaEbay } from "./jina";
+import { defaultServerEnv } from "@/lib/server/app-settings";
 import type { LiveListing } from "./types";
 import {
   filterBrowseByQuery,
@@ -32,8 +33,8 @@ export async function searchEbay(
 ): Promise<LiveListing[]> {
   // Per-user proxy override takes precedence over the server default.
   const env = options.userProxyUrl
-    ? { ...process.env, PROXY_URL_LIST: options.userProxyUrl }
-    : process.env;
+    ? { ...defaultServerEnv(), PROXY_URL_LIST: options.userProxyUrl }
+    : defaultServerEnv();
   // Try the official Browse API first when both keys are configured.  This
   // avoids the Vercel datacenter IP getting 403'd on the raw HTML scrape,
   // and gives paging up to ~50 listings per call across multiple pages.

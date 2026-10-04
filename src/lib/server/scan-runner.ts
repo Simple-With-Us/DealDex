@@ -20,10 +20,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { scanAndScore } from "@/lib/marketplaces/scan";
-import {
-  DEFAULT_AUTO_BUY,
-  type AlertRule,
-} from "@/lib/alerts/types";
+import { type AlertRule, type AutoBuyConfig } from "@/lib/alerts/types";
 import { listingMatchesRule } from "@/lib/alerts/match";
 import type { ScanSource } from "@/lib/marketplaces/types";
 import { evaluateAutoBuy } from "./auto-buy";
@@ -31,8 +28,20 @@ import { loadAlertRules, persistScanRun, listScanRunsSince, type AlertRuleRow } 
 import { fetchWithPool } from "./proxy-pool";
 import { loadRunUserCredentials } from "./user-settings-store";
 import { fetchUserDeskKeys } from "./desk-keys";
+import {
+  getBooleanSetting,
+  getNumberSetting,
+  initAppSettings,
+  serverAutoBuyDefaults,
+} from "./app-settings";
 
-const MAX_ROWS_PER_RUN = 50;
+/**
+ * Max alert-rule rows evaluated per runner tick.  Tunable without a deploy
+ * via the SCAN_MAX_ROWS_PER_RUN knob (Infisical).  Default 50.
+ */
+function maxRowsPerRun(): number {
+  return getNumberSetting("SCAN_MAX_ROWS_PER_RUN", 50);
+}
 
 type RunnerInput = {
   /** When false, the runner only re-evaluates rows already on the scan_run record. */
@@ -63,6 +72,14 @@ function rowToAlertRule(row: AlertRuleRow): AlertRule {
       v === "steal" || v === "good" || v === "fair" || v === "pass",
   );
   const ab = row.auto_buy as Partial<AlertRule["autoBuy"]> | null;
+  // Server-side rule defaults come from the Infisical-tunable knobs
+  // (AUTO_BUY_DEFAULT_*); the client keeps its own DEFAULT_AUTO_BUY copy.
+  const autoBuyDefaults: AutoBuyConfig = {
+    enabled: false,
+    dryRun: true,
+    marketplace: "ebay",
+    ...serverAutoBuyDefaults(),
+  };
   return {
     id: row.id,
     enabled: row.enabled,
@@ -83,7 +100,7 @@ function rowToAlertRule(row: AlertRuleRow): AlertRule {
     phone: row.phone,
     pushoverUser: row.pushover_user,
     pushoverToken: row.pushover_token,
-    autoBuy: ab ? { ...DEFAULT_AUTO_BUY, ...ab, marketplace: "ebay" } : { ...DEFAULT_AUTO_BUY },
+    autoBuy: ab ? { ...autoBuyDefaults, ...ab, marketplace: "ebay" } : { ...autoBuyDefaults },
   };
 }
 
@@ -94,6 +111,7 @@ export const runScanRunner = createServerFn({ method: "POST" })
     cursorMs: typeof input.cursorMs === "number" ? input.cursorMs : 0,
   }))
   .handler(async ({ data }): Promise<ScanRunnerOutput> => {
+    await initAppSettings();
     const rules = await loadAlertRules();
     const now = Date.now();
     const cursorMs = data.cursorMs || 0;
@@ -127,8 +145,14 @@ export const runScanRunner = createServerFn({ method: "POST" })
       // and stays safe.  Future work: load the eBay refresh token, refresh
       // the access token, and call the eBay Order API on `accepted` rows.
       const userCreds = await loadRunUserCredentials(rawRule.user_id, ruleStartedAt);
+      // AUTO_BUY_DRY_RUN_FORCE is the global safety kill-switch (Infisical
+      // knob): when true, every evaluation stays in dry-run no matter what
+      // the rule config says.
       const isDryRun =
-        rule.autoBuy.dryRun || !userCreds.has_ebay || userCreds.ebay_oauth_expired;
+        getBooleanSetting("AUTO_BUY_DRY_RUN_FORCE", false) ||
+        rule.autoBuy.dryRun ||
+        !userCreds.has_ebay ||
+        userCreds.ebay_oauth_expired;
       if (!userCreds.has_ebay) {
         console.warn(
           `[scan.runner.no_credentials] rule=${rule.id} user=${rawRule.user_id} reason=ebay_not_connected`,
@@ -158,7 +182,7 @@ export const runScanRunner = createServerFn({ method: "POST" })
         let rejected = 0;
         let totalCents = 0;
         const candidateRows = scored.filter((row) => row.listing.marketplace === rule.autoBuy.marketplace);
-        for (const row of candidateRows.slice(0, MAX_ROWS_PER_RUN)) {
+        for (const row of candidateRows.slice(0, maxRowsPerRun())) {
           if (!listingMatchesRule(row, rule)) {
             rejected += 1;
             continue;

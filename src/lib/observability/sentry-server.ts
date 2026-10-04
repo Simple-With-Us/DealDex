@@ -9,6 +9,8 @@
  * and CI stay free of the Node SDK.
  */
 
+import { defaultServerEnv } from "@/lib/server/app-settings";
+
 export const SCAN_SPAN = {
   parent: "scan",
   ebay: "scan.ebay",
@@ -100,14 +102,14 @@ let injected: SentryLike | null = null;
 let loadPromise: Promise<SentryLike | null> | undefined;
 let initialized = false;
 
-export function sentryServerDsn(env: EnvMap = process.env): string | undefined {
+export function sentryServerDsn(env: EnvMap = defaultServerEnv()): string | undefined {
   const sentry = env.SENTRY_DSN?.trim();
   if (sentry) return sentry;
   const vite = env.VITE_SENTRY_DSN?.trim();
   return vite || undefined;
 }
 
-export function sentryServerEnvironment(env: EnvMap = process.env): string {
+export function sentryServerEnvironment(env: EnvMap = defaultServerEnv()): string {
   return (
     env.SENTRY_ENV?.trim() ||
     env.VITE_SENTRY_ENV?.trim() ||
@@ -117,7 +119,7 @@ export function sentryServerEnvironment(env: EnvMap = process.env): string {
   );
 }
 
-export function sentryServerTracesSampleRate(env: EnvMap = process.env): number {
+export function sentryServerTracesSampleRate(env: EnvMap = defaultServerEnv()): number {
   const raw = Number((env.SENTRY_TRACES_SAMPLE_RATE ?? "0.2").trim());
   return Number.isFinite(raw) ? Math.min(Math.max(raw, 0), 1) : 0.2;
 }
@@ -181,7 +183,7 @@ async function loadSentry(env: EnvMap): Promise<SentryLike | null> {
   }
 }
 
-export async function initSentryServer(env: EnvMap = process.env): Promise<boolean> {
+export async function initSentryServer(env: EnvMap = defaultServerEnv()): Promise<boolean> {
   if (injected) return true;
   if (sdk && initialized) return true;
   if (!loadPromise) loadPromise = loadSentry(env);
@@ -189,7 +191,7 @@ export async function initSentryServer(env: EnvMap = process.env): Promise<boole
   return Boolean(loaded);
 }
 
-async function ensureSentry(env: EnvMap = process.env): Promise<SentryLike | null> {
+async function ensureSentry(env: EnvMap = defaultServerEnv()): Promise<SentryLike | null> {
   if (injected) return injected;
   if (sdk) return sdk;
   if (!loadPromise) loadPromise = loadSentry(env);
