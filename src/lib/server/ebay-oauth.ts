@@ -31,6 +31,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { upsertUserSettings } from "./user-settings-store";
+import { defaultServerEnv } from "./app-settings";
 
 const PROD_AUTH = "https://auth.ebay.com/oauth2/authorize";
 const PROD_TOKEN = "https://api.ebay.com/identity/v1/oauth2/token";
@@ -42,7 +43,7 @@ const SCOPES = [
   "https://api.ebay.com/oauth/api_scope/buy.order",
 ];
 
-export function readEbayOAuthConfig(env: Record<string, string | undefined> = process.env): {
+export function readEbayOAuthConfig(env: Record<string, string | undefined> = defaultServerEnv()): {
   appId: string;
   certId: string;
   redirectUri: string;
@@ -222,7 +223,7 @@ export const callbackEbayOAuth = createServerFn({ method: "POST" })
  */
 export async function refreshEbayAccessToken(
   refreshToken: string,
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = defaultServerEnv(),
 ): Promise<{ access_token: string; expires_in: number } | null> {
   const cfg = readEbayOAuthConfig(env);
   if (!cfg) return null;

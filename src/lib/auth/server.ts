@@ -38,6 +38,12 @@ import { SOCIAL_PROVIDERS } from "./providers";
 import { socialProviderConfig } from "./social";
 import { pgliteDialect } from "./pglite-dialect";
 import { PREVIEW_ALLOWED_HOSTS } from "./preview";
+import { getSetting, initAppSettings } from "../server/app-settings";
+
+// App-level settings (Infisical sole source of truth — see INFISICAL.md).
+// Loads the Infisical cache before anything below reads a setting, so
+// Infisical-provided values win over the import-time environment.
+await initAppSettings();
 
 // Kick (and share) PGLite bootstrap as soon as the auth server module loads.
 void ensureDbReady();
@@ -56,11 +62,8 @@ function previewAuthSecret(): string {
   return globalAuthRef.__grokAuthPreviewSecret__;
 }
 
-/** Read an env var, treating empty/whitespace as unset. */
-const env = (key: string): string | undefined => {
-  const value = process.env[key]?.trim();
-  return value ? value : undefined;
-};
+/** Read an app-level setting: Infisical cache → process.env → schema default. Empty/whitespace counts as unset. */
+const env = (key: string): string | undefined => getSetting(key);
 
 // Explicit off-switch. The deployer sets `VITE_AUTH_ENABLED=true` when it
 // provisions auth; set it to "false" to force auth off everywhere (dev user).

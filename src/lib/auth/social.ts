@@ -1,10 +1,12 @@
 import type { SocialProviderId } from "./providers";
+import { getSetting } from "../server/app-settings";
 
 type Pair = { clientId: string; clientSecret: string };
 
+/** First set candidate: Infisical cache → process.env → schema default. */
 function firstEnv(...keys: string[]): string | undefined {
   for (const k of keys) {
-    const val = process.env[k]?.trim();
+    const val = getSetting(k);
     if (val) return val;
   }
   return undefined;
@@ -12,8 +14,8 @@ function firstEnv(...keys: string[]): string | undefined {
 
 function resolvePair(candidatePairs: Array<[idKey: string, secretKey: string]>): Pair | undefined {
   for (const [idKey, secretKey] of candidatePairs) {
-    const clientId = process.env[idKey]?.trim();
-    const clientSecret = process.env[secretKey]?.trim();
+    const clientId = getSetting(idKey);
+    const clientSecret = getSetting(secretKey);
     if (clientId && clientSecret) {
       return { clientId, clientSecret };
     }

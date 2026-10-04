@@ -9,9 +9,11 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { runScanRunner } from "@/lib/server/scan-runner";
+import { getSetting, initAppSettings } from "@/lib/server/app-settings";
 
 function checkRunnerToken(req: Request): boolean {
-  const expected = process.env.SCAN_RUNNER_TOKEN?.trim();
+  // Infisical sole source of truth — SCAN_RUNNER_TOKEN lives there (see INFISICAL.md).
+  const expected = getSetting("SCAN_RUNNER_TOKEN");
   if (!expected) return false;
   const header = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "").trim();
   return Boolean(header && header === expected);
@@ -29,6 +31,7 @@ export const Route = createFileRoute("/api/alerts/run")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        await initAppSettings();
         if (!checkRunnerToken(request)) {
           return Response.json({ error: "unauthorized" }, { status: 401 });
         }
