@@ -10,6 +10,7 @@ import {
 } from "./html";
 import { fetchJina, parseJinaMercari } from "./jina";
 import type { LiveListing } from "./types";
+import { parseMercariSellerFromText } from "./seller";
 
 export const MERCARI_SCAN_CAP = 50;
 
@@ -74,6 +75,7 @@ export function parseDdgMercari(html: string, query = ""): LiveListing[] {
       shippingEstimated: true,
       image: null,
       listedAt: parseListedAt(snippet),
+      seller: parseMercariSellerFromText(snippet),
     });
   }
   return out;

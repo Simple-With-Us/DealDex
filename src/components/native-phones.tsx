@@ -214,11 +214,28 @@ function ScanPane({
                   platform === "ios" ? "rounded-xl" : "rounded-md",
                 )}
               >
-                <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-subtle">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-subtle flex-wrap">
                   <MarketplaceLogo
                     marketplace={row.listing.marketplace === "ebay" ? "ebay" : "mercari"}
                   />
                   {v && <span className={tone}>{v}</span>}
+                  {row.listing.seller?.label && (
+                    <span
+                      className={cn(
+                        "text-[10px] font-medium px-1.5 py-0.2 rounded-sm lowercase tracking-normal",
+                        row.listing.seller.reputation === "top_rated" ||
+                          row.listing.seller.reputation === "trusted"
+                          ? "bg-deal-good/15 text-deal-good"
+                          : row.listing.seller.reputation === "new"
+                            ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                            : row.listing.seller.reputation === "low_rated"
+                              ? "bg-deal-bad/15 text-deal-bad"
+                              : "text-subtle",
+                      )}
+                    >
+                      {row.listing.seller.label}
+                    </span>
+                  )}
                 </div>
                 <p className="mt-0.5 line-clamp-2 text-xs leading-snug">{row.listing.title}</p>
                 {row.card && (

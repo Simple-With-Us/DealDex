@@ -125,6 +125,28 @@ describe("parseEbayBrowseItem", () => {
     assert.equal(row!.listedAt, "2026-09-19T12:00:00Z");
   });
 
+  test("parses seller information and maps reputation", () => {
+    const row = parseEbayBrowseItem({
+      itemId: "v1|456|0",
+      title: "Pikachu Illustrator Holo",
+      price: { value: "1000.00", currency: "USD" },
+      itemWebUrl: "https://www.ebay.com/itm/456",
+      seller: {
+        username: "pro_tcg",
+        feedbackPercentage: "99.8",
+        feedbackScore: 3200,
+      },
+      topRatedBuyingExperience: true,
+    });
+    assert.ok(row);
+    assert.ok(row!.seller);
+    assert.equal(row!.seller!.username, "pro_tcg");
+    assert.equal(row!.seller!.feedbackScore, 3200);
+    assert.equal(row!.seller!.feedbackPercent, 99.8);
+    assert.equal(row!.seller!.reputation, "top_rated");
+    assert.equal(row!.seller!.label, "Top Rated (99.8% · 3.2k)");
+  });
+
   it("rejects SKIP_LISTING titles", () => {
     assert.equal(
       parseEbayBrowseItem({ itemId: "1", title: "Choose Your Own Booster Box", price: { value: "10" } }),

@@ -1,4 +1,5 @@
 import type { LiveListing, ScanSource } from "./types";
+import { parseEbaySellerFromText, parseMercariSellerFromText } from "./seller";
 import {
   BROWSER_HEADERS,
   SKIP_LISTING,
@@ -75,6 +76,10 @@ export function parseBraveListings(
       shippingEstimated: ship.estimated,
       image,
       listedAt: parseListedAt(block),
+      seller:
+        marketplace === "ebay"
+          ? parseEbaySellerFromText(block)
+          : parseMercariSellerFromText(block),
     });
     if (out.length >= 12) break;
   }

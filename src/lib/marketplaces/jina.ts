@@ -1,4 +1,5 @@
 import type { LiveListing } from "./types";
+import { parseEbaySellerFromText, parseMercariSellerFromText } from "./seller";
 import {
   ASSUMED_SHIPPING,
   SKIP_LISTING,
@@ -85,6 +86,7 @@ export function parseJinaEbay(md: string, query: string): LiveListing[] {
       shippingEstimated: ship.estimated,
       image: img,
       listedAt: parseListedAt(chunk),
+      seller: parseEbaySellerFromText(chunk),
     });
     if (out.length >= 16) break;
   }
@@ -119,6 +121,7 @@ export function parseJinaMercari(md: string, query: string): LiveListing[] {
       shippingEstimated: true,
       image: img,
       listedAt: parseListedAt(text),
+      seller: parseMercariSellerFromText(text || inner),
     });
     if (out.length >= 16) break;
   }

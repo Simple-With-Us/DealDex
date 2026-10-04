@@ -28,7 +28,8 @@ import {
   parseMoney,
   titleMatchesQuery,
 } from "./html";
-import type { LiveListing } from "./types";
+import type { LiveListing, SellerInfo } from "./types";
+import { deriveSellerReputation } from "./seller";
 import { defaultServerEnv } from "@/lib/server/app-settings";
 
 export const EBAY_BROWSE_SCOPE = "https://api.ebay.com/oauth/api_scope/buy.item.feed";
@@ -256,7 +257,12 @@ type EbayBrowseItem = {
   condition?: unknown;
   conditionId?: unknown;
   buyingOptions?: unknown;
-  seller?: { username?: unknown; feedbackPercentage?: unknown };
+  seller?: {
+    username?: unknown;
+    feedbackPercentage?: unknown;
+    feedbackScore?: unknown;
+  };
+  topRatedBuyingExperience?: unknown;
 };
 
 type EbayBrowseResponse = {
@@ -291,6 +297,37 @@ export function parseEbayBrowseItem(item: EbayBrowseItem): LiveListing | null {
       : null;
   const buyingOptions = Array.isArray(item.buyingOptions) ? (item.buyingOptions as string[]) : [];
   const fixed = buyingOptions.includes("FIXED");
+
+  const sellerRaw = item.seller;
+  let seller: SellerInfo | null = null;
+  if (sellerRaw && typeof sellerRaw === "object") {
+    const username = typeof sellerRaw.username === "string" ? sellerRaw.username : null;
+    const scoreVal = sellerRaw.feedbackScore;
+    const feedbackScore =
+      typeof scoreVal === "number" && Number.isFinite(scoreVal)
+        ? scoreVal
+        : typeof scoreVal === "string"
+          ? parseInt(scoreVal.replace(/,/g, ""), 10) || null
+          : null;
+    const pctVal = sellerRaw.feedbackPercentage;
+    const feedbackPercent =
+      typeof pctVal === "number" && Number.isFinite(pctVal)
+        ? pctVal
+        : typeof pctVal === "string"
+          ? parseFloat(pctVal) || null
+          : null;
+    const isTopRated = item.topRatedBuyingExperience === true;
+    if (username || feedbackScore != null || feedbackPercent != null || isTopRated) {
+      seller = deriveSellerReputation({
+        marketplace: "ebay",
+        username,
+        feedbackScore,
+        feedbackPercent,
+        isTopRated,
+      });
+    }
+  }
+
   return {
     id,
     marketplace: "ebay",
@@ -301,6 +338,7 @@ export function parseEbayBrowseItem(item: EbayBrowseItem): LiveListing | null {
     shippingEstimated: !firstShipping(item.shippingOptions),
     image,
     listedAt,
+    seller,
     ...(fixed ? {} : {}),
   };
 }
