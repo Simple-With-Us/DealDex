@@ -1,4 +1,4 @@
-DealDex: https://github.com/jaywedgeworth22/DealDex
+DealDex: https://github.com/Simple-With-Us/DealDex
 
 Read AGENTS.md and CONTRIBUTING.md first.  Work on your seat prefix
 (`grok-build/` for Grok Build, `grok/` for Mac Grok, `claude/`, `cursor/`, …).

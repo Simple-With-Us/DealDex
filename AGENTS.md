@@ -9,7 +9,7 @@ so. The **website** scan runs server-side and does send the browser's saved
 keys; keep those two statements distinct in any copy you write. Sign-in is
 optional for backup, and backed-up keys are encrypted at rest.
 
-GitHub: `jaywedgeworth22/DealDex` (public). Integration tree:
+GitHub: `Simple-With-Us/DealDex` (public). Integration tree:
 `/Users/jay/Code/DealDex`. Slack `repo:` name: **`DealDex`**. Acronym: **`DD`**.
 
 Read this before making changes. It exists so the next agent (Claude, Codex,
@@ -101,11 +101,11 @@ finished work".
 
 | What | Live / repo path | GitHub |
 |------|------------------|--------|
-| Protocol | `/Users/jay/apps/AGENT-SYNC.md` | https://github.com/jaywedgeworth22/ai-fleet-coordinator/blob/main/AGENT-SYNC.md |
-| Effort boards | `/Users/jay/apps/EFFORT-LOG-PROTOCOL.md` | https://github.com/jaywedgeworth22/ai-fleet-coordinator/blob/main/EFFORT-LOG-PROTOCOL.md |
-| New app | `/Users/jay/Code/ai-fleet-coordinator/docs/ONBOARDING-NEW-APP.md` | https://github.com/jaywedgeworth22/ai-fleet-coordinator/blob/main/docs/ONBOARDING-NEW-APP.md |
-| New seat | `/Users/jay/Code/ai-fleet-coordinator/docs/ONBOARDING-NEW-AGENT.md` | https://github.com/jaywedgeworth22/ai-fleet-coordinator/blob/main/docs/ONBOARDING-NEW-AGENT.md |
-| UI copy | `/Users/jay/apps/FLEET-UI-COPY.md` | https://github.com/jaywedgeworth22/ai-fleet-coordinator/blob/main/FLEET-UI-COPY.md |
+| Protocol | `/Users/jay/apps/AGENT-SYNC.md` | https://github.com/Simple-With-Us/AI-Fleet-Coordinator/blob/main/AGENT-SYNC.md |
+| Effort boards | `/Users/jay/apps/EFFORT-LOG-PROTOCOL.md` | https://github.com/Simple-With-Us/AI-Fleet-Coordinator/blob/main/EFFORT-LOG-PROTOCOL.md |
+| New app | `/Users/jay/Code/ai-fleet-coordinator/docs/ONBOARDING-NEW-APP.md` | https://github.com/Simple-With-Us/AI-Fleet-Coordinator/blob/main/docs/ONBOARDING-NEW-APP.md |
+| New seat | `/Users/jay/Code/ai-fleet-coordinator/docs/ONBOARDING-NEW-AGENT.md` | https://github.com/Simple-With-Us/AI-Fleet-Coordinator/blob/main/docs/ONBOARDING-NEW-AGENT.md |
+| UI copy | `/Users/jay/apps/FLEET-UI-COPY.md` | https://github.com/Simple-With-Us/AI-Fleet-Coordinator/blob/main/FLEET-UI-COPY.md |
 
 ## Grok Build (App Builder preview)
 
@@ -117,7 +117,7 @@ Same fleet rules as every other seat: rebase onto `origin/main`, work on a
 STATUS rows **GROK-BUILD**. If the sandbox drifted from GitHub, GitHub wins.
 After merge, Mac Grok should pull `~/apps/dealdex-grok` so the worktree matches.
 
-Live hosting is **not** this preview. The public site is dealdex.net; local host and deploy rules: `docs/HOSTING.md`. For fleet-wide hosting and routing, see [`Fleet-OPS/docs/DOMAINS-AND-ROUTING.md`](https://github.com/jaywedgeworth22/Fleet-OPS/blob/main/docs/DOMAINS-AND-ROUTING.md).
+Live hosting is **not** this preview. The public site is dealdex.net; local host and deploy rules: `docs/HOSTING.md`. For fleet-wide hosting and routing, see [`Fleet-OPS/docs/DOMAINS-AND-ROUTING.md`](https://github.com/Simple-With-Us/Fleet-OPS/blob/main/docs/DOMAINS-AND-ROUTING.md).
 
 Do not add a second Grok Build seat. Do not push `main` from this preview.
 

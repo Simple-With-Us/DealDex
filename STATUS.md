@@ -590,7 +590,7 @@ Updated: 2026-08-25 (CURSOR — pin AppUpdatePrompt.swift; Apple IDs off Swift)
 
 ## Current state
 
-- GitHub: `jaywedgeworth22/DealDex` (public).  Integration tree:
+- GitHub: `Simple-With-Us/DealDex` (public).  Integration tree:
   `/Users/jay/Code/DealDex` stays on `origin/main` (do not edit there).
 - Fleet member: acronym **DD**, Slack `repo: DealDex`, live board
   `~/apps/DEALDEX-EFFORT-LOG.md`.
