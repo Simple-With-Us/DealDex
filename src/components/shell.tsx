@@ -66,7 +66,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <p>Grade multipliers are estimates.  Confirm authenticity before you buy.</p>
             <a
               href="https://simplewithus.com/"
-              className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-subtle transition-colors hover:text-fg focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-subtle transition-colors hover:text-fg focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 no-underline hover:no-underline"
               aria-label="From Simple With Us"
             >
               <span>From</span>
