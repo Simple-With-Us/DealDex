@@ -18,6 +18,7 @@ import { cardImageUrl, cn, formatUsd } from "@/lib/utils";
 import { PriceRangeBar } from "@/components/price-range";
 import { MarketplaceLogo, MarketplaceToggle } from "@/components/market-logo";
 import { PriceSpark } from "@/components/price-spark";
+import { SellerBadge } from "@/components/seller-badge";
 import {
   formatAge,
   loadScanCache,
@@ -32,6 +33,7 @@ type PriceFilter = "any" | "25" | "50" | "100" | "250";
 type ConditionFilter = "any" | "raw" | "graded";
 type SpreadFilter = "any" | "10" | "20" | "40";
 type FinishFilter = "any" | "holo" | "reverse" | "promo";
+type SellerFilter = "any" | "top_rated" | "trusted" | "hide_risky";
 
 /** A listing the desks say is under the book. */
 function isDeal(row: ScoredListing) {
@@ -68,6 +70,7 @@ export function Scanner() {
   const [condition, setCondition] = useState<ConditionFilter>("any");
   const [spreadMin, setSpreadMin] = useState<SpreadFilter>("any");
   const [finish, setFinish] = useState<FinishFilter>("any");
+  const [sellerFilter, setSellerFilter] = useState<SellerFilter>("any");
   const [hideRepacks, setHideRepacks] = useState(true);
   const scanReqIdRef = useRef(0);
 
@@ -156,9 +159,25 @@ export function Scanner() {
         const blob = `${row.listing.title} ${row.parsed.finishHint ?? ""}`.toLowerCase();
         if (!blob.includes(finish)) return false;
       }
+      if (sellerFilter === "top_rated" && row.listing.seller?.reputation !== "top_rated") {
+        return false;
+      }
+      if (
+        sellerFilter === "trusted" &&
+        row.listing.seller?.reputation !== "top_rated" &&
+        row.listing.seller?.reputation !== "trusted"
+      ) {
+        return false;
+      }
+      if (
+        sellerFilter === "hide_risky" &&
+        (row.listing.seller?.reputation === "new" || row.listing.seller?.reputation === "low_rated")
+      ) {
+        return false;
+      }
       return true;
     });
-  }, [rows, view, verdict, priceCap, condition, spreadMin, finish, hideRepacks]);
+  }, [rows, view, verdict, priceCap, condition, spreadMin, finish, sellerFilter, hideRepacks]);
 
   const dealCount = rows?.filter(isDeal).length ?? 0;
   const verifiedCount = rows?.filter(isVerifiedDeal).length ?? 0;
@@ -259,7 +278,7 @@ export function Scanner() {
         )}
 
         {/* Filters Grid */}
-        <div className="grid min-w-0 grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6 items-end pt-1">
+        <div className="grid min-w-0 grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-7 items-end pt-1">
           <FilterSelect
             label="Verdict"
             value={verdict}
@@ -271,6 +290,17 @@ export function Scanner() {
               ["fair", "Fair Ask"],
               ["high", "High Ask"],
               ["avoid", "Overpriced"],
+            ]}
+          />
+          <FilterSelect
+            label="Seller"
+            value={sellerFilter}
+            onChange={setSellerFilter}
+            options={[
+              ["any", "Any Seller"],
+              ["top_rated", "Top Rated Only"],
+              ["trusted", "Trusted & Top"],
+              ["hide_risky", "Hide Risky"],
             ]}
           />
           <FilterSelect
@@ -477,6 +507,9 @@ function ScanRow({ row }: { row: ScoredListing }) {
           {copy && appraisal && (
             <Badge variant={verdictVariant(appraisal.verdict)}>{copy.label}</Badge>
           )}
+          {listing.seller && (
+            <SellerBadge seller={listing.seller} />
+          )}
           {appraisal?.isSuspiciousRepack && (
             <Badge variant="bad" title={appraisal.repackReason ?? undefined}>
               Repack / Proxy
@@ -507,10 +540,13 @@ function ScanRow({ row }: { row: ScoredListing }) {
         <p className="truncate text-xs text-subtle">
           {card ? `${card.name} · ${card.setName} #${card.localId}` : "No card match yet"}
         </p>
-        {(ageLabel || (memory && memory.prices.length > 1)) && (
+        {(ageLabel || (memory && memory.prices.length > 1) || listing.seller?.username) && (
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-subtle">
             {ageLabel && <span>{ageLabel}</span>}
             {memory && <PriceSpark ticks={memory.prices} />}
+            {listing.seller?.username && (
+              <span className="truncate">Seller: {listing.seller.username}</span>
+            )}
           </div>
         )}
         {appraisal?.conflict && appraisal.conflictDetail && (

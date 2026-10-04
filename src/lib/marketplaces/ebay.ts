@@ -12,6 +12,7 @@ import {
 import { fetchJina, parseJinaEbay } from "./jina";
 import { defaultServerEnv } from "@/lib/server/app-settings";
 import type { LiveListing } from "./types";
+import { parseEbaySellerFromText } from "./seller";
 import {
   filterBrowseByQuery,
   searchEbayBrowse,
@@ -108,6 +109,7 @@ export function parseEbayHtml(html: string, query = ""): LiveListing[] {
       shippingEstimated: ship.estimated,
       image: img,
       listedAt: parseListedAt(chunk),
+      seller: parseEbaySellerFromText(chunk),
     });
     if (out.length >= EBAY_SCAN_CAP) break;
   }
