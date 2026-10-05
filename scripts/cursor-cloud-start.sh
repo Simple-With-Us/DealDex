@@ -1,177 +1,112 @@
 #!/usr/bin/env bash
-# Cursor Cloud start for DealDex.  Runs each agent boot.
-# Loads Infisical secrets for INFISICAL_ENV into $HOME/.cursor-cloud-env/
-# when Cursor dashboard secrets INFISICAL_CLIENT_ID + INFISICAL_CLIENT_SECRET
-# are present.  Exits 0 (never fails the boot) and never prints secret VALUES.
+# Cursor cloud start for DealDex (plumber/cursor-cloud-env).
+# Runs on every agent boot.  Cursor dashboard injects INFISICAL_CLIENT_ID
+# and INFISICAL_CLIENT_SECRET as env vars; this script fetches the
+# configured snapshot for DealDex and writes it to:
+#   $HOME/.cursor-cloud-env/dealdex.env          (mode 0600, KEY=VALUE)
+#   $HOME/.cursor-cloud-env/dealdex.source.sh    (sources the file)
+# so subsequent shell steps can `source` the file without ever printing
+# values.
+#
+# Reuses scripts/infisical-fetch.mjs for the universal-auth login + raw
+# secrets list (same code path the CI workflows use); only the file
+# serializer is new.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${REPO_ROOT}"
 
-REPO_ROOT="$(pwd)"
-REPO_NAME="dealdex"
+log() { printf '[cursor-cloud-start] %s\n' "$*"; }
 
-ENV_DIR="${HOME}/.cursor-cloud-env"
-ENV_FILE="${ENV_DIR}/${REPO_NAME}.env"
-SOURCE_FILE="${ENV_DIR}/${REPO_NAME}.source.sh"
-
-mkdir -p "$ENV_DIR"
-chmod 700 "$ENV_DIR" 2>/dev/null || true
-
-log() { printf '==> %s\n' "$*"; }
-
-# --- Project identity (committed in .cursor/infisical.env) ------------------
-PROJECT_ID=""
-INFISICAL_ENV="dev"
-INFISICAL_DOMAIN="https://app.infisical.com"
-
-if [ -f "$REPO_ROOT/.cursor/infisical.env" ]; then
-  # shellcheck disable=SC1090
-  set -a; . "$REPO_ROOT/.cursor/infisical.env"; set +a
+# 0.  Load the committed per-repo non-secrets (PROJECT_ID + ENV + DOMAIN).
+INFISICAL_ENV_FILE="${REPO_ROOT}/.cursor/infisical.env"
+if [[ ! -f "${INFISICAL_ENV_FILE}" ]]; then
+  log "Missing ${INFISICAL_ENV_FILE}; aborting."
+  exit 1
 fi
+# shellcheck disable=SC1090
+set -a
+. "${INFISICAL_ENV_FILE}"
+set +a
 
-if [ -z "${PROJECT_ID:-}" ] && [ -n "${INFISICAL_PROJECT_ID:-}" ]; then
-  PROJECT_ID="$INFISICAL_PROJECT_ID"
-fi
+# 1.  Honour the only populated Infisical env for this project.
+: "${INFISICAL_PROJECT_ID:?INFISICAL_PROJECT_ID missing in .cursor/infisical.env}"
+: "${INFISICAL_ENV:=dev}"
+: "${INFISICAL_DOMAIN:=https://app.infisical.com}"
+export INFISICAL_PROJECT_ID INFISICAL_ENV INFISICAL_DOMAIN
 
-# --- Guard: missing dashboard secrets ---------------------------------------
-# We must NEVER print secret VALUES.  If Cursor dashboard has not been
-# configured yet, name the missing keys and exit 0 so the agent boot still
-# succeeds (DealDex's server falls back to process.env + built-in defaults
-# per INFISICAL.md, so dev still works without Infisical).
-MISSING=()
-if [ -z "${INFISICAL_CLIENT_ID:-}" ]; then
-  MISSING+=("INFISICAL_CLIENT_ID")
-fi
-if [ -z "${INFISICAL_CLIENT_SECRET:-}" ]; then
-  MISSING+=("INFISICAL_CLIENT_SECRET")
-fi
-
-if [ "${#MISSING[@]}" -gt 0 ]; then
-  log "Infisical credentials not configured in the Cursor dashboard."
-  log "Add these secrets to the Cursor dashboard (org-wide / team):"
-  for name in "${MISSING[@]}"; do
-    log "  - ${name}"
-  done
-  log "Until then the server runs in local-only mode (process.env + defaults)."
+# 2.  When Cursor has injected the automation machine identity, fetch the
+#     snapshot and write it.  Missing credentials is the normal
+#     pre-dashboard-add state -- exit 0 with a clear message naming the
+#     missing dashboard secret NAMES so the coordinator can add them.
+if [[ -z "${INFISICAL_CLIENT_ID:-}" || -z "${INFISICAL_CLIENT_SECRET:-}" ]]; then
+  log "INFISICAL_CLIENT_ID or INFISICAL_CLIENT_SECRET not set in the Cursor dashboard."
+  log "Add these org-wide / team secrets to the Cursor dashboard:"
+  log "  - INFISICAL_CLIENT_ID"
+  log "  - INFISICAL_CLIENT_SECRET"
+  log "Until then, .env loading is skipped (exit 0)."
   exit 0
 fi
 
-if [ -z "$PROJECT_ID" ]; then
-  log "INFISICAL_PROJECT_ID not set (expected in .cursor/infisical.env); skipping secret load."
+OUT_DIR="${HOME}/.cursor-cloud-env"
+OUT_ENV="${OUT_DIR}/dealdex.env"
+OUT_SRC="${OUT_DIR}/dealdex.source.sh"
+mkdir -p "${OUT_DIR}"
+chmod 700 "${OUT_DIR}"
+
+log "Fetching Infisical ${INFISICAL_ENV} secrets for DealDex into ${OUT_ENV}."
+
+# 3.  Reuse the CI fetch library.  We only need the raw map, so import the
+#     two pure helpers directly and serialize to a KEY=VALUE .env.
+TMP_ENV_FILE="$(mktemp -t cursor-cloud-dealdex.XXXXXX)"
+trap 'rm -f "${TMP_ENV_FILE}"' EXIT
+
+node --input-type=module -e "
+import { loginUniversalAuth, listSecretsRaw } from './scripts/infisical-fetch.mjs';
+import { writeFileSync, chmodSync } from 'node:fs';
+
+const siteUrl = String(process.env.INFISICAL_DOMAIN || 'https://app.infisical.com').replace(/\/+\$/, '');
+const clientId = process.env.INFISICAL_CLIENT_ID;
+const clientSecret = process.env.INFISICAL_CLIENT_SECRET;
+const projectId = process.env.INFISICAL_PROJECT_ID;
+const environment = process.env.INFISICAL_ENV;
+const secretPath = process.env.INFISICAL_SECRET_PATH || '/';
+
+const token = await loginUniversalAuth({ siteUrl, clientId, clientSecret });
+const values = await listSecretsRaw({ siteUrl, token, projectId, environment, secretPath });
+
+// Serialize as a shell-safe KEY=VALUE file.  Quote every value with single
+// quotes and escape any embedded single quotes -- a bare value containing
+// \`=\`, spaces, or newlines would break downstream consumers otherwise.
+let body = '# Generated by scripts/cursor-cloud-start.sh -- do not edit.\n';
+for (const [key, val] of values.entries()) {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*\$/.test(key)) continue;
+  const escaped = String(val).replace(/'/g, \"'\\\\''\");
+  body += key + \"='\" + escaped + \"'\\n\`;
+}
+writeFileSync(process.argv[1], body, { mode: 0o600 });
+chmodSync(process.argv[1], 0o600);
+" "${TMP_ENV_FILE}" >/dev/null 2>&1 || {
+  log "Infisical fetch failed; skipping .env write (exit 0)."
   exit 0
-fi
-
-# --- Helper that fetches and writes secrets atomically -----------------------
-# Always writes via a temp file (mode 0600) + mv so partial writes never
-# leave the env file readable mid-rotation.  Values stay on disk only — never
-# echoed to stdout.
-fetch_and_write() {
-  local tmp
-  tmp="$(mktemp "${ENV_DIR}/.${REPO_NAME}.env.tmp.XXXXXX")"
-  chmod 600 "$tmp"
-
-  # Path 1: official CLI — acquire a short-lived universal-auth token, then
-  # export the project's dotenv into the temp file.  No VALUES are ever
-  # echoed; the CLI writes the file directly.
-  if command -v infisical >/dev/null 2>&1; then
-    local token=""
-    token="$(infisical login \
-        --method=universal-auth \
-        --client-id="$INFISICAL_CLIENT_ID" \
-        --client-secret="$INFISICAL_CLIENT_SECRET" \
-        --domain="$INFISICAL_DOMAIN" \
-        --silent --plain 2>/dev/null || true)"
-    if [ -n "$token" ] && [ "${#token}" -gt 16 ]; then
-      if infisical export \
-            --token "$token" \
-            --projectId "$PROJECT_ID" \
-            --env "$INFISICAL_ENV" \
-            --domain "$INFISICAL_DOMAIN" \
-            --format=dotenv \
-            --includeSecrets=true > "$tmp" 2>/tmp/infisical-export.err; then
-        printf '%s\n' "# Generated by scripts/cursor-cloud-start.sh on $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$tmp"
-        mv "$tmp" "$ENV_FILE"
-        chmod 600 "$ENV_FILE"
-        rm -f /tmp/infisical-export.err
-        token=""
-        return 0
-      fi
-      rm -f /tmp/infisical-export.err
-      log "Infisical CLI export failed; falling back to REST API."
-    else
-      log "Infisical CLI login returned no token; falling back to REST API."
-    fi
-    rm -f "$tmp"
-    tmp="$(mktemp "${ENV_DIR}/.${REPO_NAME}.env.tmp.XXXXXX")"
-    chmod 600 "$tmp"
-  fi
-
-  # Path 2: REST fallback.  The /api/v3/secrets/raw endpoint returns every
-  # secret VALUE in one JSON response — using it per-key (the previous bug)
-  # sometimes wrote 0 keys when the list call failed.  One round-trip + one
-  # python3 pass that writes KEY=VALUE lines directly to the temp file with
-  # proper shell quoting.  Values never cross python3's stdout.
-  local bearer=""
-  bearer="$(printf '{"clientId":"%s","clientSecret":"%s"}' \
-      "$INFISICAL_CLIENT_ID" "$INFISICAL_CLIENT_SECRET" \
-    | curl -fsS \
-        -X POST "${INFISICAL_DOMAIN}/api/v1/auth/universal-auth/login" \
-        -H 'Content-Type: application/json' \
-        --data-binary @- \
-    | python3 -c 'import json,sys; print(json.load(sys.stdin).get("accessToken",""))' 2>/dev/null || true)"
-  if [ -z "$bearer" ]; then
-    rm -f "$tmp"
-    return 1
-  fi
-
-  curl -fsS \
-      -H "Authorization: Bearer ${bearer}" \
-      "${INFISICAL_DOMAIN}/api/v3/secrets/raw?environment=${INFISICAL_ENV}&workspaceId=${PROJECT_ID}&secretPath=/&include_imports=true" \
-    | python3 - "$tmp" <<'PY' || { rm -f "$tmp"; bearer=""; return 1; }
-import json, sys, shlex
-out_path = sys.argv[1]
-with open(out_path, "a") as fh:
-    payload = json.load(sys.stdin)
-    # v3 raw can return {"secrets":[{secretKey, secretValue}, ...]} or a flat list.
-    items = payload.get("secrets") if isinstance(payload, dict) else payload
-    if not isinstance(items, list):
-        items = []
-    for entry in items:
-        if not isinstance(entry, dict):
-            continue
-        key = entry.get("secretKey", "")
-        value = entry.get("secretValue", "")
-        if not key:
-            continue
-        fh.write(f"{key}={shlex.quote(value)}\n")
-PY
-
-  printf '%s\n' "# Generated by scripts/cursor-cloud-start.sh on $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$tmp"
-  mv "$tmp" "$ENV_FILE"
-  chmod 600 "$ENV_FILE"
-  # Drop the bearer from memory; nothing else held it.
-  bearer=""
-  return 0
 }
 
-if fetch_and_write; then
-  log "Infisical secrets loaded for ${INFISICAL_ENV} → ${ENV_FILE}"
-else
-  log "Failed to load Infisical secrets; server will run in local-only mode."
-fi
+# Atomic move into place, then re-assert 0600 (cp / shell tooling can
+# occasionally leave the file at 0644 after a cross-filesystem copy).
+mv "${TMP_ENV_FILE}" "${OUT_ENV}"
+chmod 0600 "${OUT_ENV}"
+trap - EXIT
 
-# --- Companion source script -------------------------------------------------
-# A tiny shim that other shells can source to inherit the env file without
-# printing anything.  `set -a` exports every assigned variable; the file
-# itself is mode 0600 and owned by the agent user.
-cat > "$SOURCE_FILE" <<'EOF'
-# Source this to inherit Cursor-loaded Infisical secrets for DealDex.
-# Generated by scripts/cursor-cloud-start.sh — do not edit by hand.
-[ -f "${HOME}/.cursor-cloud-env/dealdex.env" ] || return 0
+# 4.  Tiny source script for downstream shells -- never prints values.
+cat >"${OUT_SRC}" <<'EOS'
+# Auto-generated by scripts/cursor-cloud-start.sh.
+# Sources dealdex.env with allexport on so every KEY=VALUE enters the
+# environment without printing.
 set -a
 . "${HOME}/.cursor-cloud-env/dealdex.env"
 set +a
-EOF
-chmod 600 "$SOURCE_FILE"
+EOS
+chmod 0600 "${OUT_SRC}"
 
+log "Wrote ${OUT_ENV} (mode 0600) and ${OUT_SRC}."
 exit 0
