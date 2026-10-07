@@ -4,7 +4,7 @@
   "sideEffects": false,
   "type": "module",
   "overrides": {
-    "nf3": "0.3.24"
+    "nf3": "0.4.0"
   },
   "scripts": {
     "dev": "vite dev --host 0.0.0.0 --port 8080",
@@ -62,7 +62,7 @@
     "date-fns": "^4.0.0",
     "kysely": "^0.29.6",
     "lru-cache": "^11.5.2",
-    "lucide-react": "^0.510.0",
+    "lucide-react": "^0.577.0",
     "pg": "^8.16.3",
     "react": "^19.3.0",
     "react-day-picker": "^10.0.2",
