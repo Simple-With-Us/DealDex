@@ -2,7 +2,7 @@
 
 Owner directive (2026-10-03): Infisical is the sole source of truth for every app — secrets, env variables, and tunable settings knobs.  "Truth" means everything the app's behavior depends on that is not code.
 
-DealDex Infisical project: `DealDex` (`6d50da37-5fb9-4c5b-bcf0-085ac29c1705`), environments `dev` / `staging` / `prod`.  Deploy mapping: Vercel `production` → `prod`, Vercel `preview` → `staging`, everything else → `dev` (override with `DEALDEX_INFISICAL_ENV`).
+DealDex Infisical project: `DealDex` (`6d50da37-5fb9-4c5b-bcf0-085ac29c1705`), **prod is the only environment the app reads** (owner directive 2026-10-10; `dev` and `staging` are being retired).  `resolveAppEnv()` returns `prod` for every deploy environment, including Vercel Preview and Development, and refuses a `DEALDEX_INFISICAL_ENV` override: a non-prod value logs one warning and is ignored.  The Cursor boot script (`scripts/cursor-cloud-start.sh`) and its Infisical coordinates file under `.cursor/` use `prod` too, and the script exits 1 if `INFISICAL_ENV` is anything else.
 
 ## The policy
 

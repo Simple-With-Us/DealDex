@@ -35,25 +35,36 @@ import {
 
 export const DEALDEX_INFISICAL_PROJECT_ID = "6d50da37-5fb9-4c5b-bcf0-085ac29c1705";
 
-export type DealDexAppEnv = "dev" | "staging" | "prod";
+/**
+ * The only Infisical environment DealDex reads (owner directive 2026-10-10:
+ * prod only; the `dev` and `staging` environments are being retired).
+ */
+export const DEALDEX_INFISICAL_ENV = "prod" as const;
 
-/** Map the deploy environment onto an Infisical environment slug. */
+export type DealDexAppEnv = typeof DEALDEX_INFISICAL_ENV;
+
+let warnedNonProdOverride = false;
+
+/**
+ * Resolve the Infisical environment slug.  Always `prod`, whatever the deploy
+ * environment: Vercel Preview, Development and an unset `VERCEL_ENV` all read
+ * prod.  The old `DEALDEX_INFISICAL_ENV` override is refused: a non-prod value
+ * logs one loud warning and is ignored.  It never throws, because this runs in
+ * the startup path and in error-message builders, and a throw there would drop
+ * a production server into local-only mode.
+ */
 export function resolveAppEnv(
   env: Record<string, string | undefined> = process.env,
 ): DealDexAppEnv {
-  const explicit = env.DEALDEX_INFISICAL_ENV?.trim().toLowerCase();
-  if (explicit === "dev" || explicit === "staging" || explicit === "prod") return explicit;
-  const raw = (
-    env.DEALDEX_ENV ??
-    env.APP_ENV ??
-    env.VERCEL_ENV ??
-    "dev"
-  )
-    .trim()
-    .toLowerCase();
-  if (raw === "prod" || raw === "production") return "prod";
-  if (raw === "staging" || raw === "preview") return "staging";
-  return "dev";
+  const requested = env.DEALDEX_INFISICAL_ENV?.trim().toLowerCase();
+  if (requested && requested !== DEALDEX_INFISICAL_ENV && !warnedNonProdOverride) {
+    warnedNonProdOverride = true;
+    console.warn(
+      "[app-settings] DEALDEX_INFISICAL_ENV is set to a non-prod value and is ignored: " +
+        "DealDex reads Infisical prod only.  See INFISICAL.md.",
+    );
+  }
+  return DEALDEX_INFISICAL_ENV;
 }
 
 export type SettingKind = "secret" | "env" | "knob";
@@ -334,6 +345,7 @@ export function __resetAppSettingsForTests(): void {
   client = null;
   initPromise = null;
   warnedLocalOnly = false;
+  warnedNonProdOverride = false;
   sighupWired = false;
 }
 
