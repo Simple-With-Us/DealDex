@@ -89,7 +89,7 @@ function makeFakeFetch(options: {
   return { fetchImpl, calls, state };
 }
 
-const CREDS = { clientId: "test-id", clientSecret: "test-secret", environment: "dev" as const };
+const CREDS = { clientId: "test-id", clientSecret: "test-secret", environment: "prod" as const };
 
 let savedClientId: string | undefined;
 let savedClientSecret: string | undefined;
@@ -284,12 +284,41 @@ describe("typed helpers", () => {
 });
 
 describe("resolveAppEnv", () => {
-  it("maps deploy envs onto Infisical slugs", () => {
+  it("reads Infisical prod in every deploy environment", () => {
     assert.equal(resolveAppEnv({ VERCEL_ENV: "production" }), "prod");
-    assert.equal(resolveAppEnv({ VERCEL_ENV: "preview" }), "staging");
-    assert.equal(resolveAppEnv({ VERCEL_ENV: "development" }), "dev");
-    assert.equal(resolveAppEnv({}), "dev");
+    assert.equal(resolveAppEnv({ VERCEL_ENV: "preview" }), "prod");
+    assert.equal(resolveAppEnv({ VERCEL_ENV: "development" }), "prod");
+    assert.equal(resolveAppEnv({ DEALDEX_ENV: "staging" }), "prod");
+    assert.equal(resolveAppEnv({ APP_ENV: "dev" }), "prod");
+    assert.equal(resolveAppEnv({}), "prod");
     assert.equal(resolveAppEnv({ DEALDEX_INFISICAL_ENV: "prod" }), "prod");
-    assert.equal(resolveAppEnv({ DEALDEX_INFISICAL_ENV: "nope", VERCEL_ENV: "production" }), "prod");
+  });
+
+  it("refuses a non-prod DEALDEX_INFISICAL_ENV override: warns once, never throws", () => {
+    const warnings: string[] = [];
+    const realWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.map(String).join(" "));
+    };
+    try {
+      assert.equal(resolveAppEnv({ DEALDEX_INFISICAL_ENV: "dev" }), "prod");
+      assert.equal(resolveAppEnv({ DEALDEX_INFISICAL_ENV: "staging", VERCEL_ENV: "preview" }), "prod");
+      assert.equal(resolveAppEnv({ DEALDEX_INFISICAL_ENV: "nope", VERCEL_ENV: "production" }), "prod");
+    } finally {
+      console.warn = realWarn;
+    }
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /DEALDEX_INFISICAL_ENV/);
+    assert.match(warnings[0], /prod only/);
+  });
+
+  it("asks Infisical for the prod environment when no override is given", async () => {
+    const { fetchImpl, calls } = makeFakeFetch({ secrets: { SCAN_MAX_ROWS_PER_RUN: "25" } });
+    await initAppSettings({ clientId: "test-id", clientSecret: "test-secret", fetchImpl });
+    const loads = calls.filter((c) => /\/api\/v3\/secrets\/raw\?/.test(c.url));
+    assert.ok(loads.length > 0, "expected at least one secrets load");
+    for (const call of loads) {
+      assert.equal(new URL(call.url).searchParams.get("environment"), "prod");
+    }
   });
 });

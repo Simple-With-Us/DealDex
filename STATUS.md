@@ -4,6 +4,10 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 # Current Handoff
 
+## 2026-10-10 CLAUDE — Infisical prod only
+
+`resolveAppEnv()` now always returns `prod` (Preview and Development no longer map to `staging` and `dev`), a `DEALDEX_INFISICAL_ENV` override with a non-prod value is refused with one warning, and the Cursor boot defaults to and requires `prod`.  Details and the eleven uncopied dev-only knobs: `docs/rollouts/2026-10-10-infisical-prod-only.md`.  Next action: the owner decides whether any dev-only knob should be set in prod, then deletes the `dev` and `staging` environments.
+
 ## 2026-10-04 AG — Seller reputation indicators for eBay and Mercari (#400)
 
 Branch `ag/seller-reputation-indicator`.  Added seller reputation badges and filtering to distinguish high-rated, high-volume sellers from new or low-rated ones across eBay and Mercari.  Extracted seller metrics (username, ratings, feedback counts, Top Rated flags) across eBay Browse API, HTML and Jina scrapes, and Mercari.  Added `SellerBadge` with color-coded status (Top Rated sparkles, Trusted shield, New Seller warning, Low Rated alert) and a Seller Filter dropdown on the market scanner.  Typecheck, 313 unit tests, and production build all pass green.  See `docs/rollouts/2026-10-04-seller-reputation-indicators.md`.

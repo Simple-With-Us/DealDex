@@ -23,7 +23,13 @@ if [ -f "$REPO_ROOT/.cursor/infisical.env" ]; then
   set +a
 fi
 
-: "${INFISICAL_ENV:=dev}"
+: "${INFISICAL_ENV:=prod}"
+# Owner directive 2026-10-10: Infisical prod is the only environment (dev and
+# staging are being retired).  Refuse anything else rather than reading it.
+if [ "${INFISICAL_ENV}" != "prod" ]; then
+  printf '==> INFISICAL_ENV must be prod (dev and staging are retired); refusing to load.\n' >&2
+  exit 1
+fi
 : "${INFISICAL_DOMAIN:=https://app.infisical.com}"
 
 MISSING=()
