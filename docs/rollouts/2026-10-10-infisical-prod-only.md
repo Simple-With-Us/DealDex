@@ -18,9 +18,14 @@ Vercel Production already read `prod`, so nothing changes there.  No Vercel vari
 
 Vercel Preview, local `npm run dev` with machine-identity credentials, and the Cursor Cloud boot read prod.  A credentialed Preview or local run can also write through to prod via the admin settings route, so do not hand Preview a machine identity unless that is intended.
 
-## Dev-only knobs not copied to prod
+## Update Sat Oct 10 (owner decision)
 
-These eleven keys exist only in the `dev` environment and were deliberately not copied.  Prod falls back to the schema defaults in `SETTING_DEFS`: `AUTO_BUY_DEFAULT_COOL_HOURS` (24), `AUTO_BUY_DEFAULT_MAX_DAILY_CENTS` (10000), `AUTO_BUY_DEFAULT_MAX_MONTHLY_CENTS` (50000), `AUTO_BUY_DEFAULT_MAX_PRICE_CENTS` (5000), `AUTO_BUY_DEFAULT_MIN_SPREAD` (0.18), `AUTO_BUY_DRY_RUN_FORCE` (false), `EBAY_ENV` (production), `PROXY_MAX_CONCURRENCY` (4), `SCAN_MAX_ROWS_PER_RUN` (50), `SENTRY_TRACES_SAMPLE_RATE` (0.2), `SETTINGS_REFRESH_INTERVAL_MS` (300000).  The owner decides later whether any of them should be set in prod.
+Later on Sat Oct 10 the owner decided "ok to do all" and "if values differ defer to prod, all the rest move to prod".  That replaces the plan in the first version of this note, which was to leave the eleven dev-only knobs out of prod and let prod run on the schema defaults in `SETTING_DEFS`.
+
+- Copied to prod:  10 of the 11 dev-only keys.  They are `AUTO_BUY_DEFAULT_COOL_HOURS`, `AUTO_BUY_DEFAULT_MAX_DAILY_CENTS`, `AUTO_BUY_DEFAULT_MAX_MONTHLY_CENTS`, `AUTO_BUY_DEFAULT_MAX_PRICE_CENTS`, `AUTO_BUY_DEFAULT_MIN_SPREAD`, `EBAY_ENV`, `PROXY_MAX_CONCURRENCY`, `SCAN_MAX_ROWS_PER_RUN`, `SENTRY_TRACES_SAMPLE_RATE` and `SETTINGS_REFRESH_INTERVAL_MS`.  Prod now holds an explicit value for each one instead of falling back to the schema default.  `EBAY_ENV` was copied with the value `production`, the same as the code default.
+- Money path:  the five `AUTO_BUY_DEFAULT_*` keys (cooldown hours, daily cents, monthly cents, max price cents, min spread) set the default limits for newly created alert rules.  They are money-path values and are now live in prod.
+- Held for an owner decision:  `AUTO_BUY_DRY_RUN_FORCE`.  It is the kill switch that forces dry-run on every auto-buy evaluation.  Its dev value is `false`.  Prod already behaves as `false` through the schema default, so holding it changes nothing in production.
+- Environments:  `staging` is deleted.  The `dev` environment still exists until the `AUTO_BUY_DRY_RUN_FORCE` decision is made.  No code path reads it, because every selector resolves to `prod`.
 
 ## Verification
 
