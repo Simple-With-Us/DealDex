@@ -6,7 +6,7 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 ## 2026-10-10 CLAUDE — Infisical prod only
 
-`resolveAppEnv()` now always returns `prod` (Preview and Development no longer map to `staging` and `dev`), a `DEALDEX_INFISICAL_ENV` override with a non-prod value is refused with one warning, and the Cursor boot defaults to and requires `prod`.  Details and the eleven uncopied dev-only knobs: `docs/rollouts/2026-10-10-infisical-prod-only.md`.  Next action: the owner decides whether any dev-only knob should be set in prod, then deletes the `dev` and `staging` environments.
+`resolveAppEnv()` now always returns `prod` (Preview and Development no longer map to `staging` and `dev`), a `DEALDEX_INFISICAL_ENV` override with a non-prod value is refused with one warning, and the Cursor boot defaults to and requires `prod`.  Update Sat Oct 10 (owner decision): all 11 dev-only knobs were copied to prod and verified, including the money-path `AUTO_BUY_DEFAULT_*` keys and `AUTO_BUY_DRY_RUN_FORCE` (dev value `false`, the same as prod's schema default), and the `dev` and `staging` environments are deleted.  Details: `docs/rollouts/2026-10-10-infisical-prod-only.md`.  Next action: none for this rollout.
 
 ## 2026-10-04 AG — Seller reputation indicators for eBay and Mercari (#400)
 
