@@ -20,12 +20,12 @@ Vercel Preview, local `npm run dev` with machine-identity credentials, and the C
 
 ## Update Sat Oct 10 (owner decision)
 
-Later on Sat Oct 10 the owner decided "ok to do all" and "if values differ defer to prod, all the rest move to prod".  That replaces the plan in the first version of this note, which was to leave the eleven dev-only knobs out of prod and let prod run on the schema defaults in `SETTING_DEFS`.
+Later on Sat Oct 10 the owner decided "ok to do all", "if values differ defer to prod, all the rest move to prod" and "don't hold back on those for infisical to prod".  That replaces the plan in the first version of this note, which was to leave the eleven dev-only knobs out of prod and let prod run on the schema defaults in `SETTING_DEFS`.  Nothing is held.
 
-- Copied to prod:  10 of the 11 dev-only keys.  They are `AUTO_BUY_DEFAULT_COOL_HOURS`, `AUTO_BUY_DEFAULT_MAX_DAILY_CENTS`, `AUTO_BUY_DEFAULT_MAX_MONTHLY_CENTS`, `AUTO_BUY_DEFAULT_MAX_PRICE_CENTS`, `AUTO_BUY_DEFAULT_MIN_SPREAD`, `EBAY_ENV`, `PROXY_MAX_CONCURRENCY`, `SCAN_MAX_ROWS_PER_RUN`, `SENTRY_TRACES_SAMPLE_RATE` and `SETTINGS_REFRESH_INTERVAL_MS`.  Prod now holds an explicit value for each one instead of falling back to the schema default.  `EBAY_ENV` was copied with the value `production`, the same as the code default.
+- Copied to prod:  all 11 dev-only keys, each verified in prod.  They are `AUTO_BUY_DEFAULT_COOL_HOURS`, `AUTO_BUY_DEFAULT_MAX_DAILY_CENTS`, `AUTO_BUY_DEFAULT_MAX_MONTHLY_CENTS`, `AUTO_BUY_DEFAULT_MAX_PRICE_CENTS`, `AUTO_BUY_DEFAULT_MIN_SPREAD`, `AUTO_BUY_DRY_RUN_FORCE`, `EBAY_ENV`, `PROXY_MAX_CONCURRENCY`, `SCAN_MAX_ROWS_PER_RUN`, `SENTRY_TRACES_SAMPLE_RATE` and `SETTINGS_REFRESH_INTERVAL_MS`.  Prod now holds an explicit value for each one instead of falling back to the schema default.  `EBAY_ENV` was copied with the value `production`, the same as the code default.
 - Money path:  the five `AUTO_BUY_DEFAULT_*` keys (cooldown hours, daily cents, monthly cents, max price cents, min spread) set the default limits for newly created alert rules.  They are money-path values and are now live in prod.
-- Held for an owner decision:  `AUTO_BUY_DRY_RUN_FORCE`.  It is the kill switch that forces dry-run on every auto-buy evaluation.  Its dev value is `false`.  Prod already behaves as `false` through the schema default, so holding it changes nothing in production.
-- Environments:  `staging` is deleted.  The `dev` environment still exists until the `AUTO_BUY_DRY_RUN_FORCE` decision is made.  No code path reads it, because every selector resolves to `prod`.
+- `AUTO_BUY_DRY_RUN_FORCE` is the kill switch that forces dry-run on every auto-buy evaluation.  Its dev value was `false`, the same as prod's schema default, so copying it leaves production behaving as it did.
+- Environments:  `dev` and `staging` are both deleted (`dev` at about 3:50pm).  Prod is the only environment of the DealDex Infisical project.
 
 ## Verification
 
