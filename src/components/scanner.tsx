@@ -59,11 +59,16 @@ function verdictVariant(v: Verdict) {
 }
 
 export function Scanner() {
-  const [q, setQ] = useState("");
-  const [sources, setSources] = useState<ScanSource[]>(["ebay", "mercari"]);
-  const [loading, setLoading] = useState(false);
-  const [rows, setRows] = useState<ScoredListing[] | null>(null);
-  const [meta, setMeta] = useState({ ebay: 0, mercari: 0, notes: [] as string[] });
+  const [cached] = useState(loadScanCache);
+  const [q, setQ] = useState(cached?.q ?? "");
+  const [sources, setSources] = useState<ScanSource[]>(
+    cached && cached.sources.length ? cached.sources : ["ebay", "mercari"],
+  );
+  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<ScoredListing[] | null>(cached?.rows ?? null);
+  const [meta, setMeta] = useState(
+    cached?.meta ?? { ebay: 0, mercari: 0, notes: [] as string[] },
+  );
   const [view, setView] = useState<ViewFilter>("all");
   const [verdict, setVerdict] = useState<VerdictFilter>("any");
   const [priceCap, setPriceCap] = useState<PriceFilter>("any");
@@ -74,52 +79,51 @@ export function Scanner() {
   const [hideRepacks, setHideRepacks] = useState(true);
   const scanReqIdRef = useRef(0);
 
-  async function run(query = q, src = sources) {
+  function fetchRows(query: string, src: ScanSource[]) {
     const reqId = ++scanReqIdRef.current;
     const term = query.trim();
+    scanMarketplaces({
+      data: { q: term, sources: src, keys: loadDeskKeys() },
+    })
+      .then((res) => {
+        if (reqId !== scanReqIdRef.current) return;
+        setRows(res.rows);
+        setMeta({ ebay: res.ebay, mercari: res.mercari, notes: res.notes });
+        rememberListings(res.rows);
+        saveScanCache({
+          q: term,
+          sources: src,
+          at: new Date().toISOString(),
+          rows: res.rows,
+          meta: { ebay: res.ebay, mercari: res.mercari, notes: res.notes },
+        });
+        if (!res.rows.length) toast("No live listings right now. Try again in a minute.");
+        const rules = loadRules();
+        const hits = collectHits(res.rows, rules);
+        if (hits.length) {
+          pushHits(hits);
+          void dispatchHits(hits, rules);
+          toast(`${hits.length} alert${hits.length === 1 ? "" : "s"} matched this scan.`);
+        }
+      })
+      .catch((err: unknown) => {
+        if (reqId !== scanReqIdRef.current) return;
+        toast(err instanceof Error ? err.message : "Scan failed");
+      })
+      .finally(() => {
+        if (reqId === scanReqIdRef.current) {
+          setLoading(false);
+        }
+      });
+  }
+
+  function run(query = q, src = sources) {
     setLoading(true);
-    try {
-      const res = await scanMarketplaces({
-        data: { q: term, sources: src, keys: loadDeskKeys() },
-      });
-      if (reqId !== scanReqIdRef.current) return;
-      setRows(res.rows);
-      setMeta({ ebay: res.ebay, mercari: res.mercari, notes: res.notes });
-      rememberListings(res.rows);
-      saveScanCache({
-        q: term,
-        sources: src,
-        at: new Date().toISOString(),
-        rows: res.rows,
-        meta: { ebay: res.ebay, mercari: res.mercari, notes: res.notes },
-      });
-      if (!res.rows.length) toast("No live listings right now. Try again in a minute.");
-      const rules = loadRules();
-      const hits = collectHits(res.rows, rules);
-      if (hits.length) {
-        pushHits(hits);
-        void dispatchHits(hits, rules);
-        toast(`${hits.length} alert${hits.length === 1 ? "" : "s"} matched this scan.`);
-      }
-    } catch (err) {
-      if (reqId !== scanReqIdRef.current) return;
-      toast(err instanceof Error ? err.message : "Scan failed");
-    } finally {
-      if (reqId === scanReqIdRef.current) {
-        setLoading(false);
-      }
-    }
+    fetchRows(query, src);
   }
 
   useEffect(() => {
-    const cached = loadScanCache();
-    if (cached) {
-      setRows(cached.rows);
-      setMeta(cached.meta);
-      setQ(cached.q);
-      if (cached.sources.length) setSources(cached.sources);
-    }
-    void run(cached?.q ?? "", cached?.sources ?? ["ebay", "mercari"]);
+    void fetchRows(cached?.q ?? "", cached?.sources ?? ["ebay", "mercari"]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

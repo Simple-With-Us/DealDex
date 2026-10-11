@@ -92,13 +92,16 @@ export function Evaluator({
 
   const parsedPreview = useMemo(() => parseListingBlob(blob), [blob]);
   const active = cards.find((c) => c.id === activeId) ?? cards[0] ?? null;
-
-  useEffect(() => {
+  const activeKey = active?.id ?? null;
+  const [prevActiveKey, setPrevActiveKey] = useState<string | null>(activeKey);
+  if (prevActiveKey !== activeKey) {
+    setPrevActiveKey(activeKey);
+    setBook(null);
     if (active?.finishes.length) {
       const preferred = active.finishes.find((f) => f.key === finish) ?? active.finishes[0];
       if (preferred && preferred.key !== finish) setFinish(preferred.key);
     }
-  }, [active?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   useEffect(() => {
     if (initialQuery) void runSearch(initialQuery);
@@ -125,10 +128,7 @@ export function Evaluator({
   const result = raw && active ? applyVerification(raw, active, { book }) : raw;
 
   useEffect(() => {
-    if (!active?.id) {
-      setBook(null);
-      return;
-    }
+    if (!active?.id) return;
     let live = true;
     getValuationBook({ data: { id: active.id, grade, keys: loadDeskKeys() } })
       .then((row) => {
