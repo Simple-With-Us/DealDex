@@ -59,3 +59,10 @@ Renovate merged Gradle 9.8, Kotlin Android plugin 2.4.20, Compose BOM 2026.09.00
 - **Gradle wrapper / cache:** repo pins Gradle 9.8; `actions/setup-java` Gradle cache keys on `**/*.gradle*` + `gradle-wrapper.properties` so wrapper upgrades invalidate the cache.
 - **CI runs JDK 21** while project bytecode targets Java 17 via `sourceCompatibility` / `targetCompatibility` — JDK 21 only runs Gradle, not the bytecode target.
 - **AGP 9 + Gradle 9.6+ removed `InternalProblems`** — staying on AGP 8.x on Gradle 9.x is not an option; AGP must move with Gradle.
+
+## Next steps / blockers
+
+- **Merge:** land PR #442 when reviewed; CI must stay green (`android`, `verify`, `e2e`).
+- **Renovate #436:** superseded by this branch (AGP 9.4.1 already here); **leave #436 open** per owner — close it manually after merge if desired, do not merge it separately.
+- **Blockers:** none known at handoff.
+- **Optional follow-ups (not merge-blocking):** document compileSdk 37 vs targetSdk 35 in a short ADR if we want that outside rollout notes; consider Sentry Android Gradle plugin later for bytecode OkHttp instrumentation (explicit interceptors are sufficient for now).
