@@ -33,9 +33,9 @@
 # SentryComposeIntegration).  These integrations are reflectively wired
 # via ServiceLoader, so R8 would otherwise strip them in the release
 # build and tracing would silently degrade to crash-only.
--keep class io.sentry.android.okhttp.** { *; }
+-keep class io.sentry.okhttp.** { *; }
 -keep class io.sentry.android.fragment.** { *; }
--keep class io.sentry.android.compose.** { *; }
+-keep class io.sentry.compose.** { *; }
 -keep class io.sentry.android.core.** { *; }
 -keep class io.sentry.** { *; }
 -keepattributes Signature, InnerClasses, EnclosingMethod

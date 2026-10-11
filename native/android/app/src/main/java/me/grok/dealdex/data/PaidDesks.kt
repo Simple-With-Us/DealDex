@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit
 /** Calls paid valuation APIs directly from the phone. Never goes through DealDex.com. */
 object PaidDesks {
     private val http = OkHttpClient.Builder()
+        .applySentryTracing()
         .connectTimeout(12, TimeUnit.SECONDS)
         .readTimeout(16, TimeUnit.SECONDS)
         .build()

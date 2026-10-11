@@ -1,6 +1,6 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 // Release signing comes from the environment, never the repo. Set
@@ -14,7 +14,8 @@ android {
     namespace = "me.grok.dealdex"
     // Google Play has required API 35 for new and updated submissions since
     // 31 Aug 2025. At 34 the Play Console rejects the upload before review.
-    compileSdk = 35
+    // Compose BOM 2026 / OkHttp 5 AARs require compileSdk 37; targetSdk stays 35 until Play policy moves.
+    compileSdk = 37
     defaultConfig {
         applicationId = "me.grok.dealdex"
         minSdk = 26
@@ -58,12 +59,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
     buildFeatures {
         compose = true
         buildConfig = true
     }
-    composeOptions { kotlinCompilerExtensionVersion = "1.5.15" }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 
@@ -92,9 +91,10 @@ dependencies {
     implementation("com.google.android.play:app-update-ktx:2.1.0")
     // Crash + ANR + profiling + scan spans.  Mapping upload plugin skipped;
     // consumer rules ship with each AAR.
-    implementation("io.sentry:sentry-android:8.59.0")
-    implementation("io.sentry:sentry-android-okhttp:8.54.0")
-    implementation("io.sentry:sentry-android-fragment:8.59.0")
-    implementation("io.sentry:sentry-android-compose:8.54.0")
+    val sentryVersion = "8.60.0"
+    implementation("io.sentry:sentry-android:$sentryVersion")
+    implementation("io.sentry:sentry-okhttp:$sentryVersion")
+    implementation("io.sentry:sentry-android-fragment:$sentryVersion")
+    implementation("io.sentry:sentry-compose-android:$sentryVersion")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
