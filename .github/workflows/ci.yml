@@ -61,6 +61,8 @@ jobs:
         working-directory: native/android
     env:
       CI: true
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ANDROID_HOME: /usr/local/lib/android/sdk
     steps:
       - uses: actions/checkout@v7
 
