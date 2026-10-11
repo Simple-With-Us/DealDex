@@ -82,7 +82,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.13.0")
     // lintVitalRelease: registerForActivityResult needs Fragment >= 1.3.0.
     // sentry-android-fragment can pull an older transitive; pin a current one.
-    implementation("androidx.fragment:fragment-ktx:1.8.9")
+    implementation("androidx.fragment:fragment-ktx:1.9.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
     implementation("androidx.navigation:navigation-compose:2.10.2")
