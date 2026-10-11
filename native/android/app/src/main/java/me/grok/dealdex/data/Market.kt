@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit
 
 object Market {
     private val http = OkHttpClient.Builder()
+        .applySentryTracing()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(90, TimeUnit.SECONDS)
         .build()

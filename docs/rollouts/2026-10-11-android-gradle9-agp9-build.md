@@ -22,10 +22,13 @@ Renovate merged Gradle 9.8, Kotlin Android plugin 2.4.20, Compose BOM 2026.09.00
 
 ## Code changes
 
-1. **AGP 9.4.1** — required for Gradle 9.8 (supersedes open #436 intent).
-2. **Kotlin Compose compiler plugin** (`org.jetbrains.kotlin.plugin.compose` 2.4.20); removed legacy `composeOptions.kotlinCompilerExtensionVersion` and `org.jetbrains.kotlin.android` (AGP 9 built-in Kotlin).
-3. **`compileSdk = 37`** — Compose BOM 2026 / OkHttp 5 / androidx deps require API 37 compile; **`targetSdk` stays 35** for Play policy called out in `app/build.gradle.kts`.
-4. **Sentry Android coordinates** — `sentry-android-okhttp` / `sentry-android-compose` at non-existent versions blocked resolution; aligned on `sentry-okhttp` + `sentry-compose-android` 8.60.0 (npm `@sentry/*` v9 is unrelated).  Removed deprecated `SentryOkHttpIntegration` / `SentryComposeIntegration` registrations; fragment integration now `FragmentLifecycleIntegration(this)`.
+1. **`native/android/build.gradle.kts`** — AGP **9.4.1** (required for Gradle 9.8; supersedes open #436 intent) and `org.jetbrains.kotlin.plugin.compose` **2.4.20** apply-false entry; drop `org.jetbrains.kotlin.android`.
+2. **`native/android/app/build.gradle.kts`** — apply Compose compiler plugin; remove `kotlin.android`, `kotlinOptions`, and `composeOptions.kotlinCompilerExtensionVersion`; **`compileSdk = 37`** with **`targetSdk` 35** (Play policy comment retained); Sentry deps on `sentry-okhttp` + `sentry-compose-android` **8.60.0**.
+3. **`native/android/app/src/main/java/me/grok/dealdex/DealDexApp.kt`** — `FragmentLifecycleIntegration(this)`; removed deprecated `SentryOkHttpIntegration` / `SentryComposeIntegration` (artifacts no longer exist on Maven).
+4. **`native/android/app/src/main/java/me/grok/dealdex/data/SentryHttp.kt`** plus **`Market.kt`**, **`AccountApi.kt`**, **`PaidDesks.kt`**, **`NativeAuth.kt`** — explicit `SentryOkHttpInterceptor` / `SentryOkHttpEventListener` on every `OkHttpClient.Builder`.
+5. **`native/android/app/src/main/java/me/grok/dealdex/MainActivity.kt`** — root `setContent` wrapped in `SentryTraced("MainActivity")` for Compose user-interaction tracing.
+6. **`native/android/app/proguard-rules.pro`** — `-keep` roots for `io.sentry.okhttp.**` and `io.sentry.compose.**`.
+7. **`.github/workflows/ci.yml`** — `android` job (JDK 21, Gradle cache, SDK 37, `./gradlew :app:assembleDebug`).
 
 ## CI
 

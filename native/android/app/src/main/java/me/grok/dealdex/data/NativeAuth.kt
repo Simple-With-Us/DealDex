@@ -27,7 +27,7 @@ import org.json.JSONObject
 object NativeAuth {
     const val DEFAULT_ORIGIN = "https://dealdex.net"
 
-    private val http = OkHttpClient()
+    private val http = OkHttpClient.Builder().applySentryTracing().build()
     private val random = SecureRandom()
 
     fun normalized(origin: String): String {
