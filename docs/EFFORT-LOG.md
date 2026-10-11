@@ -1,3 +1,6 @@
+> **ARCHIVED Sun, Oct 11, 2026.**  Linear is the system of record: team DD, https://linear.app/simple-with-us/team/DD.
+> This file is read-only history.  Do not edit it or add rows.  See EFFORT-LOG-PROTOCOL.md.
+
 - **2026-09-20 — MM — IN PROGRESS — Comprehensive top-to-bottom review (board `b4146f75`/`6c800b9c`/`d362b287`/`f808a67c`/`476c1efa`/`e88a8c69`/`3cf2abcd`/`111ab67c`, issues #335/#336/#337/#338, branch `mm/comprehensive-review`, worktree `~/apps/dealdex-mm`).**  Owner asked for a multi-platform audit + fixes: enable official eBay Browse API, more listings analyzed, auto-purchase on saved filters, Android Sentry parity, rotating-IP fallback, background scan-runner, Android/iOS alert-channel parity, doc/test sweep.  Filing now; implementation below this row.
 - **2026-09-13 — FX — IN PROGRESS — Skip pointless Vercel production deploys (`fx/vercel-skip-pointless`, worktree `~/apps/dealdex-fx-deploy`, board `0934111e`).**
 - **2026-09-13 — FX — IN PROGRESS — Merge to main is Vercel production (`fx/merge-equals-live`, worktree `~/apps/dealdex-fx-deploy`, board `ef71d6c1`).**
