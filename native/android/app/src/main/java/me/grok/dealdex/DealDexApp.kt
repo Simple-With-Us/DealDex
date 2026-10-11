@@ -19,6 +19,8 @@ class DealDexApp : Application() {
         if (dsn.isBlank()) return
         SentryAndroid.init(this) { options ->
             options.dsn = dsn
+            options.release = "${BuildConfig.VERSION_NAME}+${BuildConfig.VERSION_CODE}"
+            options.environment = if (BuildConfig.DEBUG) "development" else "production"
             options.isSendDefaultPii = false
             options.isAttachScreenshot = false
             options.isAttachViewHierarchy = false

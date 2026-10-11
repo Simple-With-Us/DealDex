@@ -7,6 +7,7 @@ import {
   sentryServerBeforeSendSpan,
   sentryServerDsn,
   sentryServerIntegrations,
+  sentryServerRelease,
   sentryServerTracesSampleRate,
   setSentryServerForTests,
   withScanCacheLookup,
@@ -34,6 +35,16 @@ test("server DSN reuses SENTRY_DSN then VITE_SENTRY_DSN and invents no names", (
   assert.equal(sentryServerDsn({ SENTRY_DSN: " server ", VITE_SENTRY_DSN: "vite" }), "server");
   assert.equal(sentryServerTracesSampleRate({}), 0.2);
   assert.equal(sentryServerTracesSampleRate({ SENTRY_TRACES_SAMPLE_RATE: "1" }), 1);
+});
+
+test("server release prefers SENTRY_RELEASE then VERCEL_GIT_COMMIT_SHA then GITHUB_SHA", () => {
+  assert.equal(sentryServerRelease({}), undefined);
+  assert.equal(sentryServerRelease({ VERCEL_GIT_COMMIT_SHA: " abc " }), "abc");
+  assert.equal(sentryServerRelease({ GITHUB_SHA: "ghi", VERCEL_GIT_COMMIT_SHA: "abc" }), "abc");
+  assert.equal(
+    sentryServerRelease({ SENTRY_RELEASE: "rel", VERCEL_GIT_COMMIT_SHA: "abc", GITHUB_SHA: "ghi" }),
+    "rel",
+  );
 });
 
 test("server SDK drops HTTP and SQL auto-spans so search URLs stay off the wire", () => {

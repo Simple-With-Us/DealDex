@@ -4,8 +4,21 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { nitro } from "nitro/vite";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 // @ts-expect-error JS plugin alongside the TS vite config
 import { grokPwaPlugin } from "./scripts/grok-pwa-plugin.mjs";
+
+/** Browser SDK + sentry-deploy.yml both key off the Vercel/git SHA. */
+const sentryRelease =
+  process.env.VITE_SENTRY_RELEASE?.trim() ||
+  process.env.SENTRY_RELEASE?.trim() ||
+  process.env.VERCEL_GIT_COMMIT_SHA?.trim() ||
+  process.env.GITHUB_SHA?.trim() ||
+  "";
+if (sentryRelease && !process.env.VITE_SENTRY_RELEASE) {
+  process.env.VITE_SENTRY_RELEASE = sentryRelease;
+}
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN?.trim() || "";
 
 /**
  * Finish PGLite bootstrap during dev-server setup (before traffic). Vite awaits
@@ -135,6 +148,10 @@ export default defineConfig(({ command }) => ({
     strictPort: true,
   },
   resolve: { tsconfigPaths: true },
+  build: {
+    // Hidden maps stay off the public URL; the vite plugin uploads then deletes them.
+    sourcemap: sentryAuthToken ? "hidden" : false,
+  },
   plugins: [
     pgliteBootstrapPlugin(),
     // Before tanstackStart so /auth/popup never falls through to the SPA.
@@ -155,5 +172,19 @@ export default defineConfig(({ command }) => ({
         ]
       : []),
     viteReact(),
+    ...(command === "build" && sentryAuthToken
+      ? [
+          sentryVitePlugin({
+            org: process.env.SENTRY_ORG?.trim() || "simple-with-us",
+            project: process.env.SENTRY_PROJECT?.trim() || "dealdex",
+            authToken: sentryAuthToken,
+            release: { name: sentryRelease || undefined },
+            sourcemaps: {
+              filesToDeleteAfterUpload: [".output/**/*.map", "dist/**/*.map"],
+            },
+            telemetry: false,
+          }),
+        ]
+      : []),
   ],
 }));

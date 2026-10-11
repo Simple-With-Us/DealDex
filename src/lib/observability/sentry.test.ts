@@ -23,6 +23,7 @@ test("package.json ships @sentry/node next to @sentry/react", () => {
   };
   assert.equal(major("@sentry/node"), major("@sentry/react"));
   assert.equal(major("@sentry/react"), "11", "expected the v11 Sentry bump");
+  assert.match(pkg, /"@sentry\/vite-plugin"/);
 });
 
 test("privacy discloses Sentry scan-hop traces without listing titles", () => {
@@ -45,16 +46,29 @@ test("Replay stays 100% on error, 10% session, masked, with Feedback widget", ()
   assert.match(src, /formTitle:\s*"Report a Problem"/);
   assert.match(src, /export function openSentryFeedback/);
   assert.match(src, /colorScheme:\s*"light"/);
+  assert.match(src, /consoleLoggingIntegration\(/);
+  assert.match(src, /dealdex\.web\.sentry_ready/);
+  assert.match(src, /sentryBrowserRelease/);
+  assert.match(src, /VITE_SENTRY_RELEASE/);
   // The Sentry v11 SDK no longer accepts the top-level option that enabled
   // logs in v10; it is unconditional there, so the init call must not set it.
   // Assert on the call body only, so this rule is not confused by prose.
   const initBody = src.slice(src.indexOf("Sentry.init("), src.indexOf("initialized = true"));
   assert.doesNotMatch(initBody, /enableLogs/);
+  assert.match(initBody, /release,/);
+
+  const vite = read("vite.config.ts");
+  assert.match(vite, /sentryVitePlugin/);
+  assert.match(vite, /VERCEL_GIT_COMMIT_SHA/);
+  assert.match(vite, /SENTRY_AUTH_TOKEN/);
+  assert.match(vite, /sourcemap: sentryAuthToken \? "hidden" : false/);
 });
 
 test("iOS Cocoa reads SENTRY_DSN from Info.plist only", () => {
   const swift = read("native/ios/DealDex/SentryTelemetry.swift");
   assert.match(swift, /forInfoDictionaryKey: "SENTRY_DSN"/);
+  assert.match(swift, /CFBundleShortVersionString/);
+  assert.match(swift, /releaseName = build\.isEmpty \? version : "\\\(version\)\+\\\(build\)"/);
   assert.match(swift, /profilesSampleRate = 0\.1/);
   assert.match(swift, /sessionReplay\.onErrorSampleRate = 1\.0/);
   assert.doesNotMatch(swift, /ingest\.sentry\.io/);
@@ -81,6 +95,10 @@ test("server scan hops use named Sentry spans and keep Datadog at web.request", 
   assert.match(server, /scan\.cache\.miss/);
   assert.match(server, /SENTRY_DSN/);
   assert.match(server, /VITE_SENTRY_DSN/);
+  assert.match(server, /VERCEL_GIT_COMMIT_SHA/);
+  assert.match(server, /sentryServerRelease/);
+  assert.match(server, /dealdex\.server\.sentry_ready/);
+  assert.match(server, /consoleLoggingIntegration/);
   assert.match(server, /sendDefaultPii:\s*false/);
   assert.match(server, /registerEsmLoaderHooks:\s*false/);
   assert.match(server, /sentryServerIntegrations/);
@@ -118,12 +136,21 @@ test("server scan hops use named Sentry spans and keep Datadog at web.request", 
 test("Android Sentry SDK is present, DSN-gated, and privacy-safe", () => {
   const gradle = read("native/android/app/build.gradle.kts");
   assert.match(gradle, /io\.sentry:sentry-android/);
+  assert.match(gradle, /androidx\.fragment:fragment-ktx/);
+  assert.match(gradle, /id\("io\.sentry\.android\.gradle"\)/);
+  assert.match(gradle, /includeProguardMapping\.set\(true\)/);
+  assert.match(gradle, /includeSourceContext\.set\(true\)/);
+  assert.match(gradle, /autoInstallation\s*\{[\s\S]*enabled\.set\(false\)/);
   assert.match(gradle, /buildConfigField\("String", "SENTRY_DSN"/);
   assert.match(gradle, /System\.getenv\("SENTRY_DSN"\)/);
   assert.doesNotMatch(gradle, /ingest\.sentry\.io/);
 
+  const rootGradle = read("native/android/build.gradle.kts");
+  assert.match(rootGradle, /id\("io\.sentry\.android\.gradle"\) version "6\.23\.0"/);
+
   const app = read("native/android/app/src/main/java/me/grok/dealdex/DealDexApp.kt");
   assert.match(app, /SentryAndroid\.init/);
+  assert.match(app, /VERSION_NAME\}\+\$\{BuildConfig\.VERSION_CODE\}/);
   assert.match(app, /isSendDefaultPii\s*=\s*false/);
   assert.match(app, /isAttachScreenshot\s*=\s*false/);
   assert.match(app, /isAttachViewHierarchy\s*=\s*false/);
@@ -141,5 +168,6 @@ test("Android Sentry SDK is present, DSN-gated, and privacy-safe", () => {
 
   const native = read("native/README.md");
   assert.match(native, /io\.sentry:sentry-android/);
+  assert.match(native, /io\.sentry\.android\.gradle/);
   assert.doesNotMatch(native, /iOS only until Android tracks ship/i);
 });

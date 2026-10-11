@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("io.sentry.android.gradle")
 }
 
 // Release signing comes from the environment, never the repo. Set
@@ -23,7 +24,8 @@ android {
         versionCode = 3
         versionName = "1.0.3"
 
-        // Compile-time DSN only.  Empty when SENTRY_DSN is unset so the SDK stays dark in CI.
+        // Compile-time DSN only.  Empty when SENTRY_DSN is unset so the SDK stays
+        // dark in debug CI.  Release CI / Play ships inject the GitHub secret.
         val sentryDsn = (System.getenv("SENTRY_DSN") ?: "")
             .replace("\\", "\\\\")
             .replace("\"", "\\\"")
@@ -78,6 +80,9 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.activity:activity-compose:1.13.0")
+    // lintVitalRelease: registerForActivityResult needs Fragment >= 1.3.0.
+    // sentry-android-fragment can pull an older transitive; pin a current one.
+    implementation("androidx.fragment:fragment-ktx:1.8.9")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
     implementation("androidx.navigation:navigation-compose:2.10.2")
@@ -89,12 +94,28 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("com.google.android.play:app-update:2.1.0")
     implementation("com.google.android.play:app-update-ktx:2.1.0")
-    // Crash + ANR + profiling + scan spans.  Mapping upload plugin skipped;
-    // consumer rules ship with each AAR.
+    // Crash + ANR + profiling + scan spans.  Mapping + source-context upload
+    // is the `io.sentry.android.gradle` plugin below (needs SENTRY_AUTH_TOKEN).
     val sentryVersion = "8.60.0"
     implementation("io.sentry:sentry-android:$sentryVersion")
     implementation("io.sentry:sentry-okhttp:$sentryVersion")
     implementation("io.sentry:sentry-android-fragment:$sentryVersion")
     implementation("io.sentry:sentry-compose-android:$sentryVersion")
     debugImplementation("androidx.compose.ui:ui-tooling")
+}
+
+sentry {
+    org.set("simple-with-us")
+    projectName.set("dealdex")
+    // Auth token is env `SENTRY_AUTH_TOKEN`.  Missing token skips upload.
+    includeProguardMapping.set(true)
+    autoUploadProguardMapping.set(true)
+    includeSourceContext.set(true)
+    autoUploadSourceContext.set(true)
+    ignoredBuildTypes.set(setOf("debug"))
+    telemetry.set(false)
+    // SDK versions are pinned in `dependencies {}` above.  Do not auto-add AARs.
+    autoInstallation {
+        enabled.set(false)
+    }
 }
