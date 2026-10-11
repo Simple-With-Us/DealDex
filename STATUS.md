@@ -4,6 +4,10 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 # Current Handoff
 
+## 2026-10-11 CURSOR — Renovate hold TypeScript below 7
+
+Fleet hold (Jay, Oct 2026): `renovate.json` adds `allowedVersions: "<7"` for `typescript` until typescript-eslint and tsup support TS 7.  Renovate PR #431 stays open for tracking; config PR documents the hold.  Rollout: `docs/rollouts/2026-10-11-renovate-typescript-hold.md`.
+
 ## 2026-10-11 CURSOR — Sentry release, source maps, Android mappings, FLEET-INFRA-CC
 
 Web/server now set `release` from `VERCEL_GIT_COMMIT_SHA`, upload hidden source maps via `@sentry/vite-plugin` when `SENTRY_AUTH_TOKEN` is present, and emit Sentry logs through `consoleLoggingIntegration` plus a `dealdex.*.sentry_ready` logger line.  Android applies `io.sentry.android.gradle` 6.23.0 (R8 mappings + source context), injects `SENTRY_DSN` on the CI release assemble, and tags `release` as `versionName+versionCode`.  iOS Cocoa now sets `releaseName` the same way.  FLEET-INFRA-CC is a parked TestFlight cron: `ios-ship.yml` is `disabled_manually` since 2026-09-27, so the fleet-infra monitor never got check-ins.  Cron is now hourly (`22 * * * *`) and `.github/workflows/ios-ship-cron-park.yml` heartbeats the existing monitor slug until ships resume.  Branch `cursor/sentry-release-sourcemaps-af57`.  Rollout: `docs/rollouts/2026-10-11-sentry-release-sourcemaps.md`.
