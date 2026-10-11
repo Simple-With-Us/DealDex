@@ -24,17 +24,22 @@ export const Route = createFileRoute("/settings")({ component: SettingsPage });
 
 function SettingsPage() {
   const { user, isPending } = useCurrentUserState();
-  const [keys, setKeys] = useState<DeskKeys>({});
+  const [keys, setKeys] = useState<DeskKeys>(() => loadDeskKeys());
+  const userKey = user?.id ?? null;
+  const [prevUserKey, setPrevUserKey] = useState<string | null>(userKey);
+  if (prevUserKey !== userKey) {
+    setPrevUserKey(userKey);
+    setKeys(loadDeskKeys());
+  }
   const [show, setShow] = useState<Partial<Record<DeskKeyId, boolean>>>({});
   const [testing, setTesting] = useState<DeskKeyId | null>(null);
   const [saved, setSaved] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    const local = loadDeskKeys();
-    setKeys(local);
     if (isPending || !user) return;
     let live = true;
+    const local = loadDeskKeys();
     getAccountKeys()
       .then((remote) => {
         if (!live) return;
