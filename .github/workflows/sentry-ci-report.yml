@@ -45,7 +45,7 @@ name: Sentry CI Report
 # run and raises a Sentry issue on drift, so a rename cannot silently kill a
 # monitor:
 #   Effort Issues Sync                      -> "18 6 * * *"  (effort-issues-sync.yml, daily)
-#   iOS TestFlight ship (GitHub-hosted macOS)-> "22,52 * * * *"  (ios-ship.yml)
+#   iOS TestFlight ship (GitHub-hosted macOS)-> "22 * * * *"  (ios-ship.yml)
 #
 # Secret: repo (or org) Actions secret `SENTRY_FLEET_DSN` must be set to the
 # fleet-infra project DSN.  Name only — never commit or print the value.

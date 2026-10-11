@@ -33,6 +33,8 @@ jobs:
           bash -n scripts/test-ios-stage-asc-key.sh
           bash -n scripts/ios-appstore-gm-prepare.sh
           bash scripts/test-ios-stage-asc-key.sh
+          python3 scripts/sentry-ci-report-margins_test.py
+          SENTRY_FLEET_DSN= python3 scripts/sentry-ci-report.py --park-ios-ship
 
       - name: Install dependencies
         # `npm ci` is what vercel.json runs, so CI has to prove that exact
@@ -90,3 +92,12 @@ jobs:
 
       - name: Assemble debug and unit tests
         run: ./gradlew :app:assembleDebug :app:testDebugUnitTest --no-daemon
+
+      # Release path is where R8 mappings + source context upload.  DSN and
+      # auth token stay in repo secrets; empty values leave the SDK dark and
+      # skip the upload.  The APK is unsigned when signing env is absent.
+      - name: Assemble release (Sentry mappings)
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: ./gradlew :app:assembleRelease --no-daemon

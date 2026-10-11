@@ -4,6 +4,10 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 # Current Handoff
 
+## 2026-10-11 CURSOR — Sentry release, source maps, Android mappings, FLEET-INFRA-CC
+
+Web/server now set `release` from `VERCEL_GIT_COMMIT_SHA`, upload hidden source maps via `@sentry/vite-plugin` when `SENTRY_AUTH_TOKEN` is present, and emit Sentry logs through `consoleLoggingIntegration` plus a `dealdex.*.sentry_ready` logger line.  Android applies `io.sentry.android.gradle` 6.23.0 (R8 mappings + source context), injects `SENTRY_DSN` on the CI release assemble, and tags `release` as `versionName+versionCode`.  iOS Cocoa now sets `releaseName` the same way.  FLEET-INFRA-CC is a parked TestFlight cron: `ios-ship.yml` is `disabled_manually` since 2026-09-27, so the fleet-infra monitor never got check-ins.  Cron is now hourly (`22 * * * *`) and `.github/workflows/ios-ship-cron-park.yml` heartbeats the existing monitor slug until ships resume.  Branch `cursor/sentry-release-sourcemaps-af57`.  Rollout: `docs/rollouts/2026-10-11-sentry-release-sourcemaps.md`.
+
 ## 2026-10-11 CURSOR — Android Gradle 9 build fix (cloud)
 
 `main` did not assemble Android after the Gradle 9 / Kotlin 2 / Compose BOM 2026 stack landed: AGP 8.13.2 is incompatible with Gradle 9.6+ internal APIs, and dependency bumps require `compileSdk` 37 plus AGP 9 built-in Kotlin / Compose compiler plugin.  Branch `cursor/android-gradle9-build-fix-2f16` bumps AGP to 9.4.1, fixes Sentry Android Maven coordinates, adds an `android` CI job with Gradle caching, and verifies `./gradlew :app:assembleDebug` on the cloud VM.  PR #442 ready for review; not merged per owner request.  Rollout: `docs/rollouts/2026-10-11-android-gradle9-agp9-build.md`.

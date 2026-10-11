@@ -49,7 +49,8 @@ eBay (server-side website scan + Browse API): `EBAY_APP_ID`, `EBAY_CERT_ID`.
 - Alert rules / saved filters: per-user rows in the server DB (`alert_rules`, `saved_filters`).
 - eBay OAuth refresh tokens: per-user rows in `user_settings`.
 - UI prefs: app mark, theme, PWA state — browser localStorage.
-- Build-time client env (`VITE_*`): `VITE_AUTH_ENABLED`, `VITE_PUBLIC_HOSTNAME`, `VITE_SENTRY_DSN`, `VITE_SENTRY_ENV`, `VITE_*_SAMPLE_RATE`, `VITE_DD_*`.  These are baked into the client bundle at build time and cannot be refreshed at runtime; they stay as build env vars.
+- Build-time client env (`VITE_*`): `VITE_AUTH_ENABLED`, `VITE_PUBLIC_HOSTNAME`, `VITE_SENTRY_DSN`, `VITE_SENTRY_ENV`, `VITE_SENTRY_RELEASE`, `VITE_*_SAMPLE_RATE`, `VITE_DD_*`.  These are baked into the client bundle at build time and cannot be refreshed at runtime; they stay as build env vars.
+- Source-map / mapping upload: `SENTRY_AUTH_TOKEN` (Vercel Production + Preview, GitHub Actions).  Used only at build time by `@sentry/vite-plugin` and `io.sentry.android.gradle`.  Not a runtime app setting.
 - Pricing-model constants: `CONDITION_MULT`, `GRADE_MULT`, `MARKETPLACE_FEE`, `TCGPLAYER_SELL_FEE`, grade-bucket curves, the vs-book "middle" band.  These are model parameters with correctness invariants (see the `gradeMultiplier` ordering comment in `src/lib/tcg/appraise.ts`), consumed by client-shared pure modules — changing them at runtime for the server half while the client bundle keeps the old values would silently fork pricing.  They change with code deploys only.
 - iOS / App Store Connect shipping secrets already in the project (`ASC_ISSUER_ID`, `ASC_KEY_ID`, `ASC_KEY_P8`, `IOS_DIST_P12_BASE64`, `IOS_DIST_P12_PASSWORD`): used by ship scripts, untouched by this change.
 

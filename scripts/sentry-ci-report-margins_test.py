@@ -35,8 +35,10 @@ def main() -> int:
     }
     assert overrides == expected, overrides
     assert schedules.get("Effort Issues Sync") == "18 6 * * *", schedules
+    assert schedules.get("iOS TestFlight ship (GitHub-hosted macOS)") == "22 * * * *", schedules
     print("MARGIN_PARSE_OK", overrides)
     print("EFFORT_SYNC_CRON_OK", schedules["Effort Issues Sync"])
+    print("IOS_SHIP_CRON_OK", schedules["iOS TestFlight ship (GitHub-hosted macOS)"])
     return 0
 
 

@@ -15,10 +15,12 @@ device-tested release build exists.
 ## Android
 
 Sentry Android (`io.sentry:sentry-android`) inits in `DealDexApp` when
-`BuildConfig.SENTRY_DSN` is set from env `SENTRY_DSN` at compile time.
-Empty DSN stays dark.  Privacy: no default PII, no screenshots, no view
-hierarchy.  Masked Session Replay is 10% session / 100% error;
-`profilesSampleRate` is 0.1.  Mapping upload plugin is not wired yet.
+`BuildConfig.SENTRY_DSN` is set from env `SENTRY_DSN` at compile time
+(CI release job injects the `SENTRY_DSN` repo secret).  Empty DSN stays
+dark.  `release` is `versionName+versionCode`.  Privacy: no default PII, no
+screenshots, no view hierarchy.  Masked Session Replay is 10% session /
+100% error; `profilesSampleRate` is 0.1.  `io.sentry.android.gradle` uploads
+R8 mappings and source context when `SENTRY_AUTH_TOKEN` is set.
 
 Build the debug APK locally (there is no sideload file on dealdex.net):
 
@@ -29,7 +31,7 @@ ANDROID_HOME="${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}"
 ANDROID_HOME="$ANDROID_HOME" JAVA_HOME="$JAVA_HOME" ./gradlew :app:assembleDebug --no-daemon
 ```
 
-The repo ships a Gradle 8.7 wrapper.  Point `local.properties` `sdk.dir` at your Android SDK (copy `local.properties.example`).  Need JDK 17.
+The repo ships a Gradle 9.8 wrapper (AGP 9.4.1).  Point `local.properties` `sdk.dir` at your Android SDK (copy `local.properties.example`).  Need JDK 17+.
 
 - Package `me.grok.dealdex`, min SDK 26, target 35.
 - Launcher name: DealDex.
