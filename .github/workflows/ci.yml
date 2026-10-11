@@ -84,8 +84,9 @@ jobs:
             echo "sdkmanager not found under ${ANDROID_SDK_ROOT}" >&2
             exit 1
           fi
-          yes | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" "platform-tools" "platforms;android-37" "build-tools;35.0.0" "build-tools;36.0.0"
+          # pipefail + `yes` yields exit 141 when sdkmanager closes stdin; do not fail the job.
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-37.0" "build-tools;35.0.0" "build-tools;36.0.0"
 
       - name: Assemble debug and unit tests
         run: ./gradlew :app:assembleDebug :app:testDebugUnitTest --no-daemon
