@@ -4,6 +4,10 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 # Current Handoff
 
+## 2026-10-11 CURSOR — Android Gradle 9 build fix (cloud)
+
+`main` did not assemble Android after the Gradle 9 / Kotlin 2 / Compose BOM 2026 stack landed: AGP 8.13.2 is incompatible with Gradle 9.6+ internal APIs, and dependency bumps require `compileSdk` 37 plus AGP 9 built-in Kotlin / Compose compiler plugin.  Branch `cursor/android-gradle9-build-fix-2f16` bumps AGP to 9.4.1, fixes Sentry Android Maven coordinates, and verifies `./gradlew :app:assembleDebug` on the cloud VM.  PR open; not merged per owner request.  Rollout: `docs/rollouts/2026-10-11-android-gradle9-agp9-build.md`.
+
 ## 2026-10-10 CLAUDE — Infisical prod only
 
 `resolveAppEnv()` now always returns `prod` (Preview and Development no longer map to `staging` and `dev`), a `DEALDEX_INFISICAL_ENV` override with a non-prod value is refused with one warning, and the Cursor boot defaults to and requires `prod`.  Update Sat Oct 10 (owner decision): all 11 dev-only knobs were copied to prod and verified, including the money-path `AUTO_BUY_DEFAULT_*` keys and `AUTO_BUY_DRY_RUN_FORCE` (dev value `false`, the same as prod's schema default), and the `dev` and `staging` environments are deleted.  Details: `docs/rollouts/2026-10-10-infisical-prod-only.md`.  Next action: none for this rollout.
