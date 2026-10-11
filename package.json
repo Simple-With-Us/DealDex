@@ -62,7 +62,7 @@
     "date-fns": "^4.0.0",
     "kysely": "^0.29.6",
     "lru-cache": "^11.5.2",
-    "lucide-react": "^0.577.0",
+    "lucide-react": "^1.0.0",
     "pg": "^8.16.3",
     "react": "^19.3.0",
     "react-day-picker": "^10.0.2",
