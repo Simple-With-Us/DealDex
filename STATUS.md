@@ -6,7 +6,7 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 ## 2026-10-11 CURSOR — Android Gradle 9 build fix (cloud)
 
-`main` did not assemble Android after the Gradle 9 / Kotlin 2 / Compose BOM 2026 stack landed: AGP 8.13.2 is incompatible with Gradle 9.6+ internal APIs, and dependency bumps require `compileSdk` 37 plus AGP 9 built-in Kotlin / Compose compiler plugin.  Branch `cursor/android-gradle9-build-fix-2f16` bumps AGP to 9.4.1, fixes Sentry Android Maven coordinates, and verifies `./gradlew :app:assembleDebug` on the cloud VM.  PR open; not merged per owner request.  Rollout: `docs/rollouts/2026-10-11-android-gradle9-agp9-build.md`.
+`main` did not assemble Android after the Gradle 9 / Kotlin 2 / Compose BOM 2026 stack landed: AGP 8.13.2 is incompatible with Gradle 9.6+ internal APIs, and dependency bumps require `compileSdk` 37 plus AGP 9 built-in Kotlin / Compose compiler plugin.  Branch `cursor/android-gradle9-build-fix-2f16` bumps AGP to 9.4.1, fixes Sentry Android Maven coordinates, adds an `android` CI job with Gradle caching, and verifies `./gradlew :app:assembleDebug` on the cloud VM.  PR #442 ready for review; not merged per owner request.  Rollout: `docs/rollouts/2026-10-11-android-gradle9-agp9-build.md`.
 
 ## 2026-10-10 CLAUDE — Infisical prod only
 

@@ -27,6 +27,6 @@ Renovate merged Gradle 9.8, Kotlin Android plugin 2.4.20, Compose BOM 2026.09.00
 3. **`compileSdk = 37`** — Compose BOM 2026 / OkHttp 5 / androidx deps require API 37 compile; **`targetSdk` stays 35** for Play policy called out in `app/build.gradle.kts`.
 4. **Sentry Android coordinates** — `sentry-android-okhttp` / `sentry-android-compose` at non-existent versions blocked resolution; aligned on `sentry-okhttp` + `sentry-compose-android` 8.60.0 (npm `@sentry/*` v9 is unrelated).  Removed deprecated `SentryOkHttpIntegration` / `SentryComposeIntegration` registrations; fragment integration now `FragmentLifecycleIntegration(this)`.
 
-## CI recommendation (not implemented here)
+## CI
 
-Add a `native-android` job: install JDK 17+, accept SDK licenses, `sdkmanager` platform 37 + build-tools, then `./gradlew :app:assembleDebug :app:testDebugUnitTest` from `native/android`.
+`.github/workflows/ci.yml` gains an `android` job (JDK 21, `android-actions/setup-android`, `gradle/actions/setup-gradle` cache, `sdkmanager` platform 37 + build-tools 35/36, then `./gradlew :app:assembleDebug :app:testDebugUnitTest`).
