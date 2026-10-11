@@ -19,7 +19,7 @@ Telemetry audit 2026-10-11 section C item 9: dealdex web events had no `release`
 
 | Name | Where | Why |
 | --- | --- | --- |
-| `SENTRY_AUTH_TOKEN` | Vercel project `dealdex` Production + Preview; GitHub repo Actions (already used by sentry-deploy + ios-ship) | Source-map upload (`project:releases` + `org:read`) and Android mapping upload |
+| `SENTRY_AUTH_TOKEN` | Vercel project `dealdex` Production + Preview; GitHub repo Actions | Source-map upload (`project:releases` + `org:read`) and Android mapping upload.  The current GitHub secret is present but **401 Invalid token** — replace it |
 | `SENTRY_DSN` | GitHub repo Actions (ios-ship already lists it); Android CI release assemble | Compile-time Android DSN.  Empty = SDK stays dark |
 | `VITE_SENTRY_DSN` | Vercel Production + Preview (already documented) | Browser SDK |
 | `SENTRY_DSN` | Infisical DealDex prod / Vercel runtime | Server SDK |
