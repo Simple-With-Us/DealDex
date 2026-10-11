@@ -29,4 +29,4 @@ Renovate merged Gradle 9.8, Kotlin Android plugin 2.4.20, Compose BOM 2026.09.00
 
 ## CI
 
-`.github/workflows/ci.yml` gains an `android` job (JDK 21, `android-actions/setup-android`, `gradle/actions/setup-gradle` cache, `sdkmanager` platform 37 + build-tools 35/36, then `./gradlew :app:assembleDebug :app:testDebugUnitTest`).
+`.github/workflows/ci.yml` gains an `android` job (JDK 21, `actions/setup-java` Gradle cache, runner SDK + `sdkmanager` platform 37 + build-tools 35/36, then `./gradlew :app:assembleDebug :app:testDebugUnitTest`).
