@@ -136,6 +136,7 @@ test("server scan hops use named Sentry spans and keep Datadog at web.request", 
 test("Android Sentry SDK is present, DSN-gated, and privacy-safe", () => {
   const gradle = read("native/android/app/build.gradle.kts");
   assert.match(gradle, /io\.sentry:sentry-android/);
+  assert.match(gradle, /androidx\.fragment:fragment-ktx/);
   assert.match(gradle, /id\("io\.sentry\.android\.gradle"\)/);
   assert.match(gradle, /includeProguardMapping\.set\(true\)/);
   assert.match(gradle, /includeSourceContext\.set\(true\)/);
