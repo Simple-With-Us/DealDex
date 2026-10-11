@@ -86,7 +86,7 @@ dependencies {
     // Credentials (session token, PKCE verifier, desk API keys) belong in an
     // encrypted store, not a plain SharedPreferences plist.
     implementation("androidx.security:security-crypto:1.1.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:okhttp:5.5.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("com.google.android.play:app-update:2.1.0")
     implementation("com.google.android.play:app-update-ktx:2.1.0")
