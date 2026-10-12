@@ -4,6 +4,10 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 # Current Handoff
 
+## 2026-10-11 CODEX — Direct MiniMax API Kody caller correction
+
+The Kody caller correction now targets `MiniMax-M3` directly at `https://api.minimax.io/v1`, using the existing org secret `MINIMAX_API_KEY`.  The workflow display name remains `Kody MiniMax M3 Fix Proposals` for Sentry matching; the profile, source scope, trigger gates, concurrency group, five-attempt daily limit, and permissions remain unchanged.  The caller now pins shared workflow commit `614ec3938cd7a86bc30a5a5b2367b29fabf40005`, which supports direct MiniMax.  Scoped `actionlint` and `git diff --check` pass.  Next: open the follow-up PR for CODEX review only; the parent owns landing.  No effort-log entry was added because the canonical fleet protocol retires those logs.
+
 ## 2026-10-11 CODEX — Kody MiniMax M3 model switch (PR #448)
 
 PR #448 switched DealDex’s Kody autofix caller to `minimax/minimax-m3` through the existing Vercel AI Gateway.  All final checks (`verify`, `e2e`, `gitleaks`, and `android`) passed and the PR merged.  The reusable-workflow pin, profile, source scope, runtime gates, attempt budget, gateway endpoint, and API-key forwarding stayed unchanged.  The documentation follow-up is on `codex/cts-330-kody-handoff` and awaits CODEX review.  No effort-log entry was added because the canonical fleet protocol retires those logs.
