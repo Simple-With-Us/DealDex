@@ -4,7 +4,7 @@
 
 This follow-up corrects the initial gateway configuration from PR #448.  The DealDex Kody caller now uses model `MiniMax-M3` at MiniMax’s OpenAI-compatible endpoint, `https://api.minimax.io/v1`, with the existing organization secret `MINIMAX_API_KEY`.  The workflow name remains exactly `Kody MiniMax M3 Fix Proposals` so Sentry continues to match completed workflow runs.
 
-The `web` profile, `src/` and `server/` source scope, `check_run` trigger qualification, enable flag, sender and app checks, retry and concurrency gates, permissions, and five-attempt daily budget stay unchanged.  The caller pins the direct-MiniMax-capable shared-workflow revision `77ac4cd11c05d2c883d2e0b3b28c4cf1bf82ebb9`.
+The `web` profile, `src/` and `server/` source scope, `check_run` trigger qualification, enable flag, sender and app checks, retry and concurrency gates, permissions, and five-attempt daily budget stay unchanged.  The caller pins the direct-MiniMax-capable shared-workflow revision `fea7cd120407b157c3d1f5edc5b08ff15d3f0e73`.
 
 ## Verification Evidence
 

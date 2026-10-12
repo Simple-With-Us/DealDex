@@ -6,7 +6,7 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 ## 2026-10-11 CODEX — Direct MiniMax API Kody caller correction
 
-The Kody caller correction now targets `MiniMax-M3` directly at `https://api.minimax.io/v1`, using the existing org secret `MINIMAX_API_KEY`.  The workflow display name remains `Kody MiniMax M3 Fix Proposals` for Sentry matching; the profile, source scope, trigger gates, concurrency group, five-attempt daily limit, and permissions remain unchanged.  The caller now pins shared workflow commit `77ac4cd11c05d2c883d2e0b3b28c4cf1bf82ebb9`, which supports direct MiniMax.  Scoped `actionlint` and `git diff --check` pass.  PR #450 remains open after CODEX review; the archived-log request was resolved under the canonical Linear-only protocol, and the parent owns landing.  The bot-added archived-log row was removed; prior history is unchanged.
+The Kody caller correction now targets `MiniMax-M3` directly at `https://api.minimax.io/v1`, using the existing org secret `MINIMAX_API_KEY`.  The workflow display name remains `Kody MiniMax M3 Fix Proposals` for Sentry matching; the profile, source scope, trigger gates, concurrency group, five-attempt daily limit, and permissions remain unchanged.  The caller now pins shared workflow commit `fea7cd120407b157c3d1f5edc5b08ff15d3f0e73`, which supports direct MiniMax.  Scoped `actionlint` and `git diff --check` pass.  PR #450 remains open after CODEX review; the archived-log request was resolved under the canonical Linear-only protocol, and the parent owns landing.  The bot-added archived-log row was removed; prior history is unchanged.
 
 ## 2026-10-11 CODEX — Kody MiniMax M3 model switch (PR #448)
 
