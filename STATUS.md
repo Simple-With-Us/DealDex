@@ -4,6 +4,10 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 # Current Handoff
 
+## 2026-10-11 CODEX — Kody MiniMax M3 model switch (PR #448)
+
+PR #448 switched DealDex’s Kody autofix caller to `minimax/minimax-m3` through the existing Vercel AI Gateway.  All final checks (`verify`, `e2e`, `gitleaks`, and `android`) passed and the PR merged.  The reusable-workflow pin, profile, source scope, runtime gates, attempt budget, gateway endpoint, and API-key forwarding stayed unchanged.  The documentation follow-up is on `codex/cts-330-kody-handoff` and awaits CODEX review.  No effort-log entry was added because the canonical fleet protocol retires those logs.
+
 ## 2026-10-11 CURSOR — Renovate hold TypeScript below 7
 
 Fleet hold (Jay, Oct 2026): `renovate.json` adds `allowedVersions: "<7"` for `typescript` until typescript-eslint and tsup support TS 7.  Renovate PR #431 stays open for tracking; config PR documents the hold.  Rollout: `docs/rollouts/2026-10-11-renovate-typescript-hold.md`.
