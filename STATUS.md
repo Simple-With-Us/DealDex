@@ -4,6 +4,13 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 # Current Handoff
 
+## 2026-10-12 CODEX — Claude Autofix Diagnostics (OPS-935, PR #451)
+
+Pin Claude Code Autofix to shared revision `3bff293b56adcc0367d3a91066938b2d4d5ebbc5` for bounded, sanitized tool diagnostics retained for seven days.  The 60-turn cap, MiniMax route, trigger guards, permissions, and concurrency remain unchanged.  Shared PR #365 is merged at `9a471890d31f0bb922fc2650953388e4cf1d517d`; both immutable pins are verified ancestors of shared main.
+
+Caller actionlint and diff checks passed.  Shared validation passed 14 Node tests, 463 package tests, typecheck/build, and the hosted synthetic artifact check.  Current-head review and required CI remain the next gate; OPS-935 stays open until a real eligible run is inspected.  Exact commands and limits are in `docs/rollouts/2026-10-12-claude-autofix-diagnostics.md`.  Linear is the live tracker; effort logs are archived.
+
+
 ## 2026-10-11 CODEX — Direct MiniMax API Kody caller correction
 
 The Kody caller correction now targets `MiniMax-M3` directly at `https://api.minimax.io/v1`, using the existing org secret `MINIMAX_API_KEY`.  The workflow display name remains `Kody MiniMax M3 Fix Proposals` for Sentry matching; the profile, source scope, trigger gates, concurrency group, five-attempt daily limit, and permissions remain unchanged.  The caller now pins shared workflow commit `fea7cd120407b157c3d1f5edc5b08ff15d3f0e73`, which supports direct MiniMax.  Scoped `actionlint` and `git diff --check` pass.  PR #450 remains open after CODEX review; the archived-log request was resolved under the canonical Linear-only protocol, and the parent owns landing.  The bot-added archived-log row was removed; prior history is unchanged.
