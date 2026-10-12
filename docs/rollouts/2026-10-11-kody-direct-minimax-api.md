@@ -12,4 +12,4 @@ The original PR #448’s final checks passed: `verify`, `e2e`, `gitleaks`, and `
 
 ## Handoff
 
-This follow-up is on `codex/cts-330-direct-minimax` for DealDex.  The parent owns landing; request CODEX review only.  No application code or effort log changed.
+This follow-up is on `codex/cts-330-direct-minimax` for DealDex.  The parent owns landing.  `AGENTS.md` now directs reservation and tracking writes to Linear via `board` and marks `docs/EFFORT-LOG.md` as archived, read-only history.  The bot-added archived-log row was removed; prior history is unchanged.
