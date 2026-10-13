@@ -4,11 +4,11 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 # Current Handoff
 
-## 2026-10-12 CODEX — Claude Autofix Diagnostics (OPS-935, PR #451)
+## 2026-10-12 CODEX — Claude Autofix 120-Turn Cap (OPS-935)
 
-Pin Claude Code Autofix to shared revision `3bff293b56adcc0367d3a91066938b2d4d5ebbc5` for bounded, sanitized tool diagnostics retained for seven days.  The 60-turn cap, MiniMax route, trigger guards, permissions, and concurrency remain unchanged.  Shared PR #365 is merged at `9a471890d31f0bb922fc2650953388e4cf1d517d`; both immutable pins are verified ancestors of shared main.
+Pin Claude Code Autofix to shared revision `825f8ee008d6ce104107f2a7267c14d370e6013e`, raising the default from 60 to 120 turns and adding schema-2 operation-category counters with conservative fallback for ambiguous forms.  Raw commands remain excluded; artifacts retain the existing seven-day, 500-event, 256-KiB bounds.  The 30-minute timeout, MiniMax route, trigger guards, permissions, and concurrency remain unchanged.  Shared PR #368 must land before this caller PR can merge.
 
-Caller actionlint and diff checks passed.  Shared validation passed 14 Node tests, 463 package tests, typecheck/build, and the hosted synthetic artifact check.  Current-head review and required CI remain the next gate; OPS-935 stays open until a real eligible run is inspected.  Exact commands and limits are in `docs/rollouts/2026-10-12-claude-autofix-diagnostics.md`.  Linear is the live tracker; effort logs are archived.
+Caller `actionlint` and `git diff --check` passed.  Congress.Trade's Actions runner policy validator also passed.  Shared PR #368 recorded a successful run using 37 turns and 36 calls over 99 seconds with no errors; the resulting fix push was verified.  Current-head review and required CI remain the next gate; OPS-935 stays open pending evidence from later eligible runs.  Exact scope is in `docs/rollouts/2026-10-12-claude-autofix-diagnostics.md`.  Linear is the live tracker; effort logs are archived.
 
 
 ## 2026-10-11 CODEX — Direct MiniMax API Kody caller correction
