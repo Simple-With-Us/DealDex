@@ -24,6 +24,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +48,7 @@ import me.grok.dealdex.ui.EvaluatorScreen
 import me.grok.dealdex.ui.SavedScreen
 import me.grok.dealdex.ui.ScanScreen
 import me.grok.dealdex.ui.SettingsScreen
+import io.sentry.compose.SentryTraced
 
 class MainActivity : ComponentActivity() {
     private val vm: DeskViewModel by viewModels()
@@ -58,6 +60,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var playUpdateManager: AppUpdateManager
     private var offeredPlayUpdateThisSession = false
 
+    @OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         // Android 15 (API 35) draws apps edge to edge whether or not they ask.
         // Declaring it means Scaffold's insets are the ones that apply.
@@ -66,6 +69,7 @@ class MainActivity : ComponentActivity() {
         playUpdateManager = AppUpdateManagerFactory.create(this)
         handleAuth(intent)
         setContent {
+            SentryTraced("MainActivity") {
             DealDexTheme {
                 val nav = rememberNavController()
                 val state by vm.state.collectAsState()
@@ -154,6 +158,7 @@ class MainActivity : ComponentActivity() {
                         },
                     )
                 }
+            }
             }
         }
     }

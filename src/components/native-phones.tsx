@@ -17,7 +17,6 @@ export function NativePhones() {
 
   useEffect(() => {
     let live = true;
-    setLoading(true);
     void scanMarketplaces({ data: { q: "", sources: ["ebay", "mercari"] } })
       .then((res) => {
         if (live) setRows(res.rows);

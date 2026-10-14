@@ -55,14 +55,17 @@ function readLocal(): SavedRow[] {
 
 function SavedPage() {
   const { user, isPending } = useCurrentUserState();
-  const [rows, setRows] = useState<SavedRow[]>([]);
+  const [rows, setRows] = useState<SavedRow[]>(() => readLocal());
+  const userKey = user?.id ?? null;
+  const [prevUserKey, setPrevUserKey] = useState<string | null>(userKey);
+  if (prevUserKey !== userKey) {
+    setPrevUserKey(userKey);
+    setRows(readLocal());
+  }
 
   useEffect(() => {
     if (isPending) return;
-    if (!user) {
-      setRows(readLocal());
-      return;
-    }
+    if (!user) return;
     listSaved()
       .then(setRows)
       .catch(() => setRows(readLocal()));

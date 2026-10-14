@@ -93,6 +93,8 @@ type SentryLike = {
   startSpan: <T>(opts: StartSpanOptions, callback: (span: SpanLike) => T) => T;
   withIsolationScope?: <T>(callback: () => T) => T;
   flush?: (timeout?: number) => Promise<boolean>;
+  consoleLoggingIntegration?: (opts?: { levels?: string[] }) => { name: string };
+  logger?: { info?: (message: string) => void };
 };
 
 type EnvMap = Record<string, string | undefined>;
@@ -122,6 +124,15 @@ export function sentryServerEnvironment(env: EnvMap = defaultServerEnv()): strin
 export function sentryServerTracesSampleRate(env: EnvMap = defaultServerEnv()): number {
   const raw = Number((env.SENTRY_TRACES_SAMPLE_RATE ?? "0.2").trim());
   return Number.isFinite(raw) ? Math.min(Math.max(raw, 0), 1) : 0.2;
+}
+
+/** Full git SHA so `sentry-deploy.yml` production deploys match browser + server events. */
+export function sentryServerRelease(env: EnvMap = defaultServerEnv()): string | undefined {
+  const release =
+    env.SENTRY_RELEASE?.trim() ||
+    env.VERCEL_GIT_COMMIT_SHA?.trim() ||
+    env.GITHUB_SHA?.trim();
+  return release || undefined;
 }
 
 function handleFromSpan(span: SpanLike | null | undefined): ScanSpanHandle | null {
@@ -154,6 +165,8 @@ async function loadSentry(env: EnvMap): Promise<SentryLike | null> {
     const mod = (await import("@sentry/node")) as {
       init?: unknown;
       startSpan?: unknown;
+      consoleLoggingIntegration?: unknown;
+      logger?: { info?: (message: string) => void };
       default?: { init?: unknown; startSpan?: unknown };
     };
     const picked = (typeof mod.startSpan === "function" ? mod : mod.default) as SentryLike | undefined;
@@ -164,16 +177,28 @@ async function loadSentry(env: EnvMap): Promise<SentryLike | null> {
     if (!initialized) {
       Sentry.init({
         dsn,
+        release: sentryServerRelease(env),
         environment: sentryServerEnvironment(env),
         tracesSampleRate: sentryServerTracesSampleRate(env),
         sendDefaultPii: false,
         enableLogs: true,
         includeLocalVariables: false,
         registerEsmLoaderHooks: false,
-        integrations: sentryServerIntegrations,
+        integrations: (defaults: Array<{ name: string }>) => {
+          const list = sentryServerIntegrations(defaults);
+          if (typeof Sentry.consoleLoggingIntegration === "function") {
+            list.push(Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] }));
+          }
+          return list;
+        },
         beforeBreadcrumb: sentryServerBeforeBreadcrumb,
         beforeSendSpan: sentryServerBeforeSendSpan,
       });
+      try {
+        Sentry.logger?.info?.("dealdex.server.sentry_ready");
+      } catch {
+        /* a log emit must never break a scan */
+      }
       initialized = true;
     }
     sdk = Sentry;

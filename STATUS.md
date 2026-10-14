@@ -4,6 +4,33 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 # Current Handoff
 
+## 2026-10-12 CODEX — Claude Autofix 120-Turn Cap (OPS-935)
+
+Pin Claude Code Autofix to shared revision `825f8ee008d6ce104107f2a7267c14d370e6013e`, raising the default from 60 to 120 turns and adding schema-2 operation-category counters with conservative fallback for ambiguous forms.  Raw commands remain excluded; artifacts retain the existing seven-day, 500-event, 256-KiB bounds.  The 30-minute timeout, MiniMax route, trigger guards, permissions, and concurrency remain unchanged.  Shared PR #368 must land before this caller PR can merge.
+
+Caller `actionlint` and `git diff --check` passed.  Congress.Trade's Actions runner policy validator also passed.  Shared PR #368 recorded a successful run using 37 turns and 36 calls over 99 seconds with no errors; the resulting fix push was verified.  Current-head review and required CI remain the next gate; OPS-935 stays open pending evidence from later eligible runs.  Exact scope is in `docs/rollouts/2026-10-12-claude-autofix-diagnostics.md`.  Linear is the live tracker; effort logs are archived.
+
+
+## 2026-10-11 CODEX — Direct MiniMax API Kody caller correction
+
+The Kody caller correction now targets `MiniMax-M3` directly at `https://api.minimax.io/v1`, using the existing org secret `MINIMAX_API_KEY`.  The workflow display name remains `Kody MiniMax M3 Fix Proposals` for Sentry matching; the profile, source scope, trigger gates, concurrency group, five-attempt daily limit, and permissions remain unchanged.  The caller now pins shared workflow commit `fea7cd120407b157c3d1f5edc5b08ff15d3f0e73`, which supports direct MiniMax.  Scoped `actionlint` and `git diff --check` pass.  PR #450 remains open after CODEX review; the archived-log request was resolved under the canonical Linear-only protocol, and the parent owns landing.  The bot-added archived-log row was removed; prior history is unchanged.
+
+## 2026-10-11 CODEX — Kody MiniMax M3 model switch (PR #448)
+
+PR #448 switched DealDex’s Kody autofix caller to `minimax/minimax-m3` through the existing Vercel AI Gateway.  All final checks (`verify`, `e2e`, `gitleaks`, and `android`) passed and the PR merged.  The reusable-workflow pin, profile, source scope, runtime gates, attempt budget, gateway endpoint, and API-key forwarding stayed unchanged.  The documentation follow-up is on `codex/cts-330-kody-handoff` and awaits CODEX review.  No effort-log entry was added because the canonical fleet protocol retires those logs.
+
+## 2026-10-11 CURSOR — Renovate hold TypeScript below 7
+
+Fleet hold (Jay, Oct 2026): `renovate.json` adds `allowedVersions: "<7"` for `typescript` until typescript-eslint and tsup support TS 7.  Renovate PR #431 stays open for tracking; config PR documents the hold.  Rollout: `docs/rollouts/2026-10-11-renovate-typescript-hold.md`.
+
+## 2026-10-11 CURSOR — Sentry release, source maps, Android mappings, FLEET-INFRA-CC
+
+Web/server now set `release` from `VERCEL_GIT_COMMIT_SHA`, upload hidden source maps via `@sentry/vite-plugin` when `SENTRY_AUTH_TOKEN` is present, and emit Sentry logs through `consoleLoggingIntegration` plus a `dealdex.*.sentry_ready` logger line.  Android applies `io.sentry.android.gradle` 6.23.0 (R8 mappings + source context), injects `SENTRY_DSN` on the CI release assemble, and tags `release` as `versionName+versionCode`.  iOS Cocoa now sets `releaseName` the same way.  FLEET-INFRA-CC is a parked TestFlight cron: `ios-ship.yml` is `disabled_manually` since 2026-09-27, so the fleet-infra monitor never got check-ins.  Cron is now hourly (`22 * * * *`) and `.github/workflows/ios-ship-cron-park.yml` heartbeats the existing monitor slug until ships resume.  Branch `cursor/sentry-release-sourcemaps-af57`.  Rollout: `docs/rollouts/2026-10-11-sentry-release-sourcemaps.md`.
+
+## 2026-10-11 CURSOR — Android Gradle 9 build fix (cloud)
+
+`main` did not assemble Android after the Gradle 9 / Kotlin 2 / Compose BOM 2026 stack landed: AGP 8.13.2 is incompatible with Gradle 9.6+ internal APIs, and dependency bumps require `compileSdk` 37 plus AGP 9 built-in Kotlin / Compose compiler plugin.  Branch `cursor/android-gradle9-build-fix-2f16` bumps AGP to 9.4.1, fixes Sentry Android Maven coordinates, adds an `android` CI job with Gradle caching, and verifies `./gradlew :app:assembleDebug` on the cloud VM.  PR #442 ready for review; not merged per owner request.  Rollout: `docs/rollouts/2026-10-11-android-gradle9-agp9-build.md`.
+
 ## 2026-10-10 CLAUDE — Infisical prod only
 
 `resolveAppEnv()` now always returns `prod` (Preview and Development no longer map to `staging` and `dev`), a `DEALDEX_INFISICAL_ENV` override with a non-prod value is refused with one warning, and the Cursor boot defaults to and requires `prod`.  Update Sat Oct 10 (owner decision): all 11 dev-only knobs were copied to prod and verified, including the money-path `AUTO_BUY_DEFAULT_*` keys and `AUTO_BUY_DRY_RUN_FORCE` (dev value `false`, the same as prod's schema default), and the `dev` and `staging` environments are deleted.  Details: `docs/rollouts/2026-10-10-infisical-prod-only.md`.  Next action: none for this rollout.

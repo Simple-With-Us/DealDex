@@ -1,8 +1,9 @@
 # Enabled fleet wide by the owner on 2026-10-11 (boards 04b963b7 and 99e559ea).
-# DeepSeek route, paid; at most 5 attempts per UTC day in this repository.
-name: Kody DeepSeek Fix Proposals
+# MiniMax M3 via the direct MiniMax API, paid; at most 5 attempts per UTC day in this repository.
+name: Kody MiniMax M3 Fix Proposals
 
 # Generated offline.  Missing SWU_KODY_AUTOFIX_ENABLED means disabled.
+# The existing MiniMax API key is forwarded explicitly; secrets are never inherited.
 # Budget approval and protected-environment setup are separate owner actions.
 # Daily attempt slots bound this repository only; they are not a dollar cap.
 on:
@@ -10,8 +11,9 @@ on:
     types: [completed]
 
 permissions: {}
+# Shared with the fleet's other PR autofix callers so only one autofix runs per PR.
 concurrency:
-  group: kody-caller-${{ github.repository_id }}-${{ github.event.check_run.pull_requests[0].number || github.event.check_run.id }}
+  group: pr-autofix-${{ github.repository }}-${{ github.event.check_run.pull_requests[0].number || github.event.check_run.id }}
   cancel-in-progress: false
 
 jobs:
@@ -31,10 +33,14 @@ jobs:
       pull-requests: write
       checks: read
       actions: read
-    uses: Simple-With-Us/congress-trading-shared/.github/workflows/kody-autofix-reusable.yml@2790e9d2558f5164832741a61c0eb5601a9404e9
+    uses: Simple-With-Us/congress-trading-shared/.github/workflows/kody-autofix-reusable.yml@fea7cd120407b157c3d1f5edc5b08ff15d3f0e73
     with:
       repository_id: '1332557936'
       profile: 'web'
       source_prefixes: '["src/","server/"]'
       daily_attempt_limit: 5
       budget_policy_id: 'approved-owner-2026-10-11'
+      model: 'MiniMax-M3'
+      model_base_url: 'https://api.minimax.io/v1'
+    secrets:
+      MODEL_API_KEY: ${{ secrets.MINIMAX_API_KEY }}

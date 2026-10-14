@@ -29,9 +29,12 @@ on:
       - 'scripts/ios-stage-asc-key.sh'
   workflow_dispatch:
   schedule:
-    # Twice an hour, offset from Socratic.Trade ('*/30'), Congress.Trade
-    # ('7,37'), and Usage-Monitor ('13,43').
-    - cron: '22,52 * * * *'
+    # Once an hour at :22, offset from Socratic.Trade ('*/30'), Congress.Trade
+    # ('7,37'), and Usage-Monitor ('13,43').  Twice-hourly (`22,52`) plus the
+    # `ios-ship-dealdex` concurrency group dropped the :52 tick whenever
+    # macos-latest was still queued from :22 (FLEET-INFRA-CC).  `push:` still
+    # ships native/ios changes immediately.
+    - cron: '22 * * * *'
 
 # WHY THE CRON EXISTS, AND WHY IT NEEDS A GATE
 # --------------------------------------------

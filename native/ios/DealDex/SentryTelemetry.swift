@@ -12,6 +12,13 @@ enum SentryTelemetry {
 
         SentrySDK.start { options in
             options.dsn = dsn
+            let version = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let build = (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !version.isEmpty {
+                options.releaseName = build.isEmpty ? version : "\(version)+\(build)"
+            }
             #if DEBUG
             options.environment = "development"
             #else

@@ -36,7 +36,18 @@ test("ios-ship.yml targets dealdex / native/ios on GitHub-hosted macos-latest", 
   assert.doesNotMatch(yml, /secrets\.ASC_KEY_ID/);
   assert.doesNotMatch(yml, /ASC_KEY_ID: \$\{\{ secrets\.ASC_KEY_ID \}\}/);
   assert.doesNotMatch(yml, /if:.*secrets\./);
-  assert.match(yml, /cron:\s*'22,52 \* \* \* \*'/);
+  assert.match(yml, /cron:\s*'22 \* \* \* \*'/);
+  assert.doesNotMatch(yml, /cron:\s*'22,52 /);
+
+  const park = read(".github/workflows/ios-ship-cron-park.yml");
+  assert.match(park, /--park-ios-ship/);
+  assert.match(park, /SENTRY_FLEET_DSN/);
+  assert.match(park, /cron:\s*'22 \* \* \* \*'/);
+  assert.doesNotMatch(park, /ios-ship-testflight/);
+
+  const reporter = read("scripts/sentry-ci-report.py");
+  assert.match(reporter, /--park-ios-ship/);
+  assert.match(reporter, /"iOS TestFlight ship \(GitHub-hosted macOS\)": "22 \* \* \* \*"/);
   assert.match(yml, /workflow_dispatch/);
 
   assert.doesNotMatch(yml, /DEVELOPMENT_TEAM/);

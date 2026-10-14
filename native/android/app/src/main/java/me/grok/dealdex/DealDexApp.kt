@@ -2,9 +2,7 @@ package me.grok.dealdex
 
 import android.app.Application
 import io.sentry.android.core.SentryAndroid
-import io.sentry.android.compose.SentryComposeIntegration
 import io.sentry.android.fragment.FragmentLifecycleIntegration
-import io.sentry.android.okhttp.SentryOkHttpIntegration
 
 /**
  * Early Sentry boot.  Card/desk data is not default PII for events —
@@ -21,6 +19,8 @@ class DealDexApp : Application() {
         if (dsn.isBlank()) return
         SentryAndroid.init(this) { options ->
             options.dsn = dsn
+            options.release = "${BuildConfig.VERSION_NAME}+${BuildConfig.VERSION_CODE}"
+            options.environment = if (BuildConfig.DEBUG) "development" else "production"
             options.isSendDefaultPii = false
             options.isAttachScreenshot = false
             options.isAttachViewHierarchy = false
@@ -33,9 +33,7 @@ class DealDexApp : Application() {
             options.sessionReplay.setMaskAllText(true)
             options.sessionReplay.setMaskAllImages(true)
             // Wire the same scan-span shape iOS + web already emit.
-            options.addIntegration(SentryOkHttpIntegration())
-            options.addIntegration(FragmentLifecycleIntegration())
-            options.addIntegration(SentryComposeIntegration())
+            options.addIntegration(FragmentLifecycleIntegration(this))
         }
     }
 }

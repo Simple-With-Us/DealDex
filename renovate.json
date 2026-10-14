@@ -15,6 +15,11 @@
       "matchUpdateTypes": ["major"],
       "automerge": false,
       "labels": ["dependencies", "major"]
+    },
+    {
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<7",
+      "description": "Fleet hold (Jay, Oct 2026): TypeScript 7 blocked until typescript-eslint and tsup support it (typescript-eslint#10940)."
     }
   ],
   "vulnerabilityAlerts": { "labels": ["security"], "minimumReleaseAge": null }

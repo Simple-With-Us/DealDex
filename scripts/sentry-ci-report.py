@@ -67,7 +67,7 @@ APP = "dealdex"
 # check-in step (they can still send a failure event on other trigger types).
 CRON_SCHEDULES = {
     "Effort Issues Sync": "18 6 * * *",
-    "iOS TestFlight ship (GitHub-hosted macOS)": "22,52 * * * *",
+    "iOS TestFlight ship (GitHub-hosted macOS)": "22 * * * *",
 }
 
 # This reporter only ever sends ONE check-in per scheduled run, after the
@@ -89,7 +89,7 @@ DEFAULT_CHECKIN_MARGIN_MINUTES = 15
 CRON_CHECKIN_MARGIN_MINUTES = {
     # ios-ship.yml's "ship" job has timeout-minutes: 90; add ~10 min slack.
     # Do not raise this to 600: FLEET-INFRA-CC is a dropped-tick class, not
-    # a late-start class.  600 would hide missing 30-min macos ticks.
+    # a late-start class.  600 would hide missing hourly macos ticks.
     "iOS TestFlight ship (GitHub-hosted macOS)": 100,
     # FLEET-INFRA-CG (2026-09-18): daily Effort Issues Sync (`18 6 * * *`)
     # misses every day at 06:33Z because GitHub starts the ubuntu-latest
@@ -246,6 +246,49 @@ def send_config_drift_event(
     send_envelope(envelope_url, auth_header, "event", payload)
 
 
+def send_parked_ios_ship_checkin() -> int:
+    """Heartbeat the ios-ship Crons monitor while that workflow is disabled.
+
+    FLEET-INFRA-CC pages missed check-ins for
+    `ci-dealdex-ios-testflight-ship-github-hosted-macos`.  The TestFlight
+    workflow is `disabled_manually` (credential hold, last run 2026-09-27),
+    so no `workflow_run` ever reaches this reporter.  A cheap ubuntu tick
+    upserts the same slug + hourly schedule until ios-ship is re-enabled.
+    """
+    dsn = os.environ.get("SENTRY_FLEET_DSN", "").strip()
+    if not dsn:
+        print("::warning::SENTRY_FLEET_DSN secret is not set; skipping ios-ship park check-in.")
+        return 0
+    try:
+        public_key, host, project_id = parse_dsn(dsn)
+    except ValueError as exc:
+        print(f"::error::{exc}")
+        return 0
+
+    envelope_url = f"https://{host}/api/{project_id}/envelope/"
+    auth_header = (
+        f"Sentry sentry_version=7, sentry_client=sentry-ci-report/1.0, sentry_key={public_key}"
+    )
+    workflow_name = "iOS TestFlight ship (GitHub-hosted macOS)"
+    cron_expr = CRON_SCHEDULES[workflow_name]
+    checkin_margin = CRON_CHECKIN_MARGIN_MINUTES[workflow_name]
+    monitor_slug = f"ci-{APP}-{slugify(workflow_name)}"
+    checkin_payload = {
+        "check_in_id": uuid.uuid4().hex,
+        "monitor_slug": monitor_slug,
+        "status": "ok",
+        "monitor_config": {
+            "schedule": {"type": "crontab", "value": cron_expr},
+            "checkin_margin": checkin_margin,
+            "max_runtime": 120,
+            "timezone": "UTC",
+        },
+    }
+    send_envelope(envelope_url, auth_header, "check_in", checkin_payload)
+    print(f"Sent parked ios-ship Crons check-in for monitor '{monitor_slug}'.")
+    return 0
+
+
 def main() -> int:
     dsn = os.environ.get("SENTRY_FLEET_DSN", "").strip()
     workflow_name = os.environ.get("WORKFLOW_NAME", "unknown")
@@ -346,7 +389,7 @@ def main() -> int:
                 "monitor_config": {
                     "schedule": {"type": "crontab", "value": cron_expr},
                     "checkin_margin": checkin_margin,
-                    "max_runtime": 60,
+                    "max_runtime": 120,
                     "timezone": "UTC",
                 },
             }
@@ -359,4 +402,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if "--park-ios-ship" in sys.argv:
+        sys.exit(send_parked_ios_ship_checkin())
     sys.exit(main())
