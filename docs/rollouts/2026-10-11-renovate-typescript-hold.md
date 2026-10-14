@@ -9,6 +9,7 @@ Jay fleet directive (Oct 2026): do not land TypeScript 7 until downstream toolin
 ## Tracking
 
 - Renovate PR #431 (`renovate/typescript-7.x`) stays open for visibility; merge only after the hold lifts.
+- 2026-10-13: #431 keeps `allowedVersions: "<7"` on the package named `typescript` and typechecks with TypeScript 7 through `@typescript/native`.  See `docs/rollouts/2026-10-13-typescript-7-side-by-side.md`.
 
 ## Verification
 
