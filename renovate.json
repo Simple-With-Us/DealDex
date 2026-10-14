@@ -17,9 +17,14 @@
       "labels": ["dependencies", "major"]
     },
     {
-      "matchPackageNames": ["typescript"],
+      "matchPackageNames": ["typescript", "@typescript/typescript6"],
       "allowedVersions": "<7",
-      "description": "Fleet hold (Jay, Oct 2026): TypeScript 7 blocked until typescript-eslint and tsup support it (typescript-eslint#10940)."
+      "description": "Fleet hold (Jay, Oct 2026): the package named typescript stays the TypeScript 6 API shim (@typescript/typescript6) until typescript-eslint supports the TS 7 compiler API (typescript-eslint#10940). Typecheck runs TypeScript 7 via @typescript/native."
+    },
+    {
+      "matchPackageNames": ["@typescript/native"],
+      "allowedVersions": ">=7 <8",
+      "description": "TypeScript 7 native tsc, installed as an npm alias of typescript. Do not collapse this back into the typescript key; that key is the v6 API shim eslint imports."
     }
   ],
   "vulnerabilityAlerts": { "labels": ["security"], "minimumReleaseAge": null }

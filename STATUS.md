@@ -4,6 +4,10 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 # Current Handoff
 
+## 2026-10-13 GROK-BUILD — TypeScript 7 typecheck beside the v6 API shim
+
+PR #431 cannot install `typescript@7` as the package named `typescript`: 7.0.2 has no compiler API, and `typescript-eslint@8.71` still peers `<6.1.0`, so strict `npm ci` and ESLint both fail.  Typecheck now runs TypeScript 7.0.2 via `@typescript/native` (`npm:typescript@^7.0.2`).  The `typescript` key stays `@typescript/typescript6@^6.0.2` so lint keeps `createProgram`.  `tsconfig` drops removed `baseUrl`; `@/*` paths stay.  Renovate still refuses to move the API package onto 7.  Local `npm ci`, lint, `tsc` 7.0.2, 316 unit tests, and `vite build` passed.  Rollout: `docs/rollouts/2026-10-13-typescript-7-side-by-side.md`.
+
 ## 2026-10-12 CODEX — Claude Autofix 120-Turn Cap (OPS-935)
 
 Pin Claude Code Autofix to shared revision `825f8ee008d6ce104107f2a7267c14d370e6013e`, raising the default from 60 to 120 turns and adding schema-2 operation-category counters with conservative fallback for ambiguous forms.  Raw commands remain excluded; artifacts retain the existing seven-day, 500-event, 256-KiB bounds.  The 30-minute timeout, MiniMax route, trigger guards, permissions, and concurrency remain unchanged.  Shared PR #368 must land before this caller PR can merge.
