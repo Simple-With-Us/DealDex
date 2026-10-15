@@ -30,6 +30,7 @@ import {
 } from "./html";
 import type { LiveListing, SellerInfo } from "./types";
 import { deriveSellerReputation } from "./seller";
+import { SCAN_SPAN, withScanSpan, type ScanSpanHandle } from "@/lib/observability/sentry-server";
 import { defaultServerEnv } from "@/lib/server/app-settings";
 
 export const EBAY_BROWSE_SCOPE = "https://api.ebay.com/oauth/api_scope/buy.item.feed";
@@ -150,6 +151,8 @@ export type EbayBrowseSearchResult = {
   total?: number;
   /** True if eBay returned at least one page, even if `listings` is empty after filters. */
   hadResponse: boolean;
+  /** Raw `itemSummaries` length.  The next offset advances by this, not by parsed rows. */
+  returned: number;
 };
 
 /**
@@ -165,7 +168,7 @@ export async function searchEbayBrowsePage(
   fetchImpl: typeof fetch = fetch,
 ): Promise<EbayBrowseSearchResult> {
   const cfg = readEbayBrowseConfig(env);
-  if (!cfg) return { listings: [], offset: options.offset ?? 0, hadResponse: false };
+  if (!cfg) return { listings: [], offset: options.offset ?? 0, hadResponse: false, returned: 0 };
 
   const limit = Math.min(200, Math.max(1, options.limit ?? 50));
   const offset = options.offset ?? 0;
@@ -206,14 +209,24 @@ export async function searchEbayBrowsePage(
     listings,
     offset,
     hadResponse: true,
+    returned: json.itemSummaries?.length ?? 0,
   };
   if (typeof json.total === "number") result.total = json.total;
   return result;
 }
 
+const BROWSE_MAX_PAGES = 5;
+
+function missedBrowsePage(offset: number): EbayBrowseSearchResult {
+  return { listings: [], offset, hadResponse: false, returned: 0 };
+}
+
 /**
- * High-level: fetch up to `cap` listings across as many pages as needed.
- * Stops early on empty pages, on total exhaustion, or when the cap is met.
+ * High-level: fetch up to `cap` query-matching listings across as many
+ * pages as needed.  The skip list runs inside `parseEbayBrowseItem`, and
+ * the query check runs here, both before a row counts toward `cap`.
+ * Offset advances by the raw `itemSummaries` length so a page of junk
+ * does not rewind into rows we already saw.
  */
 export async function searchEbayBrowse(
   query: string,
@@ -222,21 +235,52 @@ export async function searchEbayBrowse(
   fetchImpl: typeof fetch = fetch,
 ): Promise<LiveListing[]> {
   if (cap <= 0) return [];
-  const out: LiveListing[] = [];
-  let offset = 0;
-  let total: number | undefined;
-  for (let page = 0; page < 5 && out.length < cap; page++) {
-    const result = await searchEbayBrowsePage(query, { limit: Math.min(200, cap - out.length), offset }, env, fetchImpl).catch(
-      () => ({ listings: [], offset, hadResponse: false as const }),
-    );
-    if (!result.hadResponse) break;
-    total = result.total;
-    if (!result.listings.length) break;
-    out.push(...result.listings);
-    offset += result.listings.length;
-    if (total !== undefined && offset >= total) break;
-  }
-  return out;
+  return withScanSpan(SCAN_SPAN.ebayApi, async (span) => {
+    const out: LiveListing[] = [];
+    const seen = new Set<string>();
+    let offset = 0;
+    let pages = 0;
+    const pageLimit = Math.min(200, Math.max(1, cap));
+    for (let page = 0; page < BROWSE_MAX_PAGES && out.length < cap; page++) {
+      const pull = async (pageSpan: ScanSpanHandle | null) => {
+        const result = await searchEbayBrowsePage(
+          query,
+          { limit: pageLimit, offset },
+          env,
+          fetchImpl,
+        ).catch(() => missedBrowsePage(offset));
+        pages += 1;
+        pageSpan?.setAttribute("scan.page", page + 1);
+        if (!result.hadResponse || result.returned <= 0) {
+          pageSpan?.setAttribute("listing.count", 0);
+          return true;
+        }
+        let kept = 0;
+        for (const row of result.listings) {
+          if (out.length >= cap) break;
+          if (!titleMatchesQuery(row.title, query) || seen.has(row.id)) continue;
+          seen.add(row.id);
+          out.push(row);
+          kept += 1;
+        }
+        pageSpan?.setAttribute("listing.count", kept);
+        const next = offset + result.returned;
+        const exhausted =
+          (result.total !== undefined && next >= result.total) || result.returned < pageLimit;
+        offset = next;
+        return exhausted;
+      };
+
+      const stop =
+        page === 0
+          ? await pull(null)
+          : await withScanSpan(SCAN_SPAN.ebayPage2, async (pageSpan) => pull(pageSpan));
+      if (stop) break;
+    }
+    span?.setAttribute("listing.count", out.length);
+    span?.setAttribute("scan.pages", pages);
+    return out;
+  });
 }
 
 /** Visible for tests — broadens "pokemon" / "tcg" / blank into a workable q. */

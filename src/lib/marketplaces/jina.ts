@@ -1,4 +1,5 @@
 import type { LiveListing } from "./types";
+import { EBAY_SCAN_CAP, MERCARI_SCAN_CAP } from "./caps";
 import { parseEbaySellerFromText, parseMercariSellerFromText } from "./seller";
 import {
   ASSUMED_SHIPPING,
@@ -60,9 +61,10 @@ function firstPrice(text: string): number | null {
 export function parseJinaEbay(md: string, query: string): LiveListing[] {
   const out: LiveListing[] = [];
   const seen = new Set<string>();
-  const re =
-    /\[([^\]]{8,220})\]\(https:\/\/www\.ebay\.com\/itm\/(\d{12,14})[^)]*\)([\s\S]{0,700})/g;
-  for (const m of md.matchAll(re)) {
+  const re = /\[([^\]]{8,220})\]\(https:\/\/www\.ebay\.com\/itm\/(\d{12,14})[^)]*\)/g;
+  const matches = [...md.matchAll(re)];
+  for (let i = 0; i < matches.length && out.length < EBAY_SCAN_CAP; i++) {
+    const m = matches[i]!;
     const id = m[2]!;
     if (seen.has(id)) continue;
     seen.add(id);
@@ -71,7 +73,9 @@ export function parseJinaEbay(md: string, query: string): LiveListing[] {
       .trim();
     if (!title || /shop on ebay/i.test(title) || SKIP_LISTING.test(title)) continue;
     if (!titleMatchesQuery(title, query)) continue;
-    const chunk = m[3] ?? "";
+    const start = (m.index ?? 0) + m[0].length;
+    const next = matches[i + 1]?.index ?? md.length;
+    const chunk = md.slice(start, Math.min(next, start + 700));
     const price = firstPrice(chunk);
     if (price == null) continue;
     const img = chunk.match(/(https:\/\/i\.ebayimg\.com\/images\/g\/[^)\s]+)/)?.[1] ?? null;
@@ -88,7 +92,6 @@ export function parseJinaEbay(md: string, query: string): LiveListing[] {
       listedAt: parseListedAt(chunk),
       seller: parseEbaySellerFromText(chunk),
     });
-    if (out.length >= 16) break;
   }
   return out;
 }
@@ -123,7 +126,7 @@ export function parseJinaMercari(md: string, query: string): LiveListing[] {
       listedAt: parseListedAt(text),
       seller: parseMercariSellerFromText(text || inner),
     });
-    if (out.length >= 16) break;
+    if (out.length >= MERCARI_SCAN_CAP) break;
   }
   return out;
 }

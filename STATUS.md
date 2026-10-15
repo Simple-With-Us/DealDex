@@ -4,6 +4,10 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 # Current Handoff
 
+## 2026-10-15 CURSOR — DD-365 scan listing cap on the live parsers
+
+PR #339 raised `EBAY_SCAN_CAP` and `MERCARI_SCAN_CAP` to 50, but Mercari's live path and the eBay Jina fallback still stopped at 16 inside the parsers, and Brave stopped at 12.  Browse paging also advanced the offset by parsed rows, so a page of junk rewound into items already seen, and `scan.ebay.page2` was named but never started.  This branch keeps the shared cap of 50, stops the Jina eBay window at the next listing link, pages Browse by the raw `itemSummaries` length with the query check before the cap, and starts `scan.ebay.page2` on every follow-up page.  Sort stays `pricePlusShipping`.  DD-375 and DD-382 are duplicates of DD-365.  Rollout: `docs/rollouts/2026-10-15-scan-listings-cap.md`.
+
 ## 2026-10-13 GROK-BUILD — TypeScript 7 typecheck beside the v6 API shim
 
 PR #431 cannot install `typescript@7` as the package named `typescript`: 7.0.2 has no compiler API, and `typescript-eslint@8.71` still peers `<6.1.0`, so strict `npm ci` and ESLint both fail.  Typecheck now runs TypeScript 7.0.2 via `@typescript/native` (`npm:typescript@^7.0.2`).  The `typescript` key stays `@typescript/typescript6@^6.0.2` so lint keeps `createProgram`.  `tsconfig` drops removed `baseUrl`; `@/*` paths stay.  Renovate still refuses to move the API package onto 7.  Local `npm ci`, lint, `tsc` 7.0.2, 316 unit tests, and `vite build` passed.  Rollout: `docs/rollouts/2026-10-13-typescript-7-side-by-side.md`.
