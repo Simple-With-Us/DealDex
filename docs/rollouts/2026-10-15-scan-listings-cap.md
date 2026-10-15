@@ -12,5 +12,10 @@ Linear **DD-365** asked to stop truncating live scans at 16 rows per marketplace
 
 ## Verify
 
-- `npm run typecheck`
-- `npm test` (includes `src/lib/marketplaces/scan-cap.test.ts`)
+- `npm run lint` -> ok (0 errors, 26 pre-existing warnings)
+- `npx tsc --noEmit` -> ok
+- `npm test` -> ok (325 passed, including `src/lib/marketplaces/scan-cap.test.ts`)
+- `npm run build` -> ok
+- `npm run typecheck` -> ok (repo TypeScript 7 checker; `npx tsc` above is the TypeScript 6 binary)
+
+Follow-up after Kody on PR #465: the Browse search body is parsed with a loose Zod object before any field is read.  `.strict()` is not used, because eBay adds response fields and a strict object would drop a usable page.  Unused keys (`next`, `href`, `offset`, `limit`, `warnings`) are not typed at all, and `total` plus `itemSummaries` accept null, so a null on a field this scan does not require cannot drop the page.
