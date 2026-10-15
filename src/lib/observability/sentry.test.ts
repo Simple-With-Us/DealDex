@@ -136,6 +136,7 @@ test("server scan hops use named Sentry spans and keep Datadog at web.request", 
 test("Android Sentry SDK is present, DSN-gated, and privacy-safe", () => {
   const gradle = read("native/android/app/build.gradle.kts");
   assert.match(gradle, /io\.sentry:sentry-android/);
+  assert.match(gradle, /io\.sentry:sentry-android-ndk/);
   assert.match(gradle, /androidx\.fragment:fragment-ktx/);
   assert.match(gradle, /id\("io\.sentry\.android\.gradle"\)/);
   assert.match(gradle, /includeProguardMapping\.set\(true\)/);
@@ -157,6 +158,11 @@ test("Android Sentry SDK is present, DSN-gated, and privacy-safe", () => {
   assert.match(app, /tracesSampleRate\s*=\s*0\.2/);
   assert.match(app, /profilesSampleRate\s*=\s*0\.1/);
   assert.match(app, /isAnrEnabled\s*=\s*true/);
+  assert.match(app, /isEnableNdk\s*=\s*true/);
+  assert.match(app, /isEnableAutoSessionTracking\s*=\s*true/);
+  assert.match(app, /logs\.isEnabled\s*=\s*true/);
+  assert.match(app, /dealdex\.android\.sentry_ready/);
+  assert.match(app, /queryString = null/);
   assert.match(app, /sessionReplay\.sessionSampleRate\s*=\s*0\.1/);
   assert.match(app, /sessionReplay\.onErrorSampleRate\s*=\s*1\.0/);
   assert.match(app, /setMaskAllText\(true\)/);
@@ -170,4 +176,17 @@ test("Android Sentry SDK is present, DSN-gated, and privacy-safe", () => {
   assert.match(native, /io\.sentry:sentry-android/);
   assert.match(native, /io\.sentry\.android\.gradle/);
   assert.doesNotMatch(native, /iOS only until Android tracks ship/i);
+
+  const market = read("native/android/app/src/main/java/me/grok/dealdex/data/Market.kt");
+  assert.match(market, /hop\("scan", "scan\.ebay"\)/);
+  assert.match(market, /hop\("scan", "scan\.mercari"\)/);
+  assert.match(market, /hop\("scan", "scan\.match"\)/);
+  assert.match(market, /hop\("cache", "scan\.cache\.hit"\)/);
+  assert.match(market, /hop\("cache", "scan\.cache\.miss"\)/);
+  assert.match(market, /setData\("listing\.count"/);
+  assert.doesNotMatch(market, /setData\("scan\.(query|title)/);
+
+  const http = read("native/android/app/src/main/java/me/grok/dealdex/data/SentryHttp.kt");
+  assert.match(http, /setData\("http\.query", null\)/);
+  assert.match(http, /removeData\("http\.query"\)/);
 });

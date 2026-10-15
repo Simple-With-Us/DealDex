@@ -18,8 +18,14 @@ Sentry Android (`io.sentry:sentry-android`) inits in `DealDexApp` when
 `BuildConfig.SENTRY_DSN` is set from env `SENTRY_DSN` at compile time
 (CI release job injects the `SENTRY_DSN` repo secret).  Empty DSN stays
 dark.  `release` is `versionName+versionCode`.  Privacy: no default PII, no
-screenshots, no view hierarchy.  Masked Session Replay is 10% session /
-100% error; `profilesSampleRate` is 0.1.  `io.sentry.android.gradle` uploads
+screenshots, no view hierarchy (same as iOS; a hierarchy would include card
+titles).  Masked Session Replay is 10% session / 100% error;
+`profilesSampleRate` is 0.1; `tracesSampleRate` is 0.2; sessions stay on for
+crash-free metrics; logs emit `dealdex.android.sentry_ready`.  On-device
+`Market.scan` opens a `scan` transaction with `scan.ebay`, `scan.mercari`,
+`scan.match`, `scan.cache.hit`, and `scan.cache.miss` hops.  OkHttp tracing
+drops query strings so a search term never rides on a span.  NDK is pinned
+beside `sentry-android`.  `io.sentry.android.gradle` uploads
 R8 mappings and source context when `SENTRY_AUTH_TOKEN` is set.
 
 Build the debug APK locally (there is no sideload file on dealdex.net):

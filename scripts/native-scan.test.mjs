@@ -291,8 +291,12 @@ test("Android scans on the device first and sends no keys to the website", () =>
   // On-device is the primary path, which is what /privacy describes.
   // The 1500-char window accommodates the Sentry transaction wrapper
   // around scanOnDevice + scanViaSite in the on-device-first ordering
-  // (added in PR #341 of the MM comprehensive review).
-  assert.match(market, /scanOnDevice\(query, keys, sources\)[\s\S]{0,1500}scanViaSite\(site, query, sources\)/);
+  // (added in PR #341 of the MM comprehensive review).  The extra
+  // onDeviceSpan argument is the parent for scan.ebay / scan.mercari hops.
+  assert.match(
+    market,
+    /scanOnDevice\(query, keys, sources(?:, onDeviceSpan)?\)[\s\S]{0,1500}scanViaSite\(site, query, sources\)/,
+  );
   // The site payload carries no credential of any kind.
   assert.doesNotMatch(market, /put\("keys"/);
   assert.doesNotMatch(market, /"justtcg", keys\.justTcg/);

@@ -1,5 +1,7 @@
 package me.grok.dealdex.data
 
+import io.sentry.ISpan
+import io.sentry.SpanStatus
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -54,13 +56,14 @@ object Market {
     ): List<ScoredListing> {
         val site = origin.trim().trimEnd('/').ifBlank { "https://dealdex.net" }
         // Top-level Sentry transaction so the dashboard's per-platform scan
-        // traces (web + iOS + Android) line up.  Spans inside match the web
-        // SCAN_SPAN.* names: scan.ondevice / scan.site.
+        // traces (web + iOS + Android) line up.  Child hops use the web
+        // SCAN_SPAN names: scan.ebay, scan.mercari, scan.match,
+        // scan.cache.hit, scan.cache.miss.  Counts only.  No query or title.
         val tx = io.sentry.Sentry.startTransaction("scan", "scan")
         return try {
             val onDeviceSpan = tx.startChild("scan.ondevice")
             val rows: List<ScoredListing> = try {
-                val out = scanOnDevice(query, keys, sources)
+                val out = scanOnDevice(query, keys, sources, onDeviceSpan)
                 onDeviceSpan.setData("scan.ondevice.count", out.size)
                 out
             } catch (t: Throwable) {
@@ -170,34 +173,102 @@ object Market {
         return d.takeIf { !it.isNaN() }
     }
 
-    private fun scanOnDevice(query: String, keys: DeskKeys, sources: Collection<String>): List<ScoredListing> {
+    private fun scanOnDevice(
+        query: String,
+        keys: DeskKeys,
+        sources: Collection<String>,
+        parent: ISpan?,
+    ): List<ScoredListing> {
         val q = query.trim()
         val ebayQ = if (Appraise.significantTokens(q).isEmpty()) "pokemon" else
             if (q.contains("pokemon", true) || q.contains("tcg", true)) q else "$q pokemon"
         val mercQ = if (Appraise.significantTokens(q).isEmpty()) "pokemon card" else "$q pokemon card"
         val wantEbay = sources.contains("ebay")
         val wantMercari = sources.contains("mercari")
-        val ebayMd = if (wantEbay) get(
-            JINA + "https://www.ebay.com/sch/183454/i.html?_nkw=${enc(ebayQ)}&LH_BIN=1&_ipg=60&_udlo=3&_sop=10",
-        ) else ""
-        val mercMd = if (wantMercari) get(JINA + "https://www.mercari.com/search/?keyword=${enc(mercQ)}") else ""
-        val listings = (if (wantEbay) parseEbay(ebayMd, q) else emptyList()) +
-            (if (wantMercari) parseMercari(mercMd, q) else emptyList())
+        val ebayListings = if (wantEbay) {
+            parent.hop("scan", "scan.ebay") { span ->
+                val md = get(
+                    JINA + "https://www.ebay.com/sch/183454/i.html?_nkw=${enc(ebayQ)}&LH_BIN=1&_ipg=60&_udlo=3&_sop=10",
+                )
+                val rows = parseEbay(md, q)
+                span?.setData("scan.marketplace", "ebay")
+                span?.setData("listing.count", rows.size)
+                rows
+            }
+        } else {
+            emptyList()
+        }
+        val mercListings = if (wantMercari) {
+            parent.hop("scan", "scan.mercari") { span ->
+                val md = get(JINA + "https://www.mercari.com/search/?keyword=${enc(mercQ)}")
+                val rows = parseMercari(md, q)
+                span?.setData("scan.marketplace", "mercari")
+                span?.setData("listing.count", rows.size)
+                rows
+            }
+        } else {
+            emptyList()
+        }
+        val listings = ebayListings + mercListings
         val cache = HashMap<String, List<TcgCard>>()
         val extraCache = HashMap<String, Double?>()
-        return listings.map { listing ->
-            val name = Appraise.nameQuery(listing.title)
-            val grade = Appraise.detectGrade(listing.title)
-            val cards = cache.getOrPut(name) { searchCards(name) }
-            val card = pickCard(cards, listing)
-            val extra = if (card != null && keys.any()) {
-                extraCache.getOrPut(card.id) { PaidDesks.blend(card, keys) }
-            } else null
-            val appraisal = if (card != null && listing.price != null) {
-                Appraise.appraise(card, listing, grade, extra)
-            } else null
-            ScoredListing(listing, card, appraisal, grade)
-        }.sortedByDescending { it.appraisal?.spread ?: -99.0 }
+        return parent.hop("scan", "scan.match") { matchSpan ->
+            val scored = listings.map { listing ->
+                val name = Appraise.nameQuery(listing.title)
+                val grade = Appraise.detectGrade(listing.title)
+                val cards = cached(matchSpan, cache, name) { searchCards(name) }
+                val card = pickCard(cards, listing)
+                val extra = if (card != null && keys.any()) {
+                    cached(matchSpan, extraCache, card.id) { PaidDesks.blend(card, keys) }
+                } else {
+                    null
+                }
+                val appraisal = if (card != null && listing.price != null) {
+                    Appraise.appraise(card, listing, grade, extra)
+                } else {
+                    null
+                }
+                ScoredListing(listing, card, appraisal, grade)
+            }.sortedByDescending { it.appraisal?.spread ?: -99.0 }
+            matchSpan?.setData("listing.count", scored.size)
+            scored
+        }
+    }
+
+    private fun <T> cached(
+        parent: ISpan?,
+        cache: MutableMap<String, T>,
+        key: String,
+        load: () -> T,
+    ): T {
+        val hit = cache[key]
+        if (hit != null) {
+            parent.hop("cache", "scan.cache.hit") { span ->
+                span?.setData("cache.hit", true)
+            }
+            return hit
+        }
+        return parent.hop("cache", "scan.cache.miss") { span ->
+            span?.setData("cache.hit", false)
+            val value = load()
+            cache[key] = value
+            value
+        }
+    }
+
+    private fun <T> ISpan?.hop(op: String, name: String, block: (ISpan?) -> T): T {
+        val span = this?.startChild(op, name)
+        return try {
+            val value = block(span)
+            span?.status = SpanStatus.OK
+            value
+        } catch (t: Throwable) {
+            span?.throwable = t
+            span?.status = SpanStatus.INTERNAL_ERROR
+            throw t
+        } finally {
+            span?.finish()
+        }
     }
 
     /**
