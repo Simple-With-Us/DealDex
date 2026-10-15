@@ -8,7 +8,7 @@
  * var (rotated via Infisical).  The token is never logged.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { runScanRunner } from "@/lib/server/scan-runner";
+import { runScanRunnerTick } from "@/lib/server/scan-runner";
 import { getSetting, initAppSettings } from "@/lib/server/app-settings";
 
 function checkRunnerToken(req: Request): boolean {
@@ -36,11 +36,14 @@ export const Route = createFileRoute("/api/alerts/run")({
           return Response.json({ error: "unauthorized" }, { status: 401 });
         }
         const body = await json(request);
-        const result = await runScanRunner({
-          data: {
-            forceScan: Boolean(body.forceScan),
-            cursorMs: typeof body.cursorMs === "number" ? body.cursorMs : 0,
-          },
+        const source =
+          typeof body.source === "string" && body.source.trim()
+            ? body.source.trim()
+            : "cron";
+        const result = await runScanRunnerTick({
+          forceScan: Boolean(body.forceScan),
+          cursorMs: typeof body.cursorMs === "number" ? body.cursorMs : 0,
+          source,
         });
         return Response.json(result);
       },
