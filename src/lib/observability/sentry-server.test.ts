@@ -22,6 +22,8 @@ afterEach(() => {
 test("scan hop span names are the Sentry Performance contract", () => {
   assert.equal(SCAN_SPAN.parent, "scan");
   assert.equal(SCAN_SPAN.ebay, "scan.ebay");
+  assert.equal(SCAN_SPAN.ebayApi, "scan.ebay.api");
+  assert.equal(SCAN_SPAN.ebayPage2, "scan.ebay.page2");
   assert.equal(SCAN_SPAN.mercari, "scan.mercari");
   assert.equal(SCAN_SPAN.match, "scan.match");
   assert.equal(SCAN_SPAN.enrich, "scan.enrich");

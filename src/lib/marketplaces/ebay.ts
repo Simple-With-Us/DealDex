@@ -18,9 +18,10 @@ import {
   searchEbayBrowse,
   searchEbayBrowseEnabled,
 } from "./ebay-browse";
+import { EBAY_SCAN_CAP } from "./caps";
 import { fetchWithPool } from "@/lib/server/proxy-pool";
 
-export const EBAY_SCAN_CAP = 50;
+export { EBAY_SCAN_CAP };
 
 function pokemonQuery(query: string) {
   const q = query.trim();

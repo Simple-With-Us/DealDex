@@ -215,7 +215,7 @@ describe("broadQuery", () => {
 describe("searchEbayBrowsePage", () => {
   it("returns empty listings when keys are absent", async () => {
     const r = await searchEbayBrowsePage("charizard", {}, {});
-    assert.deepEqual(r, { listings: [], offset: 0, hadResponse: false });
+    assert.deepEqual(r, { listings: [], offset: 0, hadResponse: false, returned: 0 });
   });
 
   it("calls eBay with buyingOptions:FIXED + condition filter + Bearer token", async () => {
