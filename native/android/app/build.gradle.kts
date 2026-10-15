@@ -98,6 +98,7 @@ dependencies {
     // is the `io.sentry.android.gradle` plugin below (needs SENTRY_AUTH_TOKEN).
     val sentryVersion = "8.60.0"
     implementation("io.sentry:sentry-android:$sentryVersion")
+    implementation("io.sentry:sentry-android-ndk:$sentryVersion")
     implementation("io.sentry:sentry-okhttp:$sentryVersion")
     implementation("io.sentry:sentry-android-fragment:$sentryVersion")
     implementation("io.sentry:sentry-compose-android:$sentryVersion")
