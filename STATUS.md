@@ -10,7 +10,7 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 ## 2026-10-15 CURSOR — Kody follow-up on the scan cap
 
-PR #465 merged with two open Kody threads.  The rollout Verify section now records `npm run lint`, `npx tsc --noEmit`, `npm test`, and `npm run build` with outcomes.  The eBay Browse search body is parsed with a loose Zod object before `itemSummaries` is read.  A strict schema is not used, because extra eBay fields would drop a usable page.  Rollout: `docs/rollouts/2026-10-15-scan-listings-cap.md`.
+PR #465 merged with two open Kody threads.  The rollout Verify section now records `npm run lint`, `npx tsc --noEmit`, `npm test`, and `npm run build` with outcomes.  The eBay Browse search body is parsed with a loose Zod object before `itemSummaries` is read.  Unused response fields are not validated, and `total` plus `itemSummaries` accept null, so a null `next` or `warnings` entry cannot drop a page.  Rollout: `docs/rollouts/2026-10-15-scan-listings-cap.md`.
 
 ## 2026-10-15 CURSOR — DD-365 scan listing cap on the live parsers
 

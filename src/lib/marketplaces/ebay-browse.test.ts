@@ -327,6 +327,54 @@ describe("searchEbayBrowsePage", () => {
     assert.equal(r.total, 2);
   });
 
+  it("keeps the page when unused Browse fields and total are null", async () => {
+    const env = { EBAY_APP_ID: "id", EBAY_CERT_ID: "secret" };
+    const fetchImpl: FetchLike = async (input) => {
+      const url = input instanceof URL ? input.toString() : String(input);
+      const u = new URL(url);
+      if (u.pathname.endsWith("/oauth2/token")) {
+        return jsonResponse({ access_token: "tok", expires_in: 7200 });
+      }
+      return jsonResponse({
+        total: null,
+        offset: null,
+        limit: null,
+        next: null,
+        href: null,
+        warnings: [{ message: null, errorId: null }],
+        itemSummaries: [
+          {
+            itemId: "333",
+            title: "Charizard PSA 10",
+            price: { value: "40", currency: "USD" },
+          },
+        ],
+      });
+    };
+    const r = await searchEbayBrowsePage("charizard", {}, env, fetchImpl);
+    assert.equal(r.hadResponse, true);
+    assert.equal(r.total, undefined);
+    assert.equal(r.returned, 1);
+    assert.equal(r.listings.length, 1);
+    assert.equal(r.listings[0]!.id, "333");
+  });
+
+  it("treats a null itemSummaries list as an empty page", async () => {
+    const env = { EBAY_APP_ID: "id", EBAY_CERT_ID: "secret" };
+    const fetchImpl: FetchLike = async (input) => {
+      const url = input instanceof URL ? input.toString() : String(input);
+      const u = new URL(url);
+      if (u.pathname.endsWith("/oauth2/token")) {
+        return jsonResponse({ access_token: "tok", expires_in: 7200 });
+      }
+      return jsonResponse({ itemSummaries: null, next: null, total: null });
+    };
+    const r = await searchEbayBrowsePage("charizard", {}, env, fetchImpl);
+    assert.equal(r.hadResponse, true);
+    assert.equal(r.returned, 0);
+    assert.deepEqual(r.listings, []);
+  });
+
   it("rejects a payload whose itemSummaries is not an array", async () => {
     const env = { EBAY_APP_ID: "id", EBAY_CERT_ID: "secret" };
     const fetchImpl: FetchLike = async (input) => {

@@ -293,19 +293,16 @@ export function broadQuery(query: string): string {
 }
 
 /**
- * Browse search JSON.  Loose on purpose: eBay adds response fields, and a
- * strict object would drop an otherwise usable page.  Each summary stays
- * `unknown` so one bad row cannot fail the page; `parseEbayBrowseItem`
- * drops that row.
+ * Browse search JSON.  Only the fields this scan reads are checked.
+ * `next`, `href`, `offset`, `limit`, and `warnings` stay unchecked, so a
+ * null on one of them cannot drop a page of real listings.  `total` and
+ * `itemSummaries` accept null: a null total is ignored, and a null summary
+ * list is an empty page.  Each summary stays `unknown` so one bad row
+ * cannot fail the page; `parseEbayBrowseItem` drops that row.
  */
 const EbayBrowseResponseSchema = z.looseObject({
-  itemSummaries: z.array(z.unknown()).optional(),
-  total: z.number().optional(),
-  offset: z.number().optional(),
-  limit: z.number().optional(),
-  next: z.string().optional(),
-  href: z.string().optional(),
-  warnings: z.array(z.looseObject({ message: z.string().optional() })).optional(),
+  itemSummaries: z.array(z.unknown()).nullish(),
+  total: z.number().nullish(),
 });
 
 type EbayBrowseResponse = z.infer<typeof EbayBrowseResponseSchema>;
