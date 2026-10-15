@@ -32,7 +32,6 @@ import {
   type AlertRuleRow,
 } from "./alert-rules-store";
 import { SCAN_SPAN, withScanSpan } from "@/lib/observability/sentry-server";
-import { fetchWithPool } from "./proxy-pool";
 import { loadRunUserCredentials } from "./user-settings-store";
 import { fetchUserDeskKeys } from "./desk-keys";
 import {
@@ -50,7 +49,7 @@ function maxRowsPerRun(): number {
   return getNumberSetting("SCAN_MAX_ROWS_PER_RUN", 50);
 }
 
-type RunnerInput = {
+export type RunnerInput = {
   /** When false, the runner only re-evaluates rows already on the scan_run record. */
   forceScan?: boolean;
   /** Optional cursor: only run rules whose last run is older than this. */
@@ -58,6 +57,14 @@ type RunnerInput = {
   /** Audit label stored on `alert_runs.source` (cron workflow vs manual dispatch). */
   source?: string;
 };
+
+function normalizeRunnerInput(input: RunnerInput = {}): RunnerInput {
+  return {
+    forceScan: Boolean(input.forceScan),
+    cursorMs: typeof input.cursorMs === "number" ? input.cursorMs : 0,
+    source: typeof input.source === "string" && input.source.trim() ? input.source.trim() : "cron",
+  };
+}
 
 export type ScanRunnerOutput = {
   ran: number;
@@ -113,31 +120,33 @@ function rowToAlertRule(row: AlertRuleRow): AlertRule {
   };
 }
 
-export const runScanRunner = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .validator((input: RunnerInput = {}) => ({
-    forceScan: Boolean(input.forceScan),
-    cursorMs: typeof input.cursorMs === "number" ? input.cursorMs : 0,
-    source: typeof input.source === "string" && input.source.trim() ? input.source.trim() : "cron",
-  }))
-  .handler(async ({ data }): Promise<ScanRunnerOutput> => {
-    return withScanSpan(SCAN_SPAN.runner, async (span) => {
-    await initAppSettings();
-    const tickStartedAt = Date.now();
-    const alertRunId = `alert-run-${tickStartedAt}`;
-    const rules = await loadAlertRules();
-    const cursorMs = data.cursorMs || 0;
+/**
+ * Core scan-runner tick.  Used by the bearer-gated cron route (no session) and
+ * by the authenticated server function wrapper below.
+ */
+export async function runScanRunnerTick(data: RunnerInput = {}): Promise<ScanRunnerOutput> {
+  const input = normalizeRunnerInput(data);
+  const tickStartedAt = Date.now();
+  const alertRunId = `alert-run-${tickStartedAt}`;
+  const dryRunOnly = true;
+
+  return withScanSpan(SCAN_SPAN.runner, async (span) => {
     const perRule: ScanRunnerOutput["perRule"] = [];
     let ran = 0;
     let skipped = 0;
-    const dryRunOnly = true;
     let tickError: string | null = null;
+    let output: ScanRunnerOutput = { ran: 0, skipped: 0, dryRunOnly, perRule };
 
     if (span) {
-      span.setAttribute("scan.runner.source", data.source);
+      span.setAttribute("scan.runner.source", input.source ?? "cron");
     }
 
-    for (const rawRule of rules) {
+    try {
+      await initAppSettings();
+      const rules = await loadAlertRules();
+      const cursorMs = input.cursorMs || 0;
+
+      for (const rawRule of rules) {
       const rule = rowToAlertRule(rawRule);
       if (!rule.enabled) {
         skipped += 1;
@@ -149,7 +158,7 @@ export const runScanRunner = createServerFn({ method: "POST" })
       }
       const ruleStartedAt = Date.now();
       const lastRuns = await listScanRunsSince(rawRule.user_id, rule.id, cursorMs);
-      if (!data.forceScan && lastRuns.length && ruleStartedAt - new Date(lastRuns[0]!.started_at).getTime() < rule.autoBuy.coolHours * 3_600_000) {
+      if (!input.forceScan && lastRuns.length && ruleStartedAt - new Date(lastRuns[0]!.started_at).getTime() < rule.autoBuy.coolHours * 3_600_000) {
         skipped += 1;
         continue;
       }
@@ -267,30 +276,41 @@ export const runScanRunner = createServerFn({ method: "POST" })
           error: errMsg,
         }).catch(() => undefined);
       }
-    }
+      }
 
-    const output: ScanRunnerOutput = { ran, skipped, dryRunOnly, perRule };
-    const tickFinishedAt = Date.now();
-    if (span) {
-      span.setAttribute("scan.runner.ran", ran);
-      span.setAttribute("scan.runner.skipped", skipped);
-    }
-    try {
-      await persistAlertRun({
-        id: alertRunId,
-        source: data.source,
-        rules_ran: ran,
-        rules_skipped: skipped,
-        dry_run_only: dryRunOnly,
-        per_rule: perRule,
-        started_at: new Date(tickStartedAt).toISOString(),
-        finished_at: new Date(tickFinishedAt).toISOString(),
-        error: tickError,
-      });
+      output = { ran, skipped, dryRunOnly, perRule };
+      if (span) {
+        span.setAttribute("scan.runner.ran", ran);
+        span.setAttribute("scan.runner.skipped", skipped);
+      }
     } catch (err) {
-      tickError = err instanceof Error ? err.message : "persist_alert_run_failed";
-      console.error(`[scan.runner.alert_run] id=${alertRunId} error=${tickError}`);
+      tickError = err instanceof Error ? err.message : "unknown";
+      output = { ran, skipped, dryRunOnly, perRule };
+      throw err;
+    } finally {
+      const tickFinishedAt = Date.now();
+      try {
+        await persistAlertRun({
+          id: alertRunId,
+          source: input.source ?? "cron",
+          rules_ran: output.ran,
+          rules_skipped: output.skipped,
+          dry_run_only: dryRunOnly,
+          per_rule: output.perRule,
+          started_at: new Date(tickStartedAt).toISOString(),
+          finished_at: new Date(tickFinishedAt).toISOString(),
+          error: tickError,
+        });
+      } catch (persistErr) {
+        const msg = persistErr instanceof Error ? persistErr.message : "persist_alert_run_failed";
+        console.error(`[scan.runner.alert_run] id=${alertRunId} error=${msg}`);
+      }
     }
     return output;
-    });
   });
+}
+
+export const runScanRunner = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((input: RunnerInput = {}) => normalizeRunnerInput(input))
+  .handler(async ({ data }): Promise<ScanRunnerOutput> => runScanRunnerTick(data));
