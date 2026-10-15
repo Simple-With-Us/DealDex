@@ -36,10 +36,15 @@ export const Route = createFileRoute("/api/alerts/run")({
           return Response.json({ error: "unauthorized" }, { status: 401 });
         }
         const body = await json(request);
+        const source =
+          typeof body.source === "string" && body.source.trim()
+            ? body.source.trim()
+            : "cron";
         const result = await runScanRunner({
           data: {
             forceScan: Boolean(body.forceScan),
             cursorMs: typeof body.cursorMs === "number" ? body.cursorMs : 0,
+            source,
           },
         });
         return Response.json(result);

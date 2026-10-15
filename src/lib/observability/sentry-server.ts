@@ -22,6 +22,7 @@ export const SCAN_SPAN = {
   autoBuyPreview: "scan.auto_buy.preview",
   cacheHit: "scan.cache.hit",
   cacheMiss: "scan.cache.miss",
+  runner: "scan.runner",
 } as const;
 
 export type ScanSpanName = (typeof SCAN_SPAN)[keyof typeof SCAN_SPAN];
