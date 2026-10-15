@@ -158,6 +158,11 @@ describe("parseEbayBrowseItem", () => {
     assert.equal(parseEbayBrowseItem({ itemId: "1", title: "Real Card" }), null);
   });
 
+  it("rejects a non-object summary", () => {
+    assert.equal(parseEbayBrowseItem(null), null);
+    assert.equal(parseEbayBrowseItem("card"), null);
+  });
+
   it("rejects price outside the safe band", () => {
     assert.equal(
       parseEbayBrowseItem({ itemId: "1", title: "Real Card", price: { value: "1.5" } }),
@@ -288,6 +293,53 @@ describe("searchEbayBrowsePage", () => {
     assert.ok(
       filters.some((f) => /price:\[5\.\.\],price:\[\.\.250\]/.test(f)),
       `expected combined price-range filter in ${JSON.stringify(filters)}`,
+    );
+  });
+
+  it("accepts extra eBay fields and skips a bad summary without dropping the page", async () => {
+    const env = { EBAY_APP_ID: "id", EBAY_CERT_ID: "secret" };
+    const fetchImpl: FetchLike = async (input) => {
+      const url = input instanceof URL ? input.toString() : String(input);
+      const u = new URL(url);
+      if (u.pathname.endsWith("/oauth2/token")) {
+        return jsonResponse({ access_token: "tok", expires_in: 7200 });
+      }
+      return jsonResponse({
+        total: 2,
+        prev: "https://api.ebay.com/prev",
+        itemSummaries: [
+          { itemId: "1", title: "not an object" },
+          "junk",
+          {
+            itemId: "222",
+            title: "Charizard PSA 10",
+            price: { value: "40", currency: "USD" },
+            itemHref: "https://api.ebay.com/buy/browse/v1/item/222",
+          },
+        ],
+      });
+    };
+    const r = await searchEbayBrowsePage("charizard", {}, env, fetchImpl);
+    assert.equal(r.hadResponse, true);
+    assert.equal(r.returned, 3);
+    assert.equal(r.listings.length, 1);
+    assert.equal(r.listings[0]!.id, "222");
+    assert.equal(r.total, 2);
+  });
+
+  it("rejects a payload whose itemSummaries is not an array", async () => {
+    const env = { EBAY_APP_ID: "id", EBAY_CERT_ID: "secret" };
+    const fetchImpl: FetchLike = async (input) => {
+      const url = input instanceof URL ? input.toString() : String(input);
+      const u = new URL(url);
+      if (u.pathname.endsWith("/oauth2/token")) {
+        return jsonResponse({ access_token: "tok", expires_in: 7200 });
+      }
+      return jsonResponse({ itemSummaries: "nope" });
+    };
+    await assert.rejects(
+      searchEbayBrowsePage("charizard", {}, env, fetchImpl),
+      /unexpected payload/,
     );
   });
 });

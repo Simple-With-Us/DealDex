@@ -8,6 +8,10 @@ The website subtitle, intro, metadata, README, and current copy guidance now des
 
 # Current Handoff
 
+## 2026-10-15 CURSOR — Kody follow-up on the scan cap
+
+PR #465 merged with two open Kody threads.  The rollout Verify section now records `npm run lint`, `npx tsc --noEmit`, `npm test`, and `npm run build` with outcomes.  The eBay Browse search body is parsed with a loose Zod object before `itemSummaries` is read.  A strict schema is not used, because extra eBay fields would drop a usable page.  Rollout: `docs/rollouts/2026-10-15-scan-listings-cap.md`.
+
 ## 2026-10-15 CURSOR — DD-365 scan listing cap on the live parsers
 
 PR #339 raised `EBAY_SCAN_CAP` and `MERCARI_SCAN_CAP` to 50, but Mercari's live path and the eBay Jina fallback still stopped at 16 inside the parsers, and Brave stopped at 12.  Browse paging also advanced the offset by parsed rows, so a page of junk rewound into items already seen, and `scan.ebay.page2` was named but never started.  This branch keeps the shared cap of 50, stops the Jina eBay window at the next listing link, pages Browse by the raw `itemSummaries` length with the query check before the cap, and starts `scan.ebay.page2` on every follow-up page.  Sort stays `pricePlusShipping`.  DD-375 and DD-382 are duplicates of DD-365.  Rollout: `docs/rollouts/2026-10-15-scan-listings-cap.md`.

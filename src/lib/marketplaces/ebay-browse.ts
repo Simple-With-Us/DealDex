@@ -21,6 +21,7 @@
  *   - https://developer.ebay.com/api-docs/buy/browse/resources/item_summary/methods/searchItemSummary
  *   - https://developer.ebay.com/api-docs/buy/static/oauth-client-credentials-grant.html
  */
+import { z } from "zod";
 import {
   ASSUMED_SHIPPING,
   SKIP_LISTING,
@@ -201,15 +202,16 @@ export async function searchEbayBrowsePage(
   if (!res.ok) {
     throw new Error(`eBay browse search failed: HTTP ${res.status}`);
   }
-  const json = (await res.json()) as EbayBrowseResponse;
-  const listings = (json.itemSummaries ?? [])
+  const json = await readEbayBrowseResponse(res);
+  const summaries = json.itemSummaries ?? [];
+  const listings = summaries
     .map(parseEbayBrowseItem)
     .filter((row): row is LiveListing => row !== null);
   const result: EbayBrowseSearchResult = {
     listings,
     offset,
     hadResponse: true,
-    returned: json.itemSummaries?.length ?? 0,
+    returned: summaries.length,
   };
   if (typeof json.total === "number") result.total = json.total;
   return result;
@@ -290,61 +292,72 @@ export function broadQuery(query: string): string {
   return /pokemon|pokémon|tcg/i.test(q) ? q : `${q} pokemon`;
 }
 
-type EbayBrowseItem = {
-  itemId?: unknown;
-  title?: unknown;
-  price?: { value?: unknown; currency?: unknown };
-  shippingOptions?: Array<{ shippingCost?: { value?: unknown }; type?: unknown }>;
-  image?: { imageUrl?: unknown };
-  itemWebUrl?: unknown;
-  itemCreationDate?: unknown;
-  condition?: unknown;
-  conditionId?: unknown;
-  buyingOptions?: unknown;
-  seller?: {
-    username?: unknown;
-    feedbackPercentage?: unknown;
-    feedbackScore?: unknown;
-  };
-  topRatedBuyingExperience?: unknown;
-};
+/**
+ * Browse search JSON.  Loose on purpose: eBay adds response fields, and a
+ * strict object would drop an otherwise usable page.  Each summary stays
+ * `unknown` so one bad row cannot fail the page; `parseEbayBrowseItem`
+ * drops that row.
+ */
+const EbayBrowseResponseSchema = z.looseObject({
+  itemSummaries: z.array(z.unknown()).optional(),
+  total: z.number().optional(),
+  offset: z.number().optional(),
+  limit: z.number().optional(),
+  next: z.string().optional(),
+  href: z.string().optional(),
+  warnings: z.array(z.looseObject({ message: z.string().optional() })).optional(),
+});
 
-type EbayBrowseResponse = {
-  itemSummaries?: EbayBrowseItem[];
-  total?: number;
-  offset?: number;
-  limit?: number;
-  next?: string;
-  href?: string;
-  warnings?: Array<{ message?: string }>;
-};
+type EbayBrowseResponse = z.infer<typeof EbayBrowseResponseSchema>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function readEbayBrowseResponse(res: Response): Promise<EbayBrowseResponse> {
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    throw new Error("eBay browse search returned an unexpected payload");
+  }
+  const parsed = EbayBrowseResponseSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new Error("eBay browse search returned an unexpected payload");
+  }
+  return parsed.data;
+}
 
 /** Visible for tests. Maps a single Browse `itemSummary` into our LiveListing shape. */
-export function parseEbayBrowseItem(item: EbayBrowseItem): LiveListing | null {
+export function parseEbayBrowseItem(item: unknown): LiveListing | null {
+  if (!isRecord(item)) return null;
   const id = typeof item.itemId === "string" ? item.itemId : "";
   const titleRaw = typeof item.title === "string" ? item.title : "";
   if (!id || !titleRaw) return null;
   const title = titleRaw.trim();
   if (!title || SKIP_LISTING.test(title)) return null;
+  const priceRecord = isRecord(item.price) ? item.price : null;
+  const priceValue = priceRecord?.value;
   const price = parseMoney(
-    typeof item.price?.value === "string" || typeof item.price?.value === "number"
-      ? String(item.price.value)
-      : undefined,
+    typeof priceValue === "string" || typeof priceValue === "number" ? String(priceValue) : undefined,
   );
   if (price == null || price < 2.5 || price >= 1_000_000) return null;
   const shipping = firstShipping(item.shippingOptions) ?? ASSUMED_SHIPPING.ebay;
-  const image = typeof item.image?.imageUrl === "string" ? item.image.imageUrl : null;
+  const imageRecord = isRecord(item.image) ? item.image : null;
+  const image = typeof imageRecord?.imageUrl === "string" ? imageRecord.imageUrl : null;
   const url = typeof item.itemWebUrl === "string" ? item.itemWebUrl : `https://www.ebay.com/itm/${id}`;
   const listedAt =
     typeof item.itemCreationDate === "string" && item.itemCreationDate.length > 0
       ? item.itemCreationDate
       : null;
-  const buyingOptions = Array.isArray(item.buyingOptions) ? (item.buyingOptions as string[]) : [];
+  const buyingOptions = Array.isArray(item.buyingOptions)
+    ? item.buyingOptions.filter((option): option is string => typeof option === "string")
+    : [];
   const fixed = buyingOptions.includes("FIXED");
 
-  const sellerRaw = item.seller;
+  const sellerRaw = isRecord(item.seller) ? item.seller : null;
   let seller: SellerInfo | null = null;
-  if (sellerRaw && typeof sellerRaw === "object") {
+  if (sellerRaw) {
     const username = typeof sellerRaw.username === "string" ? sellerRaw.username : null;
     const scoreVal = sellerRaw.feedbackScore;
     const feedbackScore =
@@ -387,10 +400,11 @@ export function parseEbayBrowseItem(item: EbayBrowseItem): LiveListing | null {
   };
 }
 
-function firstShipping(options: EbayBrowseItem["shippingOptions"]): number | null {
+function firstShipping(options: unknown): number | null {
   if (!Array.isArray(options)) return null;
   for (const opt of options) {
-    const raw = opt.shippingCost?.value;
+    if (!isRecord(opt) || !isRecord(opt.shippingCost)) continue;
+    const raw = opt.shippingCost.value;
     if (typeof raw === "number") {
       // 0 is a real, free-shipping figure; parseMoney rejects it as "no money",
       // so we accept any non-negative finite number here.
