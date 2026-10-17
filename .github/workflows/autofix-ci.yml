@@ -33,10 +33,12 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE="origin/${{ github.base_ref }}"
+          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ] || [ -z "${{ github.event.before }}" ]; then
+            BASE="$(git rev-list --max-parents=0 HEAD 2>/dev/null || echo HEAD~1)"
           else
-            BASE="HEAD~1"
+            BASE="${{ github.event.before }}"
           fi
-          CHANGED_FILES=$(git diff --name-only "$BASE"...HEAD | grep -E '\.(ts|tsx|js|jsx|json|css|md)$' || true)
+          CHANGED_FILES=$(git diff --name-only "$BASE"...HEAD 2>/dev/null | grep -E '\.(ts|tsx|js|jsx|json|css|md)$' || true)
           if [ -n "$CHANGED_FILES" ]; then
             echo "Formatting changed files:"
             echo "$CHANGED_FILES"
