@@ -1,0 +1,50 @@
+name: autofix.ci
+
+on:
+  pull_request:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autofix-ci-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Format changed files with Prettier
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE="HEAD~1"
+          fi
+          CHANGED_FILES=$(git diff --name-only "$BASE"...HEAD | grep -E '\.(ts|tsx|js|jsx|json|css|md)$' || true)
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "Formatting changed files:"
+            echo "$CHANGED_FILES"
+            printf '%s\n' "$CHANGED_FILES" | xargs -d '\n' npx prettier --write || true
+          else
+            echo "No changed formatting files."
+          fi
+
+      - uses: autofix-ci/action@c5b2d67aa2274e7b5a18224e8171550871fc7e4a # v1.3.4
+        with:
+          fail-fast: false
