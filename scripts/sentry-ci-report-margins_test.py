@@ -30,10 +30,12 @@ def main() -> int:
 
     assert default == 15, default
     expected = {
+        "Vercel production catch-up": 75,
         "iOS TestFlight ship (GitHub-hosted macOS)": 100,
         "Effort Issues Sync": 600,
     }
     assert overrides == expected, overrides
+    assert schedules.get("Vercel production catch-up") == "41 * * * *", schedules
     assert schedules.get("Effort Issues Sync") == "18 6 * * *", schedules
     assert schedules.get("iOS TestFlight ship (GitHub-hosted macOS)") == "22 * * * *", schedules
     print("MARGIN_PARSE_OK", overrides)
