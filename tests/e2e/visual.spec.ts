@@ -271,3 +271,13 @@ test("privacy: full-page screenshot", async ({ page }) => {
     "privacy page should match the committed baseline",
   ).toHaveScreenshot("privacy-full.png", { fullPage: true, ...VISUAL_TOLERANCE });
 });
+
+test("shell footer renders the SWU attribution", async ({ page }) => {
+  await gotoSettled(page, "/privacy", { awaitAuthSlot: false });
+  const footer = page.locator("footer");
+  await expect(footer.getByRole("link", { name: "From Simple With Us" })).toBeVisible();
+  await expect(
+    footer,
+    "shell footer should match the committed baseline",
+  ).toHaveScreenshot("shell-footer.png", VISUAL_TOLERANCE);
+});
