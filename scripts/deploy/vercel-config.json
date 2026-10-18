@@ -4,10 +4,7 @@
   "projectId": "prj_xcIQb423JxSHHMY0lHmDqvSh95QF",
   "repoId": 1332557936,
   "rootDirectory": "",
-  "ciWorkflows": [
-    "CI",
-    "E2E (Playwright)"
-  ],
+  "ciWorkflows": ["CI", "E2E (Playwright)"],
   "watch": [
     ".",
     ":(exclude)docs",
