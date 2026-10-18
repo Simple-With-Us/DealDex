@@ -71,17 +71,10 @@ test.use({ animations: "disabled" });
 // Committed webfont fixtures (see the header comment): serve the exact
 // Google Fonts CSS + woff2 files locally so no test depends on the network
 // for fonts.
-const fontsDir = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "fixtures",
-  "fonts",
-);
+const fontsDir = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "fonts");
 const fontsCss = readFileSync(join(fontsDir, "fonts.css"), "utf8");
 function fontFixturePath(url: string): string | null {
-  const file = join(
-    fontsDir,
-    url.replace("https://fonts.gstatic.com/", "").replaceAll("/", "_"),
-  );
+  const file = join(fontsDir, url.replace("https://fonts.gstatic.com/", "").replaceAll("/", "_"));
   return existsSync(file) ? file : null;
 }
 
@@ -146,9 +139,7 @@ async function gotoSettled(
       '500 16px "IBM Plex Mono"',
     ];
     await Promise.race([
-      Promise.all(faces.map((f) => document.fonts.load(f))).then(
-        () => document.fonts.ready,
-      ),
+      Promise.all(faces.map((f) => document.fonts.load(f))).then(() => document.fonts.ready),
       new Promise((_, reject) =>
         setTimeout(() => reject(new Error("webfont load timed out")), 30000),
       ),
@@ -157,13 +148,9 @@ async function gotoSettled(
     // request fails — it never rejects.  Without this check a blocked
     // fonts.googleapis.com would silently fall back to system fonts and
     // produce environment-dependent pixels instead of failing loudly.
-    const loadedCount = [...document.fonts].filter(
-      (f) => f.status === "loaded",
-    ).length;
+    const loadedCount = [...document.fonts].filter((f) => f.status === "loaded").length;
     if (loadedCount === 0) {
-      throw new Error(
-        "expected webfonts to load, but no font faces reached 'loaded'",
-      );
+      throw new Error("expected webfonts to load, but no font faces reached 'loaded'");
     }
   });
   await page.waitForTimeout(500);
@@ -175,10 +162,7 @@ async function gotoSettled(
 // so strip it from the test DOM before screenshotting.
 async function removeZapGlyph(page: Page): Promise<void> {
   await page.evaluate(() => {
-    const walker = document.createTreeWalker(
-      document.body,
-      NodeFilter.SHOW_TEXT,
-    );
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     while (walker.nextNode()) {
       const node = walker.currentNode as Text;
       if (node.nodeValue?.includes("⚡")) {
@@ -230,10 +214,10 @@ test("install: full-page screenshot", async ({ page }) => {
     page.getByRole("heading", { name: "Android and iPhone", level: 1 }),
     "install page h1 should render",
   ).toBeVisible();
-  await expect(
-    page,
-    "install page should match the committed baseline",
-  ).toHaveScreenshot("install-full.png", { fullPage: true, ...VISUAL_TOLERANCE });
+  await expect(page, "install page should match the committed baseline").toHaveScreenshot(
+    "install-full.png",
+    { fullPage: true, ...VISUAL_TOLERANCE },
+  );
 });
 
 test("alerts: full-page screenshot", async ({ page }) => {
@@ -266,8 +250,18 @@ test("privacy: full-page screenshot", async ({ page }) => {
     page.getByRole("heading", { name: "Privacy", level: 1 }),
     "privacy page h1 should render",
   ).toBeVisible();
-  await expect(
-    page,
-    "privacy page should match the committed baseline",
-  ).toHaveScreenshot("privacy-full.png", { fullPage: true, ...VISUAL_TOLERANCE });
+  await expect(page, "privacy page should match the committed baseline").toHaveScreenshot(
+    "privacy-full.png",
+    { fullPage: true, ...VISUAL_TOLERANCE },
+  );
+});
+
+test("shell footer renders the SWU attribution", async ({ page }) => {
+  await gotoSettled(page, "/privacy", { awaitAuthSlot: false });
+  const footer = page.locator("footer");
+  await expect(footer.getByRole("link", { name: "From Simple With Us" })).toBeVisible();
+  await expect(footer, "shell footer should match the committed baseline").toHaveScreenshot(
+    "shell-footer.png",
+    VISUAL_TOLERANCE,
+  );
 });
