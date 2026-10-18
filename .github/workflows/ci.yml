@@ -60,6 +60,10 @@ jobs:
   # slot when native/ios/ or the build workflow itself changed.  Fork PRs are
   # rejected inside ios-build.yml.
   ios-changes:
+    # Fork PRs get neither the gate nor a macOS slot.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
