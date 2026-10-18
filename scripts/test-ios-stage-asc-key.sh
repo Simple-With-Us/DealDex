@@ -88,6 +88,14 @@ cat > "$tmp_dir/bin/infisical" <<'CLI'
 case "${1:-}" in
   login) printf '%s\n' synthetic-session-token ;;
   secrets)
+    proj=""
+    for arg in "$@"; do
+      case "$arg" in --projectId=*) proj="${arg#--projectId=}" ;; esac
+    done
+    # Simulate a machine identity that cannot read Fleet-OPS /asc.
+    if [[ "${ASC_TEST_FLEET_EMPTY:-}" == 1 && "$proj" == 8dae6d03-8f12-48b2-adf3-e5c1b881c8c5 ]]; then
+      exit 0
+    fi
     if [[ "${3:-}" == ASC_KEY_P8 ]]; then
       cat "$ASC_TEST_FIXTURE"
     elif [[ "${3:-}" == IOS_DIST_P12_BASE64 && "${ASC_TEST_MULTILINE_P12:-}" == 1 ]]; then
@@ -140,5 +148,29 @@ if grep -Fq 'SYNTHETIC-P12-' "$tmp_dir/multiline-env" "$tmp_dir/multiline-stderr
   exit 1
 fi
 [[ ! -s "$tmp_dir/multiline-stderr" ]]
+
+# Fleet-OPS /asc is the source when it is readable in full.
+grep -Fq 'ASC credential source: Fleet-OPS /asc' "$tmp_dir/workflow-stdout"
+if grep -Fq '::warning::' "$tmp_dir/workflow-stdout"; then
+  echo 'Fleet-OPS /asc path emitted a fallback warning' >&2
+  exit 1
+fi
+
+# An unreadable Fleet-OPS /asc falls back to the project root with a warning and
+# still imports, so a missing grant cannot silently stop shipping.
+: > "$tmp_dir/fallback-env"
+env -u ASC_KEY_P8 PATH="$tmp_dir/bin:$PATH" \
+  GITHUB_WORKSPACE="$tmp_dir/workspace" GITHUB_ENV="$tmp_dir/fallback-env" \
+  INFISICAL_PROJECT_ID=synthetic-project \
+  INFISICAL_UNIVERSAL_AUTH_CLIENT_ID=synthetic-client \
+  INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET=synthetic-secret \
+  ASC_TEST_FIXTURE="$tmp_dir/fixture" ASC_TEST_IMPORT_MARKER="$tmp_dir/fallback-import" \
+  ASC_TEST_FLEET_EMPTY=1 bash "$tmp_dir/workflow-load.sh" \
+  > "$tmp_dir/fallback-stdout" 2> "$tmp_dir/fallback-stderr"
+[[ -e "$tmp_dir/fallback-import" ]]
+grep -Fq '::warning::Fleet-OPS /asc is not readable in full' "$tmp_dir/fallback-stdout"
+grep -Fq 'ASC credential source: project root' "$tmp_dir/fallback-stdout"
+cmp "$tmp_dir/fixture" "$(sed -n 's/^ASC_KEY_PATH=//p' "$tmp_dir/fallback-env")"
+[[ ! -s "$tmp_dir/fallback-stderr" ]]
 
 echo 'synthetic ASC key-file and workflow handoff passed'

@@ -55,6 +55,55 @@ jobs:
       - name: Build
         run: npm run build
 
+  # iOS compile check.  A push to main (and a manual run) always builds, so main
+  # carries an iOS result on every commit.  A pull request only takes a macOS
+  # slot when native/ios/ or the build workflow itself changed.  Fork PRs are
+  # rejected inside ios-build.yml.
+  ios-changes:
+    # Fork PRs get neither the gate nor a macOS slot.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      native: ${{ steps.gate.outputs.native }}
+    steps:
+      - name: Decide whether the iOS build is needed
+        id: gate
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "Not a pull_request event (${EVENT}); iOS build runs."
+            echo "native=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # The compare API names every changed file without a checkout.  Fail
+          # closed: if the list cannot be read, build.
+          if ! files="$(gh api --paginate "repos/${REPO}/compare/${BASE_SHA}...${HEAD_SHA}" --jq '.files[].filename' 2>/dev/null)" || [ -z "$files" ]; then
+            echo "Could not list changed files; iOS build runs (fail closed)."
+            echo "native=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if printf '%s\n' "$files" | grep -qE '^(native/ios/|\.github/workflows/ios-build\.yml$)'; then
+            echo "iOS paths changed; iOS build runs."
+            echo "native=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No iOS paths changed; iOS build skipped (no macOS slot)."
+            echo "native=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  ios:
+    needs: ios-changes
+    if: needs.ios-changes.outputs.native == 'true'
+    uses: ./.github/workflows/ios-build.yml
+
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 30

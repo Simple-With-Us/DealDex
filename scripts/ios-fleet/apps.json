@@ -4,13 +4,13 @@
     "dealdex": {
       "displayName": "DealDex",
       "bundleId": "net.dealdex",
-      "appleId": 6802474288,
+      "appleId": 6804249232,
       "scheme": "DealDex",
       "projectRel": "native/ios/DealDex.xcodeproj",
       "xcodegenDir": "native/ios",
       "worktreeHint": "~/apps/dealdex-grok",
       "marketingVersionDefault": "1.0.2",
-      "notes": "Native iPhone app. Live bundle is net.dealdex (resource R2FAW69NPD, not a team id). Team CC8UTF7ATG. ASC app DealDex SKU dealdex appleId 6802474288. This appleId is the in-repo source for AppUpdatePrompt (not a Swift knownAppleIds map). Marketing train is 1.0.N; build is UTC YYYYMMDDHHMM. Public host is https://dealdex.net. Do not upload any other iOS bundle id."
+      "notes": "Native iPhone app. Live bundle is net.dealdex (resource R2FAW69NPD, not a team id). Team CC8UTF7ATG. ASC app DealDex SKU dealdex-ios appleId 6804249232. This appleId is the in-repo source for AppUpdatePrompt (not a Swift knownAppleIds map). Marketing train is 1.0.N; build is UTC YYYYMMDDHHMM. Public host is https://dealdex.net. Do not upload any other iOS bundle id."
     }
   }
 }
