@@ -66,6 +66,7 @@ APP = "dealdex"
 # listed here have no `schedule:` trigger and will simply be skipped for the
 # check-in step (they can still send a failure event on other trigger types).
 CRON_SCHEDULES = {
+    "Vercel production catch-up": "41 * * * *",
     "Effort Issues Sync": "18 6 * * *",
     "iOS TestFlight ship (GitHub-hosted macOS)": "22 * * * *",
 }
@@ -87,6 +88,7 @@ CRON_SCHEDULES = {
 # slack for workflow_run dispatch + this reporter's own queue/run time.
 DEFAULT_CHECKIN_MARGIN_MINUTES = 15
 CRON_CHECKIN_MARGIN_MINUTES = {
+    "Vercel production catch-up": 75,
     # ios-ship.yml's "ship" job has timeout-minutes: 90; add ~10 min slack.
     # Do not raise this to 600: FLEET-INFRA-CC is a dropped-tick class, not
     # a late-start class.  600 would hide missing hourly macos ticks.

@@ -1,0 +1,18 @@
+{
+  "repository": "Simple-With-Us/DealDex",
+  "teamId": "team_l3mWAejl1E08y8ijku5DpBE6",
+  "projectId": "prj_xcIQb423JxSHHMY0lHmDqvSh95QF",
+  "repoId": 1332557936,
+  "rootDirectory": "",
+  "ciWorkflows": ["CI", "E2E (Playwright)"],
+  "watch": [
+    ".",
+    ":(exclude)docs",
+    ":(exclude)native",
+    ":(exclude)ios",
+    ":(exclude)android",
+    ":(exclude).github",
+    ":(exclude)STATUS.md",
+    ":(exclude)PLAN.md"
+  ]
+}
