@@ -81,7 +81,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 alt="Simple With Us by Jay Wedgeworth"
                 width="1024"
                 height="106"
-                className="h-auto max-w-[calc(100vw-92px)]"
+                className="h-auto w-[288px] max-w-[calc(100vw-92px)]"
               />
             </a>
           </div>
