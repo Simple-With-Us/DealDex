@@ -55,8 +55,8 @@ test("PR Autofix is not pinned to a reusable revision that deadlocks", () => {
 });
 
 test("autofix callers pass only secrets their reusable declares", () => {
-  assert.deepEqual(passedSecrets(read(".github/workflows/autofix.yml")), ["MINIMAX_API_KEY", "AUTOFIX_GITHUB_APP_PRIVATE_KEY"]);
-  assert.deepEqual(passedSecrets(read(".github/workflows/claude-code-autofix.yml")), ["MINIMAX_API_KEY"]);
+  assert.deepEqual(passedSecrets(read(".github/workflows/autofix.yml")), ["MINIMAX_API_KEY", "AUTOFIX_GITHUB_APP_PRIVATE_KEY", "USAGE_INGEST_TOKEN"]);
+  assert.deepEqual(passedSecrets(read(".github/workflows/claude-code-autofix.yml")), ["MINIMAX_API_KEY", "USAGE_INGEST_TOKEN"]);
 });
 
 test("autofix callers keep their least-privilege and fork guards", () => {
