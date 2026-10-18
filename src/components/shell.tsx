@@ -70,7 +70,7 @@ export function Shell({ children }: { children: ReactNode }) {
               aria-label="From Simple With Us"
             >
               <span>From</span>
-              <img src="/swu-logo-wide.webp" alt="Simple With Us by Jay Wedgeworth" width="288" height="30" className="h-auto max-w-[calc(100vw-92px)] rounded-sm bg-white" />
+              <img src="/assets/simple-with-us.webp" alt="Simple With Us by Jay Wedgeworth" width="1024" height="106" className="h-auto max-w-[calc(100vw-92px)]" />
             </a>
           </div>
         </div>
