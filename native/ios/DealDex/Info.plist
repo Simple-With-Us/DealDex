@@ -23,7 +23,7 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>AppUpdateAppleId</key>
-	<integer>6802474288</integer>
+	<integer>6804249232</integer>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

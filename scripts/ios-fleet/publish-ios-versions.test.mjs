@@ -43,7 +43,7 @@ const FLEET = {
     "net.dealdex": {
       marketingVersion: "1.0.2",
       build: "202608230250",
-      appleId: 6802474288,
+      appleId: 6804249232,
       displayName: "DealDex",
     },
   },
@@ -66,7 +66,7 @@ test("merge onto a multi-app remote keeps every sibling", () => {
     "--build",
     "202608242345",
     "--apple-id",
-    "6802474288",
+    "6804249232",
     "--display-name",
     "DealDex",
     "--base-json",

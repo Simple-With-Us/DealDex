@@ -30,7 +30,7 @@ into `native/ios/DealDex/AppUpdatePrompt.swift`.  Keep the two files
 byte-identical.  Do not make a Swift package.  Do not fork behavior.
 
 Apple IDs are not hardcoded in the Swift file.  Live DealDex is
-`net.dealdex` / `6802474288` in `apps.json` here and in
+`net.dealdex` / `6804249232` in `apps.json` here and in
 `jaywedgeworth22/ai-fleet-coordinator` `site/ios-versions.json`.  The iOS target
 also sets Info.plist `AppUpdateAppleId` to that same number as a
 local fallback.  Public host is https://dealdex.net.

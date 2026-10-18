@@ -8,7 +8,7 @@ Keys you paste in **Settings** live on the device.  If the website is down, scan
 
 Play is not shipping yet.  Android package is `me.grok.dealdex` (build from
 `native/android` on `main`; dealdex.net does not host an APK).  iOS is
-`net.dealdex` (team `CC8UTF7ATG`, Apple app SKU `dealdex`, appleId `6802474288`).
+`net.dealdex` (team `CC8UTF7ATG`, Apple app SKU `dealdex-ios`, appleId `6804249232`).
 Internal TestFlight exists.  Do not restore a public APK until a signed,
 device-tested release build exists.
 
@@ -67,7 +67,7 @@ xcodebuild -project native/ios/DealDex.xcodeproj -scheme DealDex \
 
 Bundle id: `net.dealdex`.  Display name: DealDex.  Min iOS: 17.0.  Project format: Xcode 26.3.  Team: `CC8UTF7ATG`.  Apple bundle resource id `R2FAW69NPD` is not a team id.
 
-TestFlight archive + upload is `.github/workflows/ios-ship.yml` on GitHub-hosted `macos-latest` (app key `dealdex`, bundle `net.dealdex`).  Manual: `bash scripts/ios-ship-testflight.sh`.  ASC app DealDex SKU `dealdex`, appleId `6802474288`.
+TestFlight archive + upload is `.github/workflows/ios-ship.yml` on GitHub-hosted `macos-latest` (app key `dealdex`, bundle `net.dealdex`).  A merge to `main` that touches `native/ios/` ships automatically; the hourly run is a catch-up behind `scripts/ios-scheduled-ship-gate.sh`.  `ci.yml` also runs the unsigned `ios-build.yml` compile check on every push to `main` and on pull requests that touch `native/ios/`.  Manual: `bash scripts/ios-ship-testflight.sh`.  ASC app DealDex SKU `dealdex-ios`, appleId `6804249232`.
 
 AppIcon catalog is the DD on the ST tiled field.  Older preview variants
 live in `native/brand/icon-options/`.

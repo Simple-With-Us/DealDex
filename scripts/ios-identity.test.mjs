@@ -137,7 +137,7 @@ test("live DealDex Apple ID lives in apps.json and Info.plist, not Swift", () =>
   const apps = JSON.parse(read("scripts/ios-fleet/apps.json"));
   const dealdex = apps.apps.dealdex;
   assert.equal(dealdex.bundleId, "net.dealdex");
-  assert.equal(dealdex.appleId, 6802474288);
+  assert.equal(dealdex.appleId, 6804249232);
   assert.match(dealdex.notes, /net\.dealdex/);
   assert.match(dealdex.notes, /dealdex\.net/);
   assert.doesNotMatch(dealdex.notes, /online\.dealdex/);
@@ -146,12 +146,12 @@ test("live DealDex Apple ID lives in apps.json and Info.plist, not Swift", () =>
   const plist = read("native/ios/DealDex/Info.plist");
   assert.match(
     plist,
-    /<key>AppUpdateAppleId<\/key>\s*<integer>6802474288<\/integer>/,
+    /<key>AppUpdateAppleId<\/key>\s*<integer>6804249232<\/integer>/,
   );
   assert.doesNotMatch(plist, /online\.dealdex/);
 
   const spec = read("native/ios/project.yml");
-  assert.match(spec, /AppUpdateAppleId: 6802474288/);
+  assert.match(spec, /AppUpdateAppleId: 6804249232/);
 });
 
 test("Apple bundle resource id is documented, never a team setting", () => {

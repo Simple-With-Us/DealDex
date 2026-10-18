@@ -1,0 +1,86 @@
+name: iOS build
+
+# Unsigned compile check for the DealDex iPhone app on GitHub-hosted
+# macos-latest.  ci.yml calls this on every push to main, and on a pull request
+# whenever native/ios/ (or this file) changes, so main always carries an iOS
+# build result and a broken archive is found on the PR, not in the ship.
+#
+# It builds the checked-in native/ios/DealDex.xcodeproj in the Release
+# configuration, the same project, scheme and configuration that
+# scripts/ios-ship-testflight.sh archives (the hosted runner has no XcodeGen, so
+# the ship uses the checked-in project too).  Deliberately unsigned
+# (CODE_SIGNING_ALLOWED=NO) with no archive and no upload: TestFlight shipping
+# stays in ios-ship.yml, which has its own gates.  Do not run xcodebuild locally.
+#
+# A binary built against a beta SDK passes TestFlight upload but is rejected at
+# App Store submission as INVALID_BINARY, so DEVELOPER_DIR is pinned to stable
+# and asserted, and a beta host OS fails the job.
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: xcodebuild (unsigned)
+    # Fork PRs never get a macOS slot.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Assert stable Xcode and a non-beta host OS
+        run: |
+          echo "DEVELOPER_DIR=${DEVELOPER_DIR}"
+          xcodebuild -version
+          ver=$(xcodebuild -version | awk 'NR==1{print $2}')
+          echo "Xcode version: ${ver}"
+          case "$DEVELOPER_DIR" in
+            *[Bb]eta*)
+              echo "::error::DEVELOPER_DIR resolves to a beta Xcode: $DEVELOPER_DIR"
+              exit 1
+              ;;
+          esac
+          os=$(sw_vers -productVersion)
+          build=$(sw_vers -buildVersion)
+          echo "macOS ${os} (${build})"
+          if echo "$build" | grep -Eq '[0-9][a-z]$'; then
+            echo "::error::macOS ${os} build ${build} is a beta host. App Store rejects these as INVALID_BINARY."
+            exit 1
+          fi
+
+      - name: Build DealDex (generic iOS device, Release, unsigned)
+        run: |
+          set -o pipefail
+          log="$RUNNER_TEMP/xcodebuild-build.log"
+          # SWBBuildService outlives xcodebuild and inherits its stdout.  Left on
+          # the runner's own pipe it holds the step open until timeout-minutes
+          # kills it, even after BUILD SUCCEEDED.  A file breaks the inheritance.
+          set +e
+          xcodebuild build \
+            -project native/ios/DealDex.xcodeproj \
+            -scheme DealDex \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/dealdex-ios-${GITHUB_RUN_ID}" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            ENABLE_PREVIEWS=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            > "$log" 2>&1 < /dev/null
+          status=$?
+          set -e
+          tail -300 "$log"
+          # Surface compiler errors as annotations so the PR shows them inline.
+          grep -E ' error: ' "$log" | sed -E 's/^.*\/native\/ios\//native\/ios\//' | head -20 | while IFS= read -r line; do
+            echo "::error::${line}"
+          done || true
+          exit $status

@@ -3,12 +3,29 @@ name: iOS TestFlight ship (GitHub-hosted macOS)
 # Archive + upload on GitHub-hosted macos-latest (fleet protocol 2026-08-24:
 # GH-hosted runners for iOS ships and everything else; local Mac self-hosted
 # runners are banned). Ubuntu CI stays web-only. Fork PRs never run here.
+# Unsigned compile checking lives in ios-build.yml (called from ci.yml).
 #
-# Signing + ASC keys come from repo secrets (same names as Congress.Trade):
-#   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8,
-#   IOS_DIST_P12_BASE64, IOS_DIST_P12_PASSWORD
-# scripts/ios-appstore-gm-prepare.sh writes ~/.secrets/appstore-connect.env
-# and imports the Distribution identity. Values are never printed.
+# A merge to main that touches native/ios/ (or the ship tooling below) uploads a
+# fresh TestFlight build with no human step.  The scheduled tick is a catch-up
+# for merges that never dispatch a push run, and it is gated twice (see below).
+#
+# RE-ENABLED 2026-10-17 (owner: bring every app up to date).  This workflow sat
+# `disabled_manually` from 2026-09-27 (signing credential hold), so merges
+# reached main and never reached TestFlight.  If it is ever disabled again,
+# `gh workflow view ios-ship.yml` says so; check that before assuming an iOS
+# merge shipped.  The rate gate and the same-HEAD skip stay at the ship script
+# defaults: never set a rate-gate override or a forced ship as a standing value
+# here (a one-off override belongs on a single manual run, not in this file).
+#
+# Credentials (Infisical prod, names only, values are never printed):
+#   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8   Fleet-OPS /asc (owner ruling
+#       2026-10-11; any app may use it, ruling 2026-10-17).  The same three
+#       names in this project's root are the fallback, with a warning, so a
+#       missing grant on the machine identity cannot silently stop shipping.
+#   IOS_DIST_P12_BASE64, IOS_DIST_P12_PASSWORD   this project's root path.
+# scripts/ios-stage-asc-key.sh stages the key as a mode-600 file and
+# scripts/ios-appstore-gm-prepare.sh writes ~/.secrets/appstore-connect.env and
+# imports the Distribution identity.
 #
 # The in-repo wrapper prefers scripts/ios-fleet/, then
 # /Users/jay/apps/ios-fleet. App key `dealdex`, bundle `net.dealdex`.
@@ -116,7 +133,7 @@ jobs:
             --repo-root "$GITHUB_WORKSPACE" \
             dealdex
 
-      - name: Assert stable Xcode (never beta)
+      - name: Assert stable Xcode and a non-beta host OS
         if: steps.gate.outputs.should_ship == '1'
         run: |
           echo "DEVELOPER_DIR=${DEVELOPER_DIR}"
@@ -129,7 +146,15 @@ jobs:
               exit 1
               ;;
           esac
-
+          # Apple stamps BuildMachineOSBuild into the IPA. A beta host
+          # (trailing letter after digits, e.g. 26A5406e) is Invalid Binary.
+          os=$(sw_vers -productVersion)
+          build=$(sw_vers -buildVersion)
+          echo "macOS ${os} (${build})"
+          if echo "$build" | grep -Eq '[0-9][a-z]$'; then
+            echo "::error::macOS ${os} build ${build} is a beta host. App Store rejects these as INVALID_BINARY."
+            exit 1
+          fi
 
       # Identity stays on GitHub.  Apple/iOS signing material comes from Infisical prod.
       - name: Load Infisical signing secrets
@@ -184,14 +209,52 @@ jobs:
           fi
           printf '::add-mask::%s\n' "${TOKEN//'%'/'%25'}"
 
-          for name in ASC_KEY_ID ASC_ISSUER_ID \
-                      IOS_DIST_P12_BASE64 IOS_DIST_P12_PASSWORD; do
-            val="$(
-              INFISICAL_TOKEN="$TOKEN" infisical secrets get "$name" \
-                --plain --silent --telemetry=false --expand=false \
-                --projectId="$INFISICAL_PROJECT_ID" --env=prod --path=/ \
-                2>/dev/null || true
-            )"
+          # ASC API credentials live in the Fleet-OPS Infisical project under /asc
+          # (owner ruling 2026-10-11; any app may use them, ruling 2026-10-17).
+          # The distribution certificate stays in this app's project at / -- two
+          # sources, resolved independently.  If Fleet-OPS /asc cannot be read in
+          # full (for example the machine identity lacks the grant), fall back to
+          # the same three names in this project's root and say so, rather than
+          # stopping every ship.  Only names and the chosen source are logged.
+          FLEET_ASC_PROJECT_ID="8dae6d03-8f12-48b2-adf3-e5c1b881c8c5"
+          FLEET_ASC_PATH="/asc"
+          asc_get() {
+            INFISICAL_TOKEN="$TOKEN" infisical secrets get "$1" \
+              --plain --silent --telemetry=false --expand=false \
+              --projectId="$2" --env=prod --path="$3" \
+              2>/dev/null || true
+          }
+          ASC_SRC_PROJECT="$FLEET_ASC_PROJECT_ID"
+          ASC_SRC_PATH="$FLEET_ASC_PATH"
+          ASC_SRC_LABEL="Fleet-OPS /asc"
+          if [ -z "$(asc_get ASC_KEY_ID "$ASC_SRC_PROJECT" "$ASC_SRC_PATH")" ] ||
+             [ -z "$(asc_get ASC_ISSUER_ID "$ASC_SRC_PROJECT" "$ASC_SRC_PATH")" ] ||
+             [ -z "$(asc_get ASC_KEY_P8 "$ASC_SRC_PROJECT" "$ASC_SRC_PATH")" ]; then
+            echo "::warning::Fleet-OPS /asc is not readable in full; using this project's root path for all three ASC credentials.  Grant the machine identity read on Fleet-OPS /asc."
+            ASC_SRC_PROJECT="$INFISICAL_PROJECT_ID"
+            ASC_SRC_PATH="/"
+            ASC_SRC_LABEL="project root"
+          fi
+          echo "ASC credential source: ${ASC_SRC_LABEL}"
+
+          for name in ASC_KEY_ID ASC_ISSUER_ID; do
+            val="$(asc_get "$name" "$ASC_SRC_PROJECT" "$ASC_SRC_PATH")"
+            if [ -z "$val" ]; then
+              echo "::error::Missing $name in Infisical prod (${ASC_SRC_LABEL})." >&2
+              exit 1
+            fi
+            if [[ "$val" == *$'\n'* || "$val" == *$'\r'* ]]; then
+              echo "::error::Signing field $name must be single-line; correct Infisical formatting." >&2
+              exit 1
+            fi
+            printf '::add-mask::%s\n' "${val//'%'/'%25'}"
+            printf -v "$name" '%s' "$val"
+            export "$name"
+            printf '%s=%s\n' "$name" "$val" >> "$GITHUB_ENV"
+          done
+
+          for name in IOS_DIST_P12_BASE64 IOS_DIST_P12_PASSWORD; do
+            val="$(asc_get "$name" "$INFISICAL_PROJECT_ID" "/")"
             if [ -z "$val" ]; then
               continue
             fi
@@ -207,20 +270,12 @@ jobs:
             printf -v "$name" '%s' "$val"
             export "$name"
             # Certificate credentials belong only to this load/import step.
-            if [[ "$name" == ASC_KEY_ID || "$name" == ASC_ISSUER_ID ]]; then
-              printf '%s=%s\n' "$name" "$val" >> "$GITHUB_ENV"
-            fi
           done
           # Keep multiline PEM out of GITHUB_ENV and every later step environment.
           # Only its mode-600 file path crosses the step boundary.
-          key_material="$(
-            INFISICAL_TOKEN="$TOKEN" infisical secrets get ASC_KEY_P8 \
-              --plain --silent --telemetry=false --expand=false \
-              --projectId="$INFISICAL_PROJECT_ID" --env=prod --path=/ \
-              2>/dev/null || true
-          )"
+          key_material="$(asc_get ASC_KEY_P8 "$ASC_SRC_PROJECT" "$ASC_SRC_PATH")"
           if [ -z "$key_material" ]; then
-            echo "::error::Missing ASC key material in Infisical prod."
+            echo "::error::Missing ASC key material in Infisical prod (${ASC_SRC_LABEL})."
             exit 1
           fi
           printf '%s\n' "$key_material" | bash "$GITHUB_WORKSPACE/scripts/ios-stage-asc-key.sh"

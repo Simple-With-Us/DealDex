@@ -15,7 +15,7 @@ fleet / delivery posture, not card-desk features.
   point people at `dealdex.vercel.app` (different Next.js product).
 - Native identity: Android `me.grok.dealdex`.  iOS `net.dealdex`, team
   `CC8UTF7ATG`.  Apple bundle resource id `R2FAW69NPD` is not a team id.
-  ASC app DealDex SKU `dealdex`, appleId `6802474288`.  Internal TestFlight
+  ASC app DealDex SKU `dealdex-ios`, appleId `6804249232`.  Internal TestFlight
   ships.
 
 ## Next (product, not this PR)

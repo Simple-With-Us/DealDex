@@ -1,3 +1,15 @@
+## 2026-10-17 CLAUDE — iOS auto-ship on merge, iOS build check (DD-405)
+
+A merge to `main` that touches `native/ios/` now uploads a fresh TestFlight build with no human step.  `ios-ship.yml` was `disabled_manually` since 2026-09-27 (the signing credential hold), so merges reached `main` and never reached a phone, and `main` had no iOS compile check at all (`ci.yml` ran only `verify` and `android`).  The last TestFlight build is 1.0.316 from 2026-09-24.
+
+- `ios-ship.yml`: reads the ASC key from Fleet-OPS `/asc` (the fleet source), with the same three names in this project's root as a warned fallback.  The Distribution certificate stays at this project's root.  Adds the beta-host-OS check.  The push paths, the scheduled catch-up behind `ios-scheduled-ship-gate.sh`, `fetch-depth: 0`, What to Test, and the ship script's own rate gate and same-HEAD skip are unchanged and stay at their defaults.
+- `ios-build.yml` (new, `iOS build`): unsigned Release compile of the checked-in project, called from `ci.yml` on every push to `main` and on a pull request that touches `native/ios/`.
+- `ios-ship-cron-park.yml` deleted: the real hourly run now feeds the Sentry Crons monitor through `sentry-ci-report.yml`.
+- `scripts/ios-fleet/ship-testflight.sh`: system tools first on `PATH`, so Homebrew rsync can no longer shadow the rsync that `xcodebuild -exportArchive` spawns (the failure Usage Monitor hit).
+- ASC appleId corrected from `6802474288` (404 in App Store Connect) to the live `6804249232` (SKU `dealdex-ios`) in `apps.json`, `Info.plist`, `project.yml` and the current docs.  Older entries below keep the id they were written with.
+
+The workflow has to be enabled in Actions after this merges (`gh workflow enable ios-ship.yml`), then one manual run proves the signing path.  Follow-up: the shared version manifest (`site/ios-versions.json`) still lists `net.dealdex` at 1.0.25 with the old id, so the in-app update prompt never fires; the hosted ship logs `version-manifest publish failed (non-fatal)` because the runner has no token to push it.
+
 ## 2026-10-15 CURSOR — Android Sentry scan hops (DD-367)
 
 Android already had profiling, tracing, Replay, OkHttp, Compose, and ProGuard from PR #341.  `Market.scan` now emits the web hop names `scan.ebay`, `scan.mercari`, `scan.match`, `scan.cache.hit`, and `scan.cache.miss` under the on-device transaction.  Sessions, NDK, and logs are explicit.  Query strings are stripped from OkHttp spans and breadcrumbs.  View hierarchy stays off, matching iOS.  DD-374 and DD-380 are duplicates.  Rollout: `docs/rollouts/2026-10-15-android-sentry-scan-spans.md`.

@@ -9,7 +9,7 @@
 #     --bundle-id net.dealdex \
 #     --version 1.0.3 \
 #     [--build 202608242345] \
-#     [--apple-id 6802474288] \
+#     [--apple-id 6804249232] \
 #     [--display-name "DealDex"]
 #     [--base-json path] [--out-json path] [--skip-push] [--skip-local-write]
 #

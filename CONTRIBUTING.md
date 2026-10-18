@@ -38,7 +38,7 @@ Do not invent a second live URL.
 
 Native shipping is separate: Android package `me.grok.dealdex`, iOS bundle
 `net.dealdex`, team `CC8UTF7ATG`.  Internal TestFlight exists (ASC appleId
-`6802474288`).  Play stays blocked on owner records.  See `README.md` and
+`6804249232`).  Play stays blocked on owner records.  See `README.md` and
 `docs/store-listing.md`.
 
 ## Grok Build

@@ -100,7 +100,7 @@ targets:
         CFBundleIconName: AppIcon
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        AppUpdateAppleId: 6802474288
+        AppUpdateAppleId: 6804249232
         LSApplicationCategoryType: public.app-category.shopping
         ITSAppUsesNonExemptEncryption: false
         SENTRY_DSN: $(SENTRY_DSN)
