@@ -40,7 +40,7 @@ test("both autofix callers pin their reusable workflow to a full commit SHA", ()
   assert.match(autofix.ref, /^[0-9a-f]{40}$/);
 
   const claude = pin(read(".github/workflows/claude-code-autofix.yml"));
-  assert.equal(claude.path, "Simple-With-Us/congress-trading-shared/.github/workflows/codex-autofix-reusable.yml");
+  assert.equal(claude.path, "Simple-With-Us/AI-Fleet-Coordinator/.github/workflows/claude-code-autofix-reusable.yml");
   assert.match(claude.ref, /^[0-9a-f]{40}$/);
 });
 
