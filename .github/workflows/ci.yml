@@ -33,6 +33,7 @@ jobs:
           bash -n scripts/test-ios-stage-asc-key.sh
           bash -n scripts/ios-appstore-gm-prepare.sh
           bash scripts/test-ios-stage-asc-key.sh
+          bash scripts/ios-fleet/test-asc-credentials.sh
           python3 scripts/sentry-ci-report-margins_test.py
           SENTRY_FLEET_DSN= python3 scripts/sentry-ci-report.py --park-ios-ship
 

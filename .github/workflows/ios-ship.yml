@@ -24,8 +24,8 @@ name: iOS TestFlight ship (GitHub-hosted macOS)
 #       missing grant on the machine identity cannot silently stop shipping.
 #   IOS_DIST_P12_BASE64, IOS_DIST_P12_PASSWORD   this project's root path.
 # scripts/ios-stage-asc-key.sh stages the key as a mode-600 file and
-# scripts/ios-appstore-gm-prepare.sh writes ~/.secrets/appstore-connect.env and
-# imports the Distribution identity.
+# scripts/ios-appstore-gm-prepare.sh imports the Distribution identity (the job
+# environment carries ASC_KEY_ID, ASC_ISSUER_ID and ASC_KEY_PATH to the ship step).
 #
 # The in-repo wrapper prefers scripts/ios-fleet/, then
 # /Users/jay/apps/ios-fleet. App key `dealdex`, bundle `net.dealdex`.
