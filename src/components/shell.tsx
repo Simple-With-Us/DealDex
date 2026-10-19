@@ -76,20 +76,23 @@ export function Shell({ children }: { children: ReactNode }) {
               aria-label="From Simple With Us"
             >
               <span>From</span>
-              <picture>
-                <source
-                  media="(prefers-color-scheme: dark)"
-                  srcSet="/assets/swu-wordmark-dark.webp"
-                  type="image/webp"
-                />
+<span className="block w-[288px] max-w-[calc(100vw-92px)]">
                 <img
                   src="/assets/swu-wordmark-light.webp"
                   alt="Simple With Us by Jay Wedgeworth"
-                  width="288"
-                  height="30"
-                  className="h-auto w-[288px] max-w-[calc(100vw-92px)]"
+                  width={288}
+                  height={30}
+                  className="h-auto w-full dark:hidden"
                 />
-              </picture>
+                <img
+                  src="/assets/swu-wordmark-dark.webp"
+                  alt=""
+                  aria-hidden
+                  width={288}
+                  height={30}
+                  className="hidden h-auto w-full dark:block"
+                />
+              </span>
             </a>
           </div>
         </div>
