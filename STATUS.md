@@ -1,3 +1,7 @@
+## 2026-10-19 MM — Real market scan capture for the catalog page (SWU-15)
+
+`docs/screenshots/scan-results.png` is a real capture of the live web app at `https://dealdex.net`: a completed scan for `Umbreon VMAX Evolving Skies` that returned 11 Mercari listings and no eBay singles, at 1440 x 900 CSS pixels and device pixel ratio 2. Live verdicts, ask prices and desk ranges are visible in the listing cards. `docs/screenshots/README.md` records the provenance, and `Simple-With-Us` publishes the processed WebP on the DealDex catalog page from this file. No product code, copy or behaviour changed. See `docs/rollouts/2026-10-19-dd-scan-screenshots.md`.
+
 ## 2026-10-19 CLAUDE — iOS ship scripts read Infisical (AFC-359)
 
 `ship-testflight.sh`, `asc-api.mjs` and `ios-appstore-gm-prepare.sh` no longer read or write the old local secrets folder. ASC credentials come from the environment first (CI), else Infisical `/asc` (ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8) through `fleet-secrets`. New `scripts/ios-fleet/test-asc-credentials.sh` runs in CI. See `docs/rollouts/2026-10-19-afc-359-ios-secrets-to-infisical.md`.
