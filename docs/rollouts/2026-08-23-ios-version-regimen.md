@@ -13,16 +13,16 @@ App Store Connect showed DealDex as **`1.0 (1)`** instead of the fleet format ot
 apps use: **`1.0.N (YYYYMMDDHHMM)`** (for example `1.0.2 (202608230250)`).
 
 Root cause: `native/ios/project.yml` kept `CURRENT_PROJECT_VERSION: "1"` while
-`MARKETING_VERSION` was already `1.0.2`.  ASC renders marketing version and build
+`MARKETING_VERSION` was already `1.0.2`. ASC renders marketing version and build
 number as a pair; a literal build `1` with an early `1.0` train produced the
 unwanted `1.0 (1)` label.
 
 ## Fleet regimen as of 2026-08-23 (canonical then: `/Users/jay/apps/ios-fleet/README.md`)
 
-| Field | Role | Example |
-| --- | --- | --- |
-| `MARKETING_VERSION` / `CFBundleShortVersionString` | App Store "Version" | `1.0.2` |
-| `CURRENT_PROJECT_VERSION` / `CFBundleVersion` | Build stamp | `202608230250` |
+| Field                                              | Role                | Example        |
+| -------------------------------------------------- | ------------------- | -------------- |
+| `MARKETING_VERSION` / `CFBundleShortVersionString` | App Store "Version" | `1.0.2`        |
+| `CURRENT_PROJECT_VERSION` / `CFBundleVersion`      | Build stamp         | `202608230250` |
 
 - Marketing version: `1.0.<seq>`, +1 on every rebuild.
 - Build number: UTC `YYYYMMDDHHMM` when the archive was cut (monotonic, never
@@ -52,4 +52,4 @@ the commit count, and the marketing version moved onto the same number.
 3. ASC "Latest" should read like `1.0.3 (202608232213)` — not `1.0 (1)`.
 
 Cannot fix ASC from cloud agents (no `~/.secrets/appstore-connect.env` on the
-runner).  The next Mac TestFlight ship is what updates the live ASC record.
+runner). The next Mac TestFlight ship is what updates the live ASC record.
