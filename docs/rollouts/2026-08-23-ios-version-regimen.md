@@ -17,7 +17,7 @@ Root cause: `native/ios/project.yml` kept `CURRENT_PROJECT_VERSION: "1"` while
 number as a pair; a literal build `1` with an early `1.0` train produced the
 unwanted `1.0 (1)` label.
 
-## Fleet regimen as of 2026-08-23 (canonical then: `/Users/jay/apps/ios-fleet/README.md`)
+## Fleet regimen as of 2026-08-23 (historical fleet regimen, now retired)
 
 | Field                                              | Role                | Example        |
 | -------------------------------------------------- | ------------------- | -------------- |
