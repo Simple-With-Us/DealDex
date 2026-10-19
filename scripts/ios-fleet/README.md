@@ -10,7 +10,7 @@ plus `dealdex`. `R2FAW69NPD` is the Apple bundle resource ID, not the team.
 `scripts/ios-ship-testflight.sh` prefers this directory, then falls back
 to `/Users/jay/apps/ios-fleet` on Jay's Mac.
 
-On a Mac the ASC credentials come from Infisical (`fleet-secrets get`: `/appstore-connect` plus `/authkey-<key id>-p8`); CI sets `ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_KEY_PATH` in the job environment.
+On a Mac the ASC credentials come from Infisical (`fleet-secrets get` from `/asc`: `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`); CI sets `ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_KEY_PATH` in the job environment.
 Do not put ASC keys in GitHub secrets or this tree.
 
 When fleet ship behavior changes, copy `ship-testflight.sh`, `asc-api.mjs`,
