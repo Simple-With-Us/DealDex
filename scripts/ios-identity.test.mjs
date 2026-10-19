@@ -132,7 +132,7 @@ test("AppUpdatePrompt iOS target matches the in-repo ios-fleet pin", () => {
   assert.doesNotMatch(pin, /static let knownAppleIds/);
   assert.doesNotMatch(pin, /"online\.dealdex"/);
   assert.doesNotMatch(pin, /"me\.grok\.dealdex"/);
-  assert.match(pin, /ai-fleet-coordinator/);
+  assert.match(pin, /raw\.githubusercontent\.com\/Simple-With-Us\/AI-Fleet-Coordinator\/main\/site\/ios-versions\.json/);
   assert.match(pin, /Do not wrap this in a Swift package/);
   assert.match(pin, /Do not hardcode knownAppleIds here/);
 });
