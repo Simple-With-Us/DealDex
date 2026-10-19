@@ -1,3 +1,9 @@
+## 2026-10-18 JET — Sentry Autofix Caller (BF-2487)
+
+Claude Code Autofix now pins AFC `c79c7840d4d3d71bffad08067ce4a1084f0bbb34`, adding the exact Sentry bot accounts to the reusable actor policy.  The same-repository bot-review gate, permissions, secrets, concurrency, and prompt remain unchanged.  Separately, PR Autofix pins `00def8545947e21ffe285ea67c1812c7bd321dfc` for the one-line `--verbose` CLI repair; its existing actor list still excludes Sentry, avoiding an additional Sentry loop.
+
+Validation: six workflow-guard tests pass in an isolated fixture; exact reusable diffs and diagnostics dependencies were inspected.  Full local gates were not run; final-head hosted checks and a later eligible Sentry run remain to be verified.  Rollout: `docs/rollouts/2026-10-18-sentry-autofix-caller.md`.
+
 ## 2026-10-18 JET — Repaired AFC Autofix Pin (AFC-350)
 
 PR #493 now pins Claude Code Autofix to AFC `b718446588a365406cb0eb3aca7feec3a3fe5903`, the merged #651 repair for the unresolved diagnostics action dependency. The migration's existing guard-test update is preserved. PR Autofix and Kody pins remain unchanged because they do not reference the broken AFC dependency. Trigger guards, permissions, prompts, and secret names are unchanged.
@@ -706,3 +712,4 @@ Updated: 2026-08-25 (CURSOR — pin AppUpdatePrompt.swift; Apple IDs off Swift)
   `scripts/ios-ship-testflight.sh` (fleet key `dealdex`, bundle
   `net.dealdex`). Do not `--force-ship` from this seat.
 - Remaining seats start from `main` in their own worktrees.
+
