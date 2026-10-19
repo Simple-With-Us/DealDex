@@ -29,7 +29,8 @@ name: iOS TestFlight ship (GitHub-hosted macOS)
 #
 # The in-repo wrapper prefers scripts/ios-fleet/, then
 # /Users/jay/apps/ios-fleet. App key `dealdex`, bundle `net.dealdex`.
-# Marketing train is 1.0.N; build is UTC YYYYMMDDHHMM.
+# Versioning is 1.0.<commit count>, and CFBundleVersion is that same integer
+# (owner 2026-10-18); UTC timestamps are retired.
 #
 # Bundle `net.dealdex` and team `CC8UTF7ATG` are unchanged here.
 # The Apple Developer portal App ID resource is not a team id.
