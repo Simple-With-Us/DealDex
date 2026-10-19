@@ -1,5 +1,12 @@
 # 2026-08-23 — iOS version regimen (1.0.N + UTC build)
 
+> **Superseded 2026-10-18.** The UTC `YYYYMMDDHHMM` build stamp this file
+> describes is retired. The fleet now takes both numbers from the repo's
+> commit count: marketing `1.0.<commit_count>`, build `<commit_count>`, so
+> the pair always describes one commit. This file stays as the record of what
+> was done on 2026-08-23; the current regimen is AGENT-SYNC.md
+> (section "Version Numbers") and `scripts/ios-fleet/ship-testflight.sh`.
+
 ## Problem
 
 App Store Connect showed DealDex as **`1.0 (1)`** instead of the fleet format other
@@ -10,7 +17,7 @@ Root cause: `native/ios/project.yml` kept `CURRENT_PROJECT_VERSION: "1"` while
 number as a pair; a literal build `1` with an early `1.0` train produced the
 unwanted `1.0 (1)` label.
 
-## Fleet regimen (canonical: `/Users/jay/apps/ios-fleet/README.md`)
+## Fleet regimen as of 2026-08-23 (canonical then: `/Users/jay/apps/ios-fleet/README.md`)
 
 | Field | Role | Example |
 | --- | --- | --- |
@@ -23,6 +30,9 @@ unwanted `1.0 (1)` label.
 - `Info.plist` must stay on `$(MARKETING_VERSION)` / `$(CURRENT_PROJECT_VERSION)`
   so XcodeGen regen does not hardcode `1.0` / `1` again.
 
+Both rows above are historical. On 2026-10-18 the build stamp was replaced by
+the commit count, and the marketing version moved onto the same number.
+
 ## Changes
 
 - `native/ios/project.yml` — sync to last shipped `1.0.2` / `202608230250`; add
@@ -31,7 +41,7 @@ unwanted `1.0 (1)` label.
   XcodeGen on Mac, or manual sync when Linux agents cannot run XcodeGen).
 - `native/ios/CLAUDE.md` — document regimen for future agents.
 - `scripts/ios-identity.test.mjs` — guard `1.0.N` + 12-digit build + plist
-  substitutions.
+  substitutions. (That guard now asserts the commit-count pair instead.)
 
 ## After merge
 

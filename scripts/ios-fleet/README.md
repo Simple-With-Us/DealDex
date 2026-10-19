@@ -3,7 +3,7 @@
 Vendored from Congress.Trade `scripts/ios-fleet` so this repo can ship
 without `/Users/jay/apps/ios-fleet` on the runner. `apps.json` here is
 DealDex-only: bundle `net.dealdex`, team `CC8UTF7ATG`, SKU `dealdex`,
-marketing `1.0.N`, build UTC `YYYYMMDDHHMM`. `ship-testflight.sh` accepts
+marketing `1.0.<commit_count>`, build `<commit_count>`. `ship-testflight.sh` accepts
 the same first-arg keys as Congress/Socratic (`socratic|congress|usage|usage-local`)
 plus `dealdex`. `R2FAW69NPD` is the Apple bundle resource ID, not the team.
 
