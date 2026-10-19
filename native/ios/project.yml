@@ -30,8 +30,8 @@ settings:
     # App Store Connect renders "1.0.307 (307)".
     # The ship script passes both on the xcodebuild line; sync these after each ship.
     # UTC YYYYMMDDHHMM build stamps are retired and must not come back.
-    MARKETING_VERSION: "1.0.307"
-    CURRENT_PROJECT_VERSION: "307"
+    MARKETING_VERSION: "1.0.308"
+    CURRENT_PROJECT_VERSION: "308"
     DEVELOPMENT_TEAM: CC8UTF7ATG
     CODE_SIGN_STYLE: Automatic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
