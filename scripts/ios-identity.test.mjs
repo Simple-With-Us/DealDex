@@ -85,7 +85,7 @@ test("iOS identity includes DealDexWordmark imageset and official marketplace pa
   assert.match(marks, /viewBox\.width/);
 });
 
-test("iOS version regimen uses 1.0.N marketing and UTC build stamp", () => {
+test("iOS version regimen uses 1.0.<commit_count> marketing and the same build", () => {
   const spec = read("native/ios/project.yml");
   const plist = read("native/ios/DealDex/Info.plist");
   const pbx = read("native/ios/DealDex.xcodeproj/project.pbxproj");
@@ -95,8 +95,12 @@ test("iOS version regimen uses 1.0.N marketing and UTC build stamp", () => {
   assert.ok(marketing, "project.yml MARKETING_VERSION");
   assert.ok(build, "project.yml CURRENT_PROJECT_VERSION");
   assert.match(marketing, /^1\.0\.\d+$/);
-  assert.match(build, /^\d{12}$/);
-  assert.notEqual(marketing, build);
+  // Fleet regimen (owner 2026-10-18): the build number is the repo commit
+  // count and the marketing version carries that same number, so the pair
+  // always describes one value.  UTC YYYYMMDDHHMM stamps are retired.
+  assert.match(build, /^\d+$/);
+  assert.doesNotMatch(build, /^\d{12}$/, "UTC build stamps are retired");
+  assert.equal(marketing, `1.0.${build}`);
 
   assert.match(
     plist,
