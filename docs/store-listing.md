@@ -74,7 +74,7 @@ Demo: open Scan, leave the query on All Pokémon, tap Scan.  Results appear if t
 
 ## Android Play
 
-Package `me.grok.dealdex`.  Same listing copy as above.  This Mac has no Google Play Console credentials, so the Play upload cannot run until the owner adds a Play developer account and a service-account JSON under `~/.secrets/`.
+Package `me.grok.dealdex`.  Same listing copy as above.  This Mac has no Google Play Console credentials, so the Play upload cannot run until the owner adds a Play developer account and a service-account JSON in Infisical.
 
 
 ## Member plan (draft)

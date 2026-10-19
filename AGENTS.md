@@ -199,7 +199,7 @@ Canonical: `/Users/jay/apps/AGENT-SYNC.md` § iOS agent build loop.
 ## Secrets
 
 Infisical is the sole source of truth for app runtime secrets when they exist.
-`~/.secrets/` is handoff-only. Never paste secrets into chat. Never run bare
+Nothing reads `~/.secrets/`; every secret lives in Infisical (`fleet-secrets get`). Never paste secrets into chat. Never run bare
 `infisical secrets` (it prints values). Use
 `scripts/infisical-secrets-safe.sh` when that helper is vendored here.
 

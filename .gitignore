@@ -33,7 +33,7 @@ public/DealDex-source.zip
 !.env.example
 .DS_Store
 # Apple private keys and signing credentials. Per secrets policy, authoritative
-# credentials live in Infisical and ~/.secrets/ is used for local handoff only.
+# credentials live in Infisical (read with fleet-secrets).
 # Exclude key and keystore files so accidental drops in the repo are never staged.
 *.p8
 *.keystore

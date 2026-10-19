@@ -1,3 +1,7 @@
+## 2026-10-19 CLAUDE — iOS ship scripts read Infisical (AFC-359)
+
+`ship-testflight.sh`, `asc-api.mjs` and `ios-appstore-gm-prepare.sh` no longer read or write the old local secrets folder.  ASC credentials come from the environment first (CI), else Infisical `/appstore-connect` plus `/authkey-<key id>-p8` through `fleet-secrets`.  New `scripts/ios-fleet/test-asc-credentials.sh` runs in CI.  See `docs/rollouts/2026-10-19-afc-359-ios-secrets-to-infisical.md`.
+
 ## 2026-10-18 JET — Repaired AFC Autofix Pin (AFC-350)
 
 PR #493 now pins Claude Code Autofix to AFC `b718446588a365406cb0eb3aca7feec3a3fe5903`, the merged #651 repair for the unresolved diagnostics action dependency. The migration's existing guard-test update is preserved. PR Autofix and Kody pins remain unchanged because they do not reference the broken AFC dependency. Trigger guards, permissions, prompts, and secret names are unchanged.
@@ -688,7 +692,7 @@ Updated: 2026-08-25 (CURSOR — pin AppUpdatePrompt.swift; Apple IDs off Swift)
 
 - Keepout: DealDex #183 Datadog / Vercel keys stay HOLD. Do not land
   or extend that PR from this seat.
-- Google Play Console credentials are not in `~/.secrets/`.
+- Google Play Console credentials do not exist yet (no Play developer account).
 - Infisical project (prod env), `SENTRY_FLEET_DSN`, and
   `FLEET_GITHUB_TOKEN` still need the owner.
 - Integration tree `~/Code/DealDex` is dirty (uncommitted
