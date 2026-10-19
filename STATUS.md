@@ -1,3 +1,9 @@
+## 2026-10-18 JET — Repaired AFC Autofix Pin (AFC-350)
+
+PR #493 now pins Claude Code Autofix to AFC `b718446588a365406cb0eb3aca7feec3a3fe5903`, the merged #651 repair for the unresolved diagnostics action dependency.  The migration's existing guard-test update is preserved.  PR Autofix and Kody pins remain unchanged because they do not reference the broken AFC dependency.  Trigger guards, permissions, prompts, and secret names are unchanged.
+
+Validation: all four DealDex workflow-guard tests pass in an isolated fixture, and caller and callee contracts were inspected through GitHub; hosted checks for the new head remain to be verified.  No full local verification or successful autofix execution is claimed.  Rollout: `docs/rollouts/2026-10-18-afc-autofix-pin-repair.md`.
+
 ## 2026-10-15 CURSOR — Android Sentry scan hops (DD-367)
 
 Android already had profiling, tracing, Replay, OkHttp, Compose, and ProGuard from PR #341.  `Market.scan` now emits the web hop names `scan.ebay`, `scan.mercari`, `scan.match`, `scan.cache.hit`, and `scan.cache.miss` under the on-device transaction.  Sessions, NDK, and logs are explicit.  Query strings are stripped from OkHttp spans and breadcrumbs.  View hierarchy stays off, matching iOS.  DD-374 and DD-380 are duplicates.  Rollout: `docs/rollouts/2026-10-15-android-sentry-scan-spans.md`.
