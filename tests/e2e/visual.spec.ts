@@ -265,3 +265,33 @@ test("shell footer renders the SWU attribution", async ({ page }) => {
     VISUAL_TOLERANCE,
   );
 });
+
+test("shell footer wordmark follows the resolved theme, not the OS", async ({ page }) => {
+  // DealDex resolves its own theme (src/lib/theme.tsx) and toggles .dark on
+  // <html>; Tailwind keys off that class, not prefers-color-scheme.  A dark-OS
+  // visitor whose app preference is still the default "light" must therefore
+  // see the light wordmark.  This is the regression the first pass shipped when
+  // the footer used a <picture> with an OS media query.
+  await page.emulateMedia({ colorScheme: "dark" });
+  await gotoSettled(page, "/privacy", { awaitAuthSlot: false });
+
+  const footer = page.locator("footer");
+  const light = footer.locator('img[src*="swu-wordmark-light"]');
+  const dark = footer.locator('img[src*="swu-wordmark-dark"]');
+
+  await expect(light, "dark OS must not override the default light app theme").toBeVisible();
+  await expect(dark).toBeHidden();
+  await expect(footer, "light footer should match the committed baseline").toHaveScreenshot(
+    "shell-footer-light-os-dark-app.png",
+    VISUAL_TOLERANCE,
+  );
+
+  // Flip the app-level class the way the theme toggle does.
+  await page.evaluate(() => document.documentElement.classList.add("dark"));
+  await expect(dark, "the .dark class must reveal the dark wordmark").toBeVisible();
+  await expect(light).toBeHidden();
+  await expect(footer, "dark footer should match the committed baseline").toHaveScreenshot(
+    "shell-footer-dark.png",
+    VISUAL_TOLERANCE,
+  );
+});
