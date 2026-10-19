@@ -86,8 +86,11 @@ test("vendored ios-fleet ships net.dealdex on the 1.0.N train", () => {
   assert.equal(dealdex.bundleId === "me.grok.dealdex", false);
 
   const ship = read("scripts/ios-fleet/ship-testflight.sh");
-  assert.match(ship, /MARKETING_VERSION\s+= 1\.0\.<seq>/);
-  assert.match(ship, /CURRENT_PROJECT_VERSION = <UTC YYYYMMDDHHMM>/);
+  // The fleet scheme (owner 2026-10-18): both values come from the repo commit
+  // count.  Assert the mechanism, not the old seq-plus-timestamp shape.
+  assert.match(ship, /MARKETING_VERSION\s+= 1\.0\.<commit_count>/);
+  assert.match(ship, /CURRENT_PROJECT_VERSION = <commit_count>/);
+  assert.match(ship, /rev-list --count HEAD/);
   assert.match(
     ship,
     /<socratic\|congress\|usage\|usage-local\|dealdex/,
