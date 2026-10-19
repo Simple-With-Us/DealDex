@@ -1,6 +1,6 @@
 ## 2026-10-19 CLAUDE — iOS ship scripts read Infisical (AFC-359)
 
-`ship-testflight.sh`, `asc-api.mjs` and `ios-appstore-gm-prepare.sh` no longer read or write the old local secrets folder.  ASC credentials come from the environment first (CI), else Infisical `/appstore-connect` plus `/authkey-<key id>-p8` through `fleet-secrets`.  New `scripts/ios-fleet/test-asc-credentials.sh` runs in CI.  See `docs/rollouts/2026-10-19-afc-359-ios-secrets-to-infisical.md`.
+`ship-testflight.sh`, `asc-api.mjs` and `ios-appstore-gm-prepare.sh` no longer read or write the old local secrets folder. ASC credentials come from the environment first (CI), else Infisical `/appstore-connect` plus `/authkey-<key id>-p8` through `fleet-secrets`. New `scripts/ios-fleet/test-asc-credentials.sh` runs in CI. See `docs/rollouts/2026-10-19-afc-359-ios-secrets-to-infisical.md`.
 
 ## 2026-10-18 JET — Repaired AFC Autofix Pin (AFC-350)
 
