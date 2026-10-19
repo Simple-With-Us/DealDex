@@ -11,7 +11,11 @@ dist/
 .node_modules.lock
 *.log
 /tmp/
-screenshots/
+# Anchored to the repo root.  A bare "screenshots/" also matched
+# docs/screenshots/, which made that documentation folder impossible to
+# track.  Playwright baselines live in tests/e2e/*-snapshots/ and its
+# failure output lands in test-results/, both ignored below.
+/screenshots/
 attachments/
 artifacts/
 test-results/
