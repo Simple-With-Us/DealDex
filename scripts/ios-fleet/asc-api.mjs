@@ -83,9 +83,12 @@ function materializeP8(pem) {
 }
 
 // Infisical Fleet-OPS through `fleet-secrets get` (AFC-359).  "" when absent.
-// FLEET_SECRETS_BIN overrides the binary (tests).  Values stay in memory.
+// FLEET_SECRETS_BIN / FLEET_SECRETS override the binary (tests, ship-testflight.sh).
+// Values stay in memory.
 function fleetSecretsGet(name, folder) {
-  const bin = process.env.FLEET_SECRETS_BIN || join(homedir(), ".local", "bin", "fleet-secrets");
+  const bin = process.env.FLEET_SECRETS_BIN
+    || process.env.FLEET_SECRETS
+    || join(homedir(), ".local", "bin", "fleet-secrets");
   try {
     return execFileSync(bin, ["get", name, "--path", folder], {
       encoding: "utf8",
@@ -110,7 +113,8 @@ function resolveCredential() {
   // 1) Already-exported ASC_* (DealDex's workflow does this).
   const envKeyId = String(process.env.ASC_KEY_ID || "").trim();
   const envIssuer = String(process.env.ASC_ISSUER_ID || "").trim();
-  const envKeyPath = String(process.env.ASC_KEY_PATH || "").trim();
+  // Only a leading ~/ expands, so ~other/x stays a relative name (never a key read).
+  const envKeyPath = String(process.env.ASC_KEY_PATH || "").trim().replace(/^~(?=\/)/, homedir());
   if (envKeyId && envIssuer && envKeyPath && existsSync(envKeyPath)) {
     const got = fromFile(envKeyId, envIssuer, envKeyPath, "ASC_KEY_* environment");
     if (got) return got;
@@ -135,12 +139,16 @@ function resolveCredential() {
   // 3) Infisical Fleet-OPS /asc: key id and issuer (unless the environment already
   //    has them) and the PEM as ASC_KEY_P8 when the key id is the /asc one;  another
   //    key id falls back to AUTHKEY_<KEY_ID> in /authkey-<key id lower case>-p8.
+  //    The key id, issuer and private key must belong together (AFC-359):  an env
+  //    key id that is NOT the /asc one needs its own ASC_ISSUER_ID and fails closed
+  //    without it, rather than borrowing the /asc issuer.
   //    Kept in memory, never written to disk.
-  const infKeyId = envKeyId || fleetSecretsGet("ASC_KEY_ID", "/asc").trim();
-  const infIssuer = envIssuer || fleetSecretsGet("ASC_ISSUER_ID", "/asc").trim();
+  const ascKeyId = fleetSecretsGet("ASC_KEY_ID", "/asc").trim();
+  const infKeyId = envKeyId || ascKeyId;
+  const infIssuer = envIssuer || (!envKeyId || envKeyId === ascKeyId ? fleetSecretsGet("ASC_ISSUER_ID", "/asc").trim() : "");
   if (/^[A-Za-z0-9]+$/.test(infKeyId) && infIssuer) {
     let pem = "";
-    if (infKeyId === fleetSecretsGet("ASC_KEY_ID", "/asc").trim()) pem = fleetSecretsGet("ASC_KEY_P8", "/asc");
+    if (infKeyId === ascKeyId) pem = fleetSecretsGet("ASC_KEY_P8", "/asc");
     if (!pem) pem = fleetSecretsGet(`AUTHKEY_${infKeyId}`, `/authkey-${infKeyId.toLowerCase()}-p8`);
     if (pem) {
       if (!pem.endsWith("\n")) pem += "\n";
