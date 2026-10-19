@@ -96,7 +96,7 @@ dependencies {
     implementation("com.google.android.play:app-update-ktx:2.1.0")
     // Crash + ANR + profiling + scan spans.  Mapping + source-context upload
     // is the `io.sentry.android.gradle` plugin below (needs SENTRY_AUTH_TOKEN).
-    val sentryVersion = "8.60.0"
+    val sentryVersion = "8.61.0"
     implementation("io.sentry:sentry-android:$sentryVersion")
     implementation("io.sentry:sentry-android-ndk:$sentryVersion")
     implementation("io.sentry:sentry-okhttp:$sentryVersion")
