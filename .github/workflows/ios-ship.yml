@@ -291,6 +291,31 @@ jobs:
           IOS_TF_RELEASE_NOTES: "1"  # Jay 2026-09-08: publish ASC What to Test
         run: bash scripts/ios-ship-testflight.sh
 
+      - name: Sync standing TestFlight testers
+        if: success() && steps.gate.outputs.should_ship == '1'
+        continue-on-error: true
+        env:
+          ASC_STANDING_TESTERS: ${{ secrets.ASC_STANDING_TESTERS }}
+        run: |
+          for e in $(printf '%s' "${ASC_STANDING_TESTERS:-}" | tr ',;' '  '); do
+            echo "::add-mask::${e}"
+          done
+          set +e
+          appleid="$(python3 -c 'import json;print(json.load(open("scripts/ios-fleet/apps.json"))["apps"]["dealdex"]["appleId"])')"
+          appleid_rc=$?
+          set -e
+          if [ "$appleid_rc" -ne 0 ] || [ -z "$appleid" ]; then
+            echo "::warning title=TestFlight standing testers::could not read the dealdex appleId from scripts/ios-fleet/apps.json (rc=${appleid_rc}); tester sync skipped.  The TestFlight upload itself succeeded."
+            exit 0
+          fi
+          set +e
+          node scripts/ios-fleet/asc-api.mjs ensure-standing-testers "$appleid"
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "::warning title=TestFlight standing testers::tester sync exited ${rc}; see the standing-testers lines above.  The TestFlight upload itself succeeded."
+          fi
+
       # Always: a skipped tick still needs its (unchanged) state persisted,
       # and a partial failure after record_successful_ship still ran should
       # not lose that write. The run_id+run_attempt key is always fresh for
