@@ -5,6 +5,11 @@
 ## 2026-10-19 CLAUDE — iOS ship scripts read Infisical (AFC-359)
 
 `ship-testflight.sh`, `asc-api.mjs` and `ios-appstore-gm-prepare.sh` no longer read or write the old local secrets folder. ASC credentials come from the environment first (CI), else Infisical `/asc` (ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8) through `fleet-secrets`. New `scripts/ios-fleet/test-asc-credentials.sh` runs in CI. See `docs/rollouts/2026-10-19-afc-359-ios-secrets-to-infisical.md`.
+## 2026-10-18 JET — Sentry Autofix Caller (BF-2487)
+
+Claude Code Autofix now pins AFC `c79c7840d4d3d71bffad08067ce4a1084f0bbb34`, adding the exact Sentry bot accounts to the reusable actor policy. The same-repository bot-review gate, permissions, secrets, concurrency, and prompt remain unchanged. Separately, PR Autofix pins `00def8545947e21ffe285ea67c1812c7bd321dfc` for the one-line `--verbose` CLI repair; its existing actor list still excludes Sentry, avoiding an additional Sentry loop.
+
+Validation: six workflow-guard tests pass in an isolated fixture; exact reusable diffs and diagnostics dependencies were inspected. Full local gates were not run; final-head hosted checks and a later eligible Sentry run remain to be verified. Rollout: `docs/rollouts/2026-10-18-sentry-autofix-caller.md`.
 
 ## 2026-10-18 JET — Repaired AFC Autofix Pin (AFC-350)
 
