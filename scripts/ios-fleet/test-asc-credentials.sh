@@ -24,8 +24,8 @@ echo "${name} ${folder}" >> "${FAKE_LOG}"
 case "${folder}:${name}" in
   /asc:ASC_KEY_ID) printf 'ABCDE12345\n' ;;
   /asc:ASC_ISSUER_ID) printf 'issuer-synthetic\n' ;;
-  /asc:ASC_KEY_P8) printf -- '-----BEGIN PRIVATE KEY-----\nSYNTHETIC\n-----END PRIVATE KEY-----\n' ;;
-  /authkey-otherkey01-p8:AUTHKEY_OTHERKEY01) printf -- '-----BEGIN PRIVATE KEY-----\nOTHERKEYMATERIAL\n-----END PRIVATE KEY-----\n' ;;
+  /asc:ASC_KEY_P8) printf -- '-----BEGIN PRIVATE KEY-----\nSYNTHETIC\n-----END PRIVATE KEY-----\n' ;; # gitleaks:allow - synthetic fixture
+  /authkey-otherkey01-p8:AUTHKEY_OTHERKEY01) printf -- '-----BEGIN PRIVATE KEY-----\nOTHERKEYMATERIAL\n-----END PRIVATE KEY-----\n' ;; # gitleaks:allow - synthetic fixture
   *) exit 3 ;;
 esac
 FAKE
