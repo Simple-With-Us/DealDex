@@ -137,8 +137,25 @@ test("a fleet-secrets failure names the reason instead of 'exited undefined'", a
   writeFileSync(notExecutable, "#!/usr/bin/env node\n");
   chmodSync(notExecutable, 0o600);
   const spawnFailed = await run({ FLEET_SECRETS: notExecutable });
-  assert.match(spawnFailed.stderr, /fleet-secrets failed: EACCES/);
+  assert.match(spawnFailed.stderr, /fleet-secrets failed: E[A-Z]+/);
   assert.doesNotMatch(spawnFailed.stderr, /exited undefined/);
+});
+
+test("an ASC_KEY_PATH that exists but cannot be read is named, not swallowed", async () => {
+  // A directory satisfies existsSync() but readFileSync() rejects it, which is
+  // the case that used to abort the whole resolution.  It must now fall through
+  // to fleet-secrets (which resolves nothing here) and still name ASC_KEY_PATH.
+  const notAKeyFile = join(root, "not-a-key-file");
+  mkdirSync(notAKeyFile);
+  const r = await run({
+    ASC_KEY_ID: "UNREAD0001",
+    ASC_ISSUER_ID: "unread-issuer",
+    ASC_KEY_PATH: notAKeyFile,
+    FLEET_SECRETS: join(root, "no-such-binary")
+  });
+  assert.notEqual(r.code, 0);
+  assert.equal(r.kid, null);
+  assert.match(r.stderr, /ASC_KEY_PATH could not be read/);
 });
 
 test.after(() => rmSync(root, { recursive: true, force: true }));

@@ -129,7 +129,10 @@ function resolveCredential() {
       try {
         return fromFile(envKeyId, envIssuer, envKeyPath, "ASC_KEY_* environment");
       } catch (err) {
-        return { error: err.message };
+        // The path exists but is unusable (a directory, a mode-000 file): name
+        // it and let the other sources try, matching ship-testflight.sh's
+        // [[ -f ]] fallthrough.  The note is printed if nothing else resolves.
+        RESOLUTION_NOTES.push(`ASC_KEY_PATH could not be read (${err.cause?.code || err.message}); trying the other credential sources`);
       }
     }
   } else {

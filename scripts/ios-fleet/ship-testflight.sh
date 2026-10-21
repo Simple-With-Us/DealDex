@@ -251,8 +251,9 @@ load_secrets() {
   # would be lost, so it is reported and the load fails closed.
   if ! ( umask 077; printf '%s\n' "$p8" > "${ASC_TMP_DIR}/AuthKey_${kid}.p8" ); then
     log "could not stage the ASC private key under ${ASC_TMP_DIR}: the file write failed (no key material printed)"
+    rm -f "${ASC_TMP_DIR}/AuthKey_${kid}.p8" 2>/dev/null || true
     p8=""
-    return 0
+    return 1
   fi
   chmod 600 "${ASC_TMP_DIR}/AuthKey_${kid}.p8" \
     || log "could not set mode 600 on the staged ASC private key under ${ASC_TMP_DIR}"
