@@ -57,9 +57,9 @@ a seat with that permission can add the two-line warning if it is still wanted.
 - `bash scripts/test-ios-stage-asc-key.sh` — pass.
 - `node --check scripts/ios-fleet/asc-api.mjs`, `bash -n` on the changed
   shell script and a YAML parse of `ios-ship.yml` — pass.
-- Manual: an unreadable `ASC_KEY_PATH` now exits 1 with
-  `asc-auth: Unable to resolve required secret ASC_KEY_PATH (...)`; a missing
-  credential lists the failed secret variables; an unreadable `ASC_KEY_PATH`
-  that falls through to another source still logs
-  `asc-auth:   - ASC_KEY_PATH could not be read (...)` before the
-  `asc-auth: using ...` line.
+- Manual: an unreadable `ASC_KEY_PATH` records the OS error code and exits 1
+  with `asc-auth: no App Store Connect credential found`, followed by
+  `asc-auth:   - ASC_KEY_PATH could not be read (<code>); trying the other
+  credential sources`.  A missing credential lists the failed secret variables;
+  an unreadable `ASC_KEY_PATH` that falls through to another source still logs
+  the same note before the `asc-auth: using ...` line.

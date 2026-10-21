@@ -447,9 +447,15 @@ asc_latest_seq() {
     return 1
   fi
   set +e
-  out=$(node "${FLEET_DIR}/asc-api.mjs" latest-build-seq "$BUNDLE_ID" "$prefix" "$plat" 2>/dev/null)
+  out=$(node "${FLEET_DIR}/asc-api.mjs" latest-build-seq "$BUNDLE_ID" "$prefix" "$plat" 2>"${LOG_DIR}/asc-latest-seq.err")
   rc=$?
   set -e
+  # The credential-resolution notes asc-api.mjs prints on every path are the
+  # only diagnosis for an rc=2 query failure, so they must reach the run log
+  # rather than being discarded with the rest of stderr.
+  if [[ -s "${LOG_DIR}/asc-latest-seq.err" ]]; then
+    while IFS= read -r line; do log "asc-seq: $line"; done <"${LOG_DIR}/asc-latest-seq.err"
+  fi
   if [[ $rc -ne 0 || ! "$out" =~ ^[0-9]+$ ]]; then
     logerr "asc-seq: query failed (rc=${rc}); cannot verify against App Store Connect"
     return 1
