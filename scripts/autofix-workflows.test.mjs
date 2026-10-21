@@ -76,7 +76,7 @@ test("Claude Autofix keeps the Sentry-capable pin and same-repository bot gate",
   // older pin.
   assert.match(
     claude,
-    /claude-code-autofix-reusable\.yml@c97a2dae96762eb9ffc122c753f0dfb0a7840650/,
+    /claude-code-autofix-reusable\.yml@a4c48f013a2108be517ee933dccb1b37e9403920/,
   );
   assert.doesNotMatch(claude, /^\s+allowed_bots:/m);
   const guard = claude.match(/^ {4}if: >-\n([\s\S]*?)^ {4}uses:/m)?.[1];
@@ -97,6 +97,6 @@ test("PR Autofix retains the reviewed stream-json CLI repair", () => {
   // (verified against the coordinator repo) and adds the model-switch guard.
   assert.equal(
     pin(read(".github/workflows/autofix.yml")).ref,
-    "c97a2dae96762eb9ffc122c753f0dfb0a7840650",
+    "a4c48f013a2108be517ee933dccb1b37e9403920",
   );
 });
