@@ -11,7 +11,7 @@ plus `dealdex`. `R2FAW69NPD` is the Apple bundle resource ID, not the team.
 to `/Users/jay/apps/ios-fleet` on Jay's Mac.
 
 On a Mac the ASC credentials come from Infisical (`fleet-secrets get` from `/asc`: `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`); CI sets `ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_KEY_PATH` in the job environment.
-A path is not a credential source:  `asc-api.mjs` never reads a key file.  `asc-key.mjs` reads the staged file and hands the key to the client in the child's environment as `ASC_KEY_P8` (AFC-459 / Kody rule 42).
+A path is not a credential source: `asc-api.mjs` never reads a key file. `asc-key.mjs` reads the staged file and hands the key to the client in the child's environment as `ASC_KEY_P8` (AFC-459 / Kody rule 42).
 Do not put ASC keys in GitHub secrets or this tree.
 
 When fleet ship behavior changes, copy `ship-testflight.sh`, `asc-api.mjs`, `asc-key.mjs`,
