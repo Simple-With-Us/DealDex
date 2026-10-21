@@ -50,7 +50,8 @@ function run(env) {
       const base = { PATH: process.env.PATH, HOME: home, FLEET_SECRETS: fake };
       const child = spawn(process.execPath, [script, "GET", url], { env: { ...base, ...env }, stdio: ["ignore", "pipe", "pipe"] });
       child.stdout.resume();
-      child.stderr.resume();
+      let stderr = "";
+      child.stderr.on("data", (c) => { stderr += c; });
       child.on("close", (code) => {
         server.close();
         const jwt = (seen[0] || "").replace(/^Bearer /, "");
@@ -61,7 +62,7 @@ function run(env) {
           kid = part(0).kid;
           iss = part(1).iss;
         }
-        resolve({ code, kid, iss });
+        resolve({ code, kid, iss, stderr });
       });
     });
   });
@@ -116,6 +117,28 @@ test("only a leading ~/ is expanded in ASC_KEY_PATH", async () => {
   assert.equal(ok.kid, "TILDEKEY01");
   const bad = await run({ ASC_KEY_ID: "TILDEKEY01", ASC_ISSUER_ID: "tilde-issuer", ASC_KEY_PATH: "~other/tilde-key.p8", FLEET_SECRETS: gone });
   assert.notEqual(bad.code, 0);
+});
+
+test("a fleet-secrets failure names the reason instead of 'exited undefined'", async () => {
+  // A missing binary, a non-zero exit and a spawn error all reach the catch
+  // path; each must report its own cause.
+  const missing = await run({ FLEET_SECRETS: join(root, "no-such-binary") });
+  assert.match(missing.stderr, /the fleet-secrets binary is not available/);
+  assert.doesNotMatch(missing.stderr, /exited undefined/);
+
+  const failing = join(root, "failing-fleet-secrets");
+  writeFileSync(failing, "#!/usr/bin/env node\nprocess.exit(3);\n");
+  chmodSync(failing, 0o755);
+  const exited = await run({ FLEET_SECRETS: failing });
+  assert.match(exited.stderr, /fleet-secrets exited 3/);
+  assert.doesNotMatch(exited.stderr, /exited undefined/);
+
+  const notExecutable = join(root, "not-executable-fleet-secrets");
+  writeFileSync(notExecutable, "#!/usr/bin/env node\n");
+  chmodSync(notExecutable, 0o600);
+  const spawnFailed = await run({ FLEET_SECRETS: notExecutable });
+  assert.match(spawnFailed.stderr, /fleet-secrets failed: EACCES/);
+  assert.doesNotMatch(spawnFailed.stderr, /exited undefined/);
 });
 
 test.after(() => rmSync(root, { recursive: true, force: true }));

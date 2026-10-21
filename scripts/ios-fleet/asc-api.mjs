@@ -82,14 +82,21 @@ function fleetSecretsGet(name, folder) {
     return execFileSync(bin, ["get", name, "--path", folder], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
-      timeout: 30000
+      timeout: 30000,
+      maxBuffer: 8 * 1024 * 1024
     }).replace(/\n$/, "");
   } catch (err) {
     // The secret may simply be absent, so this is not fatal on its own; the
     // reason is recorded (never the value) so it can be reported.
     const why = err.code === "ENOENT"
       ? "the fleet-secrets binary is not available"
-      : `fleet-secrets exited ${err.status}`;
+      : err.code === "ETIMEDOUT"
+        ? "fleet-secrets timed out after 30s"
+        : err.code
+          ? `fleet-secrets failed: ${err.code}`
+          : err.signal
+            ? `fleet-secrets was killed by ${err.signal}`
+            : `fleet-secrets exited ${err.status}`;
     RESOLUTION_NOTES.push(`fleet-secrets get ${name} (${folder}) failed: ${why}`);
     return "";
   }
