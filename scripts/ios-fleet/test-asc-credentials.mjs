@@ -158,4 +158,23 @@ test("an ASC_KEY_PATH that exists but cannot be read is named, not swallowed", a
   assert.match(r.stderr, /ASC_KEY_PATH could not be read/);
 });
 
+test("an unreadable ASC_KEY_PATH is still named when another source resolves", async () => {
+  // The fall-through to APPLE_API_* succeeds, but the skipped source must not
+  // vanish from the log: the recorded note has to reach the operator.
+  const notAKeyFile = join(root, "not-a-key-file-2");
+  mkdirSync(notAKeyFile);
+  const r = await run({
+    ASC_KEY_ID: "UNREAD0002",
+    ASC_ISSUER_ID: "unread-issuer",
+    ASC_KEY_PATH: notAKeyFile,
+    APPLE_API_KEY_ID: "APPLEKEY01",
+    APPLE_API_ISSUER_ID: "apple-issuer",
+    APPLE_API_KEY_P8_BASE64: Buffer.from(pem(), "utf8").toString("base64")
+  });
+  assert.equal(r.code, 0);
+  assert.equal(r.kid, "APPLEKEY01");
+  assert.match(r.stderr, /ASC_KEY_PATH could not be read/);
+  assert.match(r.stderr, /asc-auth: using APPLE_API_\* environment/);
+});
+
 test.after(() => rmSync(root, { recursive: true, force: true }));

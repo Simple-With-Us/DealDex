@@ -1,6 +1,6 @@
 ## 2026-10-21 CLAUDE — iOS credential failures are named, not swallowed (Kody)
 
-`scripts/ios-fleet/asc-api.mjs` no longer hides a failed credential read.  A staged key that cannot be read throws an error naming `ASC_KEY_PATH`, failed `fleet-secrets` lookups record the secret name and folder, and the "no credential found" message lists those notes plus the Infisical `/asc` source.  `scripts/ios-fleet/ship-testflight.sh` reports a failed write of the staged `.p8` and fails closed instead of leaving an empty key file.  No credential source changed.  See `docs/rollouts/2026-10-21-kody-asc-credential-diagnostics.md`.
+`scripts/ios-fleet/asc-api.mjs` no longer hides a failed credential read.  A staged key that cannot be read throws an error naming `ASC_KEY_PATH`, failed `fleet-secrets` lookups record the secret name and folder, and the "no credential found" message lists those notes plus the Infisical `/asc` source.  The recorded notes are also printed on the success path, so a source that was skipped (an unreadable `ASC_KEY_PATH`, a failed `fleet-secrets` call) stays visible even when another source resolves the credential.  `scripts/ios-fleet/ship-testflight.sh` reports a failed write of the staged `.p8` and fails closed instead of leaving an empty key file.  No credential source changed.  See `docs/rollouts/2026-10-21-kody-asc-credential-diagnostics.md`.
 
 ## 2026-10-19 MM — Real market scan capture for the catalog page (SWU-15)
 

@@ -17,14 +17,20 @@ file behind and the real reason was lost.
 - `scripts/ios-fleet/asc-api.mjs`
   - `fromFile` throws an error that names `ASC_KEY_PATH` (with the source and
     the OS error code) when the staged key cannot be read.
-  - `resolveCredential` surfaces that error instead of continuing, and records
-    a note when `ASC_KEY_PATH` is set but the file is missing, when the
-    environment only names part of a credential trio, and when the
-    `APPLE_API_*` trio is incomplete.
+  - `resolveCredential` records that failure as a note and falls through to the
+    other credential sources instead of aborting, matching the `[[ -f ]]`
+    fallthrough in `ship-testflight.sh`.  It also records a note when
+    `ASC_KEY_PATH` is set but the file is missing, when the environment only
+    names part of a credential trio, and when the `APPLE_API_*` trio is
+    incomplete.
   - `fleetSecretsGet` records the failing secret name and folder (never a
     value) instead of dropping the reason.
-  - The "no credential found" message lists the Infisical `/asc` source and
-    every recorded note, so the failing secret variable is named.
+  - The recorded notes are printed on every path — the "no credential found"
+    message lists the Infisical `/asc` source and every note, and a successful
+    resolution prints the notes before the `asc-auth: using ...` line.  A
+    source that was skipped (an unreadable `ASC_KEY_PATH`, a failed
+    `fleet-secrets` call) therefore stays visible even when another source
+    resolves the credential and the ship proceeds.
 - `scripts/ios-fleet/ship-testflight.sh` — a failed write of the staged `.p8`
   is logged and the load fails closed (`AUTH_MODE` stays `none`); a failed
   `chmod 600` is logged.
@@ -45,7 +51,7 @@ a seat with that permission can add the two-line warning if it is still wanted.
 
 ## Verify
 
-- `node --test scripts/ios-fleet/test-asc-credentials.mjs` — 7/7 pass.
+- `node --test scripts/ios-fleet/test-asc-credentials.mjs` — 10/10 pass.
 - `node --test scripts/ios-ship-workflow.test.mjs` — 5/5 pass.
 - `bash scripts/ios-fleet/test-asc-credentials.sh` — pass.
 - `bash scripts/test-ios-stage-asc-key.sh` — pass.
@@ -53,4 +59,7 @@ a seat with that permission can add the two-line warning if it is still wanted.
   shell script and a YAML parse of `ios-ship.yml` — pass.
 - Manual: an unreadable `ASC_KEY_PATH` now exits 1 with
   `asc-auth: Unable to resolve required secret ASC_KEY_PATH (...)`; a missing
-  credential lists the failed secret variables.
+  credential lists the failed secret variables; an unreadable `ASC_KEY_PATH`
+  that falls through to another source still logs
+  `asc-auth:   - ASC_KEY_PATH could not be read (...)` before the
+  `asc-auth: using ...` line.

@@ -67,8 +67,10 @@ function decodeP8(b64) {
 
 // Why a credential source could not be used.  A failed lookup is never
 // swallowed: it is recorded here with the secret name and folder, and the
-// notes are printed when no credential resolves, so a broken secret read is
-// diagnosable instead of reporting a bare "no credential found".
+// notes are printed on every path, so a broken secret read is diagnosable
+// instead of reporting a bare "no credential found" -- and a source that was
+// skipped (an unreadable ASC_KEY_PATH, a failed fleet-secrets call) stays
+// visible even when another source resolves.
 const RESOLUTION_NOTES = [];
 
 // Infisical Fleet-OPS through `fleet-secrets get` (AFC-359).  "" when absent.
@@ -131,7 +133,8 @@ function resolveCredential() {
       } catch (err) {
         // The path exists but is unusable (a directory, a mode-000 file): name
         // it and let the other sources try, matching ship-testflight.sh's
-        // [[ -f ]] fallthrough.  The note is printed if nothing else resolves.
+        // [[ -f ]] fallthrough.  The note is printed on every path, so the
+        // fall-through is visible even when another source resolves.
         RESOLUTION_NOTES.push(`ASC_KEY_PATH could not be read (${err.cause?.code || err.message}); trying the other credential sources`);
       }
     }
@@ -703,6 +706,7 @@ async function main() {
   const cred = resolveCredential();
   if (cred.error) {
     console.error(`asc-auth: ${cred.error}`);
+    for (const note of RESOLUTION_NOTES) console.error(`asc-auth:   - ${note}`);
     process.exit(1);
   }
   if (!cred.privateKeyPem) {
@@ -715,6 +719,10 @@ async function main() {
     for (const note of RESOLUTION_NOTES) console.error(`asc-auth:   - ${note}`);
     process.exit(1);
   }
+  // A source that was skipped (an unreadable ASC_KEY_PATH, a failed
+  // fleet-secrets call) stays visible here too: falling through to another
+  // source must not hide the recorded failure.
+  for (const note of RESOLUTION_NOTES) console.error(`asc-auth:   - ${note}`);
   console.error(`asc-auth: using ${cred.source} (key id length ${cred.keyId.length})`);
   const token = signJwt({ keyId: cred.keyId, issuerId: cred.issuerId, privateKeyPem: cred.privateKeyPem });
 
