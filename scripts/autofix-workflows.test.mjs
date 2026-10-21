@@ -55,8 +55,8 @@ test("PR Autofix is not pinned to a reusable revision that deadlocks", () => {
 });
 
 test("autofix callers pass only secrets their reusable declares", () => {
-  assert.deepEqual(passedSecrets(read(".github/workflows/autofix.yml")), ["MINIMAX_API_KEY", "AUTOFIX_GITHUB_APP_PRIVATE_KEY", "USAGE_INGEST_TOKEN"]);
-  assert.deepEqual(passedSecrets(read(".github/workflows/claude-code-autofix.yml")), ["MINIMAX_API_KEY", "USAGE_INGEST_TOKEN"]);
+  assert.deepEqual(passedSecrets(read(".github/workflows/autofix.yml")), ["MINIMAX_API_KEY", "META_MODEL_API_TOKEN", "AUTOFIX_GITHUB_APP_PRIVATE_KEY", "USAGE_INGEST_TOKEN"]);
+  assert.deepEqual(passedSecrets(read(".github/workflows/claude-code-autofix.yml")), ["MINIMAX_API_KEY", "META_MODEL_API_TOKEN", "USAGE_INGEST_TOKEN"]);
 });
 
 test("autofix callers keep their least-privilege and fork guards", () => {
@@ -69,11 +69,14 @@ test("autofix callers keep their least-privilege and fork guards", () => {
 
 test("Claude Autofix keeps the Sentry-capable pin and same-repository bot gate", () => {
   const claude = read(".github/workflows/claude-code-autofix.yml");
-  // AFC #657 was inspected: only sentry and sentry[bot] were added to the
-  // prior bot list.  Do not override that reviewed policy or restore the old pin.
+  // c97a2dae supersedes the AFC #657 pin c79c7840: its reusable default
+  // allowed_bots still contains sentry and sentry[bot] (verified against the
+  // coordinator repo at that SHA) and it adds the model-switch guard and the
+  // per-PR request gate.  Do not override that reviewed policy or restore an
+  // older pin.
   assert.match(
     claude,
-    /claude-code-autofix-reusable\.yml@c79c7840d4d3d71bffad08067ce4a1084f0bbb34/,
+    /claude-code-autofix-reusable\.yml@c97a2dae96762eb9ffc122c753f0dfb0a7840650/,
   );
   assert.doesNotMatch(claude, /^\s+allowed_bots:/m);
   const guard = claude.match(/^ {4}if: >-\n([\s\S]*?)^ {4}uses:/m)?.[1];
@@ -89,9 +92,11 @@ test("Claude Autofix keeps the Sentry-capable pin and same-repository bot gate",
 
 
 test("PR Autofix retains the reviewed stream-json CLI repair", () => {
-  // Exact consumed workflow diff from b634b511: add --verbose to claude --print.
+  // c97a2dae supersedes the b634b511 pin 00def854: the reusable at that SHA
+  // still runs claude --print --verbose with --output-format stream-json
+  // (verified against the coordinator repo) and adds the model-switch guard.
   assert.equal(
     pin(read(".github/workflows/autofix.yml")).ref,
-    "00def8545947e21ffe285ea67c1812c7bd321dfc",
+    "c97a2dae96762eb9ffc122c753f0dfb0a7840650",
   );
 });
