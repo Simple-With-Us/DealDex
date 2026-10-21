@@ -449,7 +449,13 @@ asc_latest_seq() {
   # A temp file, not ${LOG_DIR}: the first resolve_seq_floor call runs before the
   # output dirs are created, so LOG_DIR is unset here and the redirect would
   # abort the ship before App Store Connect is ever queried.
-  err_file="$(mktemp "${TMPDIR:-/tmp}/asc-latest-seq.XXXXXX")"
+  # A failed mktemp would leave err_file empty, turning the redirect below into
+  # an ambiguous redirect that never runs the query and blames App Store
+  # Connect for the failure.  Name the real cause instead.
+  if ! err_file="$(mktemp "${TMPDIR:-/tmp}/asc-latest-seq.XXXXXX")" || [[ -z "$err_file" ]]; then
+    logerr "asc-seq: cannot create a temp file for the ASC stderr capture; cannot verify against App Store Connect"
+    return 1
+  fi
   set +e
   out=$(node "${FLEET_DIR}/asc-api.mjs" latest-build-seq "$BUNDLE_ID" "$prefix" "$plat" 2>"$err_file")
   rc=$?
