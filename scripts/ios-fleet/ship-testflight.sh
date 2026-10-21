@@ -77,9 +77,13 @@
 # fleet runners).
 #
 # Secrets (never printed):
-#   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_PATH  (env first, e.g. CI; else Infisical via
+#   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8  (env first, e.g. CI; else Infisical via
 #   `fleet-secrets get` from Fleet-OPS /asc: ASC_KEY_ID, ASC_ISSUER_ID and the .p8 in ASC_KEY_P8,
 #   written to a 0600 temp file and deleted on exit)
+#   A named ASC_KEY_PATH is never read by the node client, because a path on disk
+#   is not an approved secret source.  The key material stays in that file:  the
+#   client is handed the key in the child's environment (see asc_client), and
+#   altool and Xcode are given the path.
 #   or Xcode-signed-in session for destination=upload export
 #   SENTRY_AUTH_TOKEN  (dSYM + Size Analysis upload; env or `fleet-secrets get`)
 #   SENTRY_DSN         (injected into xcodebuild so Cocoa plist $(SENTRY_DSN) is set)
@@ -201,68 +205,164 @@ fs_get() {
 
 # Load ASC credentials into the CURRENT shell (must not run inside $(...) or the
 # exported ASC_* vars are discarded with the subshell). Sets AUTH_MODE to
-# "api_key" or "none". Never prints secret values.  Order: an explicit
-# ASC_KEY_PATH/ASC_KEY_ID/ASC_ISSUER_ID in the environment, else Infisical.
+# "api_key" or "none". Never prints secret values.
+#
+# WHY THE KEY IS HANDED OVER IN THE ENVIRONMENT (2026-10-21, AFC-459 / Kody rule 42):
+# The private key is a secret, and the approved secret sources are the process
+# environment, a captured `fleet-secrets get NAME` and bootstrap-only Keychain
+# credentials.  A caller-supplied file is not one of them, so the node client
+# never reads a key file.  This shell layer already owns the credential for
+# altool and Xcode, so it hands the key to the client in the environment,
+# which is where the client looks for it.
+#
+# THE ENVIRONMENT IS RESOLVED FIRST (2026-10-21, AFC-459 / Kody rule 42):
+#   1. ASC_KEY_P8, when it holds a PEM private key and comes with its key id
+#   2. a named ASC_KEY_PATH, used as a FILE and never read into a variable
+#   3. Infisical Fleet-OPS /asc (or /authkey-<id>-p8)
+# A disk credential never overrides the environment:  a stale or foreign value
+# in an operator's shell would sign the upload with the wrong key, and App
+# Store Connect would answer 401 without saying which input was wrong.  The
+# staged file stays a file:  the key material never enters this shell, and the
+# client is handed the key in the child's environment by the hardened reader
+# (see asc_client).
 load_secrets() {
   AUTH_MODE="none"
-  if [[ -n "${ASC_KEY_ID:-}" && -n "${ASC_ISSUER_ID:-}" && -n "${ASC_KEY_PATH:-}" ]]; then
-    local env_key_path
-    env_key_path="$(expand_tilde "$ASC_KEY_PATH")"
-    if [[ -f "$env_key_path" ]]; then
-      # Export the EXPANDED path, like the Infisical branch below: a literal
-      # "~/..." left in ASC_KEY_PATH makes link_private_key create a dangling
-      # symlink, so altool never finds the key after a costly upload.
-      export ASC_KEY_PATH="$env_key_path"
-      AUTH_MODE="api_key"
-      return 0
-    fi
-    log "ASC_KEY_PATH set but file missing (not printing path contents)"
-  fi
   local kid="${ASC_KEY_ID:-}" iss="${ASC_ISSUER_ID:-}" p8="" fkid="" lower
-  # The key id, issuer and private key must belong together:  with nothing named in the
+  local key_pem="" key_path="" staged_path="" rc=0
+  # The staged key file, when it is the credential in play.  The client is run
+  # through the hardened reader, which puts the key in the child's
+  # environment;  the key itself never enters this shell.
+  ASC_STAGED_KEY_PATH=""
+
+  # 1. An ambient ASC_KEY_P8.  It is only usable when it really is a PEM
+  #    private key and comes with the key id and issuer it belongs to.  It is
+  #    resolved first, so nothing on disk can override it.
+  if [[ -n "${ASC_KEY_P8:-}" ]]; then
+    if [[ -z "$kid" || -z "$iss" ]]; then
+      log "ASC_KEY_P8 is set without ASC_KEY_ID and ASC_ISSUER_ID; ignoring it"
+      unset ASC_KEY_P8
+    else
+      rc=0
+      node "${FLEET_DIR}/asc-key.mjs" validate >/dev/null 2>&1 <<< "$ASC_KEY_P8" || rc=$?
+      if [[ "$rc" -ne 0 ]]; then
+        log "ASC_KEY_P8 is set but does not hold a PEM private key; ignoring it"
+        unset ASC_KEY_P8
+      else
+        key_pem="$ASC_KEY_P8"
+      fi
+    fi
+  fi
+
+  # 2. A key file the operator named.  It is checked with the hardened
+  #    reader, which reports whether the file holds a usable key and never
+  #    prints the key, so the key material stays in the file.  A path that
+  #    names nothing falls through to the fleet credential instead of
+  #    aborting the run.
+  if [[ -z "$key_pem" && -n "$kid" && -n "$iss" && -n "${ASC_KEY_PATH:-}" ]]; then
+    local expanded
+    expanded="$(expand_tilde "$ASC_KEY_PATH")"
+    rc=0
+    node "${FLEET_DIR}/asc-key.mjs" read "$expanded" >/dev/null || rc=$?
+    if [[ "$rc" -eq 0 ]]; then
+      staged_path="$expanded"
+    else
+      if [[ "$rc" -eq 3 ]]; then
+        log "ASC_KEY_PATH names a file that does not exist; falling back to the fleet credential"
+      else
+        log "ASC_KEY_PATH does not hold a usable private key; falling back to the fleet credential"
+      fi
+    fi
+  fi
+
+  # 3. The key id, issuer and private key must belong together:  with nothing named in the
   # environment all three come from /asc;  an env key id that is not the /asc one gets its
   # own .p8 from /authkey-<id>-p8, never the /asc key.
-  fkid="$(fs_get ASC_KEY_ID /asc)" || fkid=""
-  if [[ -z "$kid" ]]; then
-    kid="$fkid"
-    iss="$(fs_get ASC_ISSUER_ID /asc)" || iss=""
-  elif [[ -z "$iss" && "$kid" == "$fkid" ]]; then
-    # env named the /asc key itself:  its issuer is the /asc one
-    iss="$(fs_get ASC_ISSUER_ID /asc)" || iss=""
-  fi
-  if [[ -z "$kid" || -z "$iss" ]]; then
-    log "ASC credentials missing: set ASC_KEY_ID/ASC_ISSUER_ID/ASC_KEY_PATH or add ASC_KEY_ID, ASC_ISSUER_ID and ASC_KEY_P8 to Infisical /asc"
-    return 0
-  fi
-  if [[ "$kid" == "$fkid" ]]; then
-    p8="$(fs_get ASC_KEY_P8 /asc)" || p8=""
-  else
-    lower="$(printf '%s' "$kid" | tr 'A-Z' 'a-z')"
-    p8="$(fs_get "AUTHKEY_${kid}" "/authkey-${lower}-p8")" || p8=""
-  fi
-  if [[ -z "$p8" ]]; then
-    log "missing the .p8 for key ${kid}: Infisical /asc ASC_KEY_P8 (the /asc key) or /authkey-<id>-p8 AUTHKEY_<id>"
-    return 0
-  fi
-  if [[ -z "$ASC_TMP_DIR" ]]; then
-    ASC_TMP_DIR="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/asc-key.XXXXXX")"
-  fi
-  # A failed write would leave an empty key file behind and the real reason
-  # would be lost, so it is reported and the load fails closed.
-  if ! ( umask 077; printf '%s\n' "$p8" > "${ASC_TMP_DIR}/AuthKey_${kid}.p8" ); then
-    log "could not stage the ASC private key under ${ASC_TMP_DIR}: the file write failed (no key material printed)"
-    rm -f "${ASC_TMP_DIR}/AuthKey_${kid}.p8" 2>/dev/null || true
+  if [[ -z "$key_pem" && -z "$staged_path" ]]; then
+    fkid="$(fs_get ASC_KEY_ID /asc)" || fkid=""
+    if [[ -z "$kid" ]]; then
+      kid="$fkid"
+      iss="$(fs_get ASC_ISSUER_ID /asc)" || iss=""
+    elif [[ -z "$iss" && "$kid" == "$fkid" ]]; then
+      # env named the /asc key itself:  its issuer is the /asc one
+      iss="$(fs_get ASC_ISSUER_ID /asc)" || iss=""
+    fi
+    if [[ -z "$kid" || -z "$iss" ]]; then
+      log "ASC credentials missing: set ASC_KEY_ID/ASC_ISSUER_ID/ASC_KEY_P8 or add ASC_KEY_ID, ASC_ISSUER_ID and ASC_KEY_P8 to Infisical /asc"
+      return 0
+    fi
+    if [[ "$kid" == "$fkid" ]]; then
+      p8="$(fs_get ASC_KEY_P8 /asc)" || p8=""
+    else
+      lower="$(printf '%s' "$kid" | tr 'A-Z' 'a-z')"
+      p8="$(fs_get "AUTHKEY_${kid}" "/authkey-${lower}-p8")" || p8=""
+    fi
+    if [[ -z "$p8" ]]; then
+      log "missing the .p8 for key ${kid}: Infisical /asc ASC_KEY_P8 (the /asc key) or /authkey-<id>-p8 AUTHKEY_<id>"
+      return 0
+    fi
+    key_pem="$p8"
     p8=""
-    return 1
   fi
-  chmod 600 "${ASC_TMP_DIR}/AuthKey_${kid}.p8" \
-    || log "could not set mode 600 on the staged ASC private key under ${ASC_TMP_DIR}"
-  p8=""
-  export ASC_KEY_ID="$kid" ASC_ISSUER_ID="$iss" ASC_KEY_PATH="${ASC_TMP_DIR}/AuthKey_${kid}.p8"
-  # altool searches API_PRIVATE_KEYS_DIR first, so no symlink into ~/.appstoreconnect is needed.
-  export API_PRIVATE_KEYS_DIR="$ASC_TMP_DIR"
+
+  # The key has to be in a mode-600 file for altool and Xcode, and in the
+  # environment for the node client, which never reads a file.  A staged key
+  # file is already a mode-600 file, so it is used where it lies.
+  if [[ -n "$staged_path" ]]; then
+    key_path="$staged_path"
+    ASC_STAGED_KEY_PATH="$staged_path"
+  elif [[ -z "$key_path" ]]; then
+    if [[ -z "$ASC_TMP_DIR" ]]; then
+      ASC_TMP_DIR="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/asc-key.XXXXXX")"
+    fi
+    key_path="${ASC_TMP_DIR}/AuthKey_${kid}.p8"
+    if ! node "${FLEET_DIR}/asc-key.mjs" write "$key_path" <<< "$key_pem"; then
+      log "could not write the ASC key file; the credential is not usable"
+      return 0
+    fi
+    # altool searches API_PRIVATE_KEYS_DIR first, so no symlink into ~/.appstoreconnect is needed.
+    export API_PRIVATE_KEYS_DIR="$ASC_TMP_DIR"
+  fi
+  export ASC_KEY_ID="$kid" ASC_ISSUER_ID="$iss" ASC_KEY_PATH="$key_path"
+  # The client takes the key from the environment:  a path is not an approved
+  # secret source, so it never reads one.  A staged key file is handed over
+  # by the hardened reader instead, in the child's environment.
+  if [[ -n "$key_pem" ]]; then
+    export ASC_KEY_P8="$key_pem"
+  fi
+  key_pem=""
   AUTH_MODE="api_key"
   return 0
+}
+
+# Run the App Store Connect client.
+#
+# The client takes the key from its environment and never reads a file (AFC-459
+# / Kody rule 42).  When the credential in play is a staged key file, the
+# hardened reader hands the key to the client in the child's environment:  the
+# key is never an argument, never on this script's stdout, and never in a log
+# line.
+asc_client() {
+  local staged="${ASC_STAGED_KEY_PATH:-}"
+  if [[ -z "$staged" && -n "${ASC_KEY_PATH:-}" ]]; then
+    # load_secrets has not run yet:  the build-sequence query asks App Store
+    # Connect before the credential is resolved, so a named key file is still
+    # just a path here.  It is checked with the reader and used as a file, so
+    # the key never enters this shell.  A path that names nothing is not a
+    # credential, so the client resolves the credential the way it does today
+    # (the environment, or Infisical).
+    local expanded rc=0
+    expanded="$(expand_tilde "$ASC_KEY_PATH")"
+    node "${FLEET_DIR}/asc-key.mjs" read "$expanded" >/dev/null 2>&1 || rc=$?
+    if [[ "$rc" -eq 0 ]]; then
+      staged="$expanded"
+    fi
+  fi
+  if [[ -n "$staged" ]]; then
+    node "${FLEET_DIR}/asc-key.mjs" exec "$staged" -- \
+      node "${FLEET_DIR}/asc-api.mjs" "$@"
+  else
+    node "${FLEET_DIR}/asc-api.mjs" "$@"
+  fi
 }
 
 # Map ship APP_KEY to Sentry project slug in org simple-with-us.
@@ -457,7 +557,7 @@ asc_latest_seq() {
     return 1
   fi
   set +e
-  out=$(node "${FLEET_DIR}/asc-api.mjs" latest-build-seq "$BUNDLE_ID" "$prefix" "$plat" 2>"$err_file")
+  out=$(asc_client latest-build-seq "$BUNDLE_ID" "$prefix" "$plat" 2>"$err_file")
   rc=$?
   set -e
   # The credential-resolution notes asc-api.mjs prints on every path are the
@@ -1113,7 +1213,7 @@ ensure_tf_ready() {
   IOS_TF_NOTES_PREV_SHA="$PREV_SHIP_SHA" \
   IOS_TF_NOTES_APP="$DISPLAY_NAME" \
   IOS_TF_NOTES_IOS_PREFIX="$IOS_PATH_PREFIX" \
-  node "${FLEET_DIR}/asc-api.mjs" ensure-tf-ready "$BUNDLE_ID" "$BUILD_NUM" "$MARKETING" \
+  asc_client ensure-tf-ready "$BUNDLE_ID" "$BUILD_NUM" "$MARKETING" \
     >"${LOG_DIR}/ensure-tf-ready.json" 2>"${LOG_DIR}/ensure-tf-ready.err"
   local rc=$?
   set -e

@@ -26,6 +26,9 @@ name: iOS TestFlight ship (GitHub-hosted macOS)
 # scripts/ios-stage-asc-key.sh stages the key as a mode-600 file and
 # scripts/ios-appstore-gm-prepare.sh imports the Distribution identity (the job
 # environment carries ASC_KEY_ID, ASC_ISSUER_ID and ASC_KEY_PATH to the ship step).
+# The node client never reads that path:  a path on disk is not an approved
+# secret source, so scripts/ios-fleet/asc-key.mjs reads the staged file and
+# hands the key to the client in the child's environment (AFC-459 / Kody rule 42).
 #
 # The in-repo wrapper prefers scripts/ios-fleet/, then
 # /Users/jay/apps/ios-fleet. App key `dealdex`, bundle `net.dealdex`.
@@ -309,7 +312,14 @@ jobs:
             exit 0
           fi
           set +e
-          node scripts/ios-fleet/asc-api.mjs ensure-standing-testers "$appleid"
+          # The client never reads a key file:  the hardened reader hands the
+          # staged key to it in the child's environment (AFC-459 / Kody rule 42).
+          if [ -n "${ASC_KEY_PATH:-}" ]; then
+            node scripts/ios-fleet/asc-key.mjs exec "$ASC_KEY_PATH" -- \
+              node scripts/ios-fleet/asc-api.mjs ensure-standing-testers "$appleid"
+          else
+            node scripts/ios-fleet/asc-api.mjs ensure-standing-testers "$appleid"
+          fi
           rc=$?
           set -e
           if [ "$rc" -ne 0 ]; then
