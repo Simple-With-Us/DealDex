@@ -206,7 +206,13 @@ fs_get() {
 load_secrets() {
   AUTH_MODE="none"
   if [[ -n "${ASC_KEY_ID:-}" && -n "${ASC_ISSUER_ID:-}" && -n "${ASC_KEY_PATH:-}" ]]; then
-    if [[ -f "$(expand_tilde "$ASC_KEY_PATH")" ]]; then
+    local env_key_path
+    env_key_path="$(expand_tilde "$ASC_KEY_PATH")"
+    if [[ -f "$env_key_path" ]]; then
+      # Export the EXPANDED path, like the Infisical branch below: a literal
+      # "~/..." left in ASC_KEY_PATH makes link_private_key create a dangling
+      # symlink, so altool never finds the key after a costly upload.
+      export ASC_KEY_PATH="$env_key_path"
       AUTH_MODE="api_key"
       return 0
     fi
@@ -1110,6 +1116,27 @@ ensure_tf_ready() {
     log "warning: if the phone never gets this build, declare compliance by hand in App Store Connect"
     if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
       echo "::warning::ensure-tf-ready could not find uploaded build ${BUILD_NUM} for ${BUNDLE_ID}; export compliance not declared"
+    fi
+    return 0
+  fi
+  # rc=5 / rc=6 are NOT compliance failures: asc-api.mjs returns them only after
+  # the build reached IN_BETA_TESTING and the compliance PATCH already landed,
+  # so they say the build is ready but nobody (rc=5) or the tester count
+  # (rc=6) could not confirm. Falling through to the catch-all below would tell
+  # the owner to redeclare compliance by hand on an already-compliant build.
+  if [[ $rc -eq 5 ]]; then
+    log "warning: build ${BUILD_NUM} is compliant and in beta testing, but NO internal tester has access to all builds"
+    log "warning: add an internal tester (or a build-access group) in App Store Connect or the phone never gets this build"
+    if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+      echo "::warning::ensure-tf-ready: ${BUNDLE_ID} build ${BUILD_NUM} is ready but no internal tester can install it"
+    fi
+    return 0
+  fi
+  if [[ $rc -eq 6 ]]; then
+    log "warning: build ${BUILD_NUM} is compliant and in beta testing, but the internal tester count could not be read"
+    log "warning: installability is unverified -- check the TestFlight groups by hand in App Store Connect"
+    if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+      echo "::warning::ensure-tf-ready: ${BUNDLE_ID} build ${BUILD_NUM} is ready but the internal tester state is unreadable"
     fi
     return 0
   fi
