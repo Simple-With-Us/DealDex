@@ -1,12 +1,17 @@
-// AFC-359: asc-api.mjs resolves App Store Connect credentials from the environment first,
-// then from Infisical through fleet-secrets, and keeps the key id and private key together.
-// Runs asc-api.mjs against a local HTTP server with a FAKE fleet-secrets binary and a
-// throwaway HOME.  The JWT header's kid proves which key id was used.  No real secrets.
+// AFC-459: asc-api.mjs resolves App Store Connect credentials from the
+// environment first (the APPLE_API_* trio, then the ASC_KEY_ID / ASC_ISSUER_ID
+// / ASC_KEY_P8 trio), then from Infisical through fleet-secrets, and never
+// from a key file:  a path on disk is not an approved secret source (Kody
+// rule 42), so the shell layer hands the key over in the environment.
+//
+// Runs asc-api.mjs against a local HTTP server with a FAKE fleet-secrets binary
+// and a throwaway HOME.  The JWT header's kid proves which key id was used and
+// the signature proves which private key signed it.  No real secrets.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { chmodSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
-import { generateKeyPairSync } from "node:crypto";
+import { createVerify, generateKeyPairSync } from "node:crypto";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,8 +19,9 @@ import test from "node:test";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, "asc-api.mjs");
-const pem = () => generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKey
-  .export({ type: "pkcs8", format: "pem" });
+const keyPair = () => generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+const pem = () => keyPair().privateKey.export({ type: "pkcs8", format: "pem" });
+const publicPem = (pair) => pair.publicKey.export({ type: "spki", format: "pem" });
 
 const root = mkdtempSync(join(tmpdir(), "asc-js-test-"));
 const home = join(root, "home");
@@ -62,10 +68,28 @@ function run(env) {
           kid = part(0).kid;
           iss = part(1).iss;
         }
-        resolve({ code, kid, iss, stderr });
+        resolve({ code, kid, iss, jwt, stderr });
       });
     });
   });
+}
+
+// Did this private key sign the token?  The kid alone does not prove it:  two
+// key ids can carry the same kid, and the whole point of the port is that the
+// key that signs the request is the one the operator meant.
+function signedWith(jwt, publicKeyPem) {
+  if (!jwt) return false;
+  const [h, p, s] = jwt.split(".");
+  const verifier = createVerify("SHA256");
+  verifier.update(`${h}.${p}`);
+  verifier.end();
+  try {
+    //  ASC requires the JOSE (r||s) signature encoding, not DER, so the
+    //  verifier has to use the same one the signer did.
+    return verifier.verify({ key: publicKeyPem, dsaEncoding: "ieee-p1363" }, Buffer.from(s, "base64url"));
+  } catch {
+    return false;
+  }
 }
 
 test("nothing in the environment:  id, issuer and key all come from /asc", async () => {
@@ -100,23 +124,99 @@ test("an env key id with no key material anywhere fails closed", async () => {
   assert.equal(r.kid, null);
 });
 
-test("a complete environment (id, issuer, key file) wins and never calls fleet-secrets", async () => {
-  const keyFile = join(root, "env-key.p8");
-  writeFileSync(keyFile, pem());
-  const r = await run({ ASC_KEY_ID: "ENVKEY0001", ASC_ISSUER_ID: "env-issuer", ASC_KEY_PATH: keyFile, FLEET_SECRETS: join(root, "does-not-exist") });
-  assert.equal(r.code, 0);
+test("the environment wins over a named key file", async () => {
+  //  The property the port exists for:  a disk credential never overrides the
+  //  environment (Kody rule 42).  A stale or foreign value in an operator's
+  //  shell would sign the upload with the wrong key, and App Store Connect
+  //  would answer 401 without saying which input was wrong.
+  const envPair = keyPair();
+  const filePair = keyPair();
+  const keyFile = join(root, "named-key.p8");
+  writeFileSync(keyFile, filePair.privateKey.export({ type: "pkcs8", format: "pem" }));
+  chmodSync(keyFile, 0o600);
+  const r = await run({
+    ASC_KEY_ID: "ENVKEY0001",
+    ASC_ISSUER_ID: "env-issuer",
+    ASC_KEY_P8: envPair.privateKey.export({ type: "pkcs8", format: "pem" }),
+    ASC_KEY_PATH: keyFile,
+    FLEET_SECRETS: join(root, "does-not-exist")
+  });
+  assert.equal(r.code, 0, r.stderr);
   assert.equal(r.kid, "ENVKEY0001");
   assert.equal(r.iss, "env-issuer");
+  assert.ok(signedWith(r.jwt, publicPem(envPair)), "the request was not signed with the environment key");
+  assert.ok(!signedWith(r.jwt, publicPem(filePair)), "the request was signed with the named file's key");
+  assert.match(r.stderr, /asc-auth: using ASC_KEY_P8 environment/);
+  assert.doesNotMatch(r.stderr, /using ASC_KEY_PATH environment/);
 });
 
-test("only a leading ~/ is expanded in ASC_KEY_PATH", async () => {
-  writeFileSync(join(home, "tilde-key.p8"), pem());
-  const gone = join(root, "does-not-exist");
-  const ok = await run({ ASC_KEY_ID: "TILDEKEY01", ASC_ISSUER_ID: "tilde-issuer", ASC_KEY_PATH: "~/tilde-key.p8", FLEET_SECRETS: gone });
-  assert.equal(ok.code, 0);
-  assert.equal(ok.kid, "TILDEKEY01");
-  const bad = await run({ ASC_KEY_ID: "TILDEKEY01", ASC_ISSUER_ID: "tilde-issuer", ASC_KEY_PATH: "~other/tilde-key.p8", FLEET_SECRETS: gone });
-  assert.notEqual(bad.code, 0);
+test("a named ASC_KEY_PATH is not a credential source", async () => {
+  //  A path on disk is not an approved secret source.  The client refuses it
+  //  and says who does hand the key over.
+  const filePair = keyPair();
+  const keyFile = join(root, "only-a-file.p8");
+  writeFileSync(keyFile, filePair.privateKey.export({ type: "pkcs8", format: "pem" }));
+  chmodSync(keyFile, 0o600);
+  const r = await run({
+    ASC_KEY_ID: "FILEKEY0001",
+    ASC_ISSUER_ID: "file-issuer",
+    ASC_KEY_PATH: keyFile,
+    FLEET_SECRETS: join(root, "does-not-exist")
+  });
+  assert.notEqual(r.code, 0);
+  assert.equal(r.kid, null, "a path was read as a credential");
+  assert.match(r.stderr, /no App Store Connect credential found/);
+  assert.match(r.stderr, /A path in ASC_KEY_PATH is not a credential source/);
+  assert.match(r.stderr, /hands the key over in ASC_KEY_P8/);
+});
+
+test("the APPLE_API_* trio is resolved before the ASC_* trio", async () => {
+  const applePair = keyPair();
+  const ascPair = keyPair();
+  const r = await run({
+    APPLE_API_KEY_ID: "APPLEKEY01",
+    APPLE_API_ISSUER_ID: "apple-issuer",
+    APPLE_API_KEY_P8_BASE64: Buffer.from(
+      applePair.privateKey.export({ type: "pkcs8", format: "pem" }), "utf8"
+    ).toString("base64"),
+    ASC_KEY_ID: "ENVKEY0001",
+    ASC_ISSUER_ID: "env-issuer",
+    ASC_KEY_P8: ascPair.privateKey.export({ type: "pkcs8", format: "pem" })
+  });
+  assert.equal(r.code, 0, r.stderr);
+  assert.equal(r.kid, "APPLEKEY01");
+  assert.equal(r.iss, "apple-issuer");
+  assert.ok(signedWith(r.jwt, publicPem(applePair)), "the request was not signed with the APPLE_API_* key");
+  assert.ok(!signedWith(r.jwt, publicPem(ascPair)), "the request was signed with the ASC_* key");
+  assert.match(r.stderr, /asc-auth: using APPLE_API_\* environment/);
+});
+
+test("an ASC_KEY_P8 that is not a private key is a credential error, not a stack trace", async () => {
+  const r = await run({
+    ASC_KEY_ID: "ENVKEY0002",
+    ASC_ISSUER_ID: "env-issuer",
+    ASC_KEY_P8: "this is not a private key at all"
+  });
+  assert.notEqual(r.code, 0);
+  assert.equal(r.kid, null);
+  assert.match(r.stderr, /ASC_KEY_P8 is set but is not a PEM private key/);
+  assert.doesNotMatch(r.stderr, /\n\s+at /, "a stack trace reached the operator");
+});
+
+test("a truncated ASC_KEY_P8 is refused before it reaches the signer", async () => {
+  //  The envelope alone is not a key:  a truncated key carries the envelope
+  //  and still fails to parse, and an unparsable key that reaches the signer
+  //  comes back as a stack trace instead of a credential error.
+  const truncated = "-----BEGIN PRIVATE KEY-----\nnot base64 at all\n-----END PRIVATE KEY-----\n"; // gitleaks:allow
+  const r = await run({
+    ASC_KEY_ID: "ENVKEY0003",
+    ASC_ISSUER_ID: "env-issuer",
+    ASC_KEY_P8: truncated
+  });
+  assert.notEqual(r.code, 0);
+  assert.equal(r.kid, null);
+  assert.match(r.stderr, /ASC_KEY_P8 is set but is not a PEM private key/);
+  assert.doesNotMatch(r.stderr, /\n\s+at /, "a stack trace reached the operator");
 });
 
 test("a fleet-secrets failure names the reason instead of 'exited undefined'", async () => {
@@ -141,40 +241,20 @@ test("a fleet-secrets failure names the reason instead of 'exited undefined'", a
   assert.doesNotMatch(spawnFailed.stderr, /exited undefined/);
 });
 
-test("an ASC_KEY_PATH that exists but cannot be read is named, not swallowed", async () => {
-  // A directory satisfies existsSync() but readFileSync() rejects it, which is
-  // the case that used to abort the whole resolution.  It must now fall through
-  // to fleet-secrets (which resolves nothing here) and still name ASC_KEY_PATH.
-  const notAKeyFile = join(root, "not-a-key-file");
-  mkdirSync(notAKeyFile);
+test("a skipped source stays visible in the notes even when another source resolves", async () => {
+  // The fall-through to the APPLE_API_* trio succeeds, but the skipped source
+  // must not vanish from the log:  the recorded note has to reach the operator.
   const r = await run({
-    ASC_KEY_ID: "UNREAD0001",
-    ASC_ISSUER_ID: "unread-issuer",
-    ASC_KEY_PATH: notAKeyFile,
-    FLEET_SECRETS: join(root, "no-such-binary")
-  });
-  assert.notEqual(r.code, 0);
-  assert.equal(r.kid, null);
-  assert.match(r.stderr, /ASC_KEY_PATH could not be read/);
-});
-
-test("an unreadable ASC_KEY_PATH is still named when another source resolves", async () => {
-  // The fall-through to APPLE_API_* succeeds, but the skipped source must not
-  // vanish from the log: the recorded note has to reach the operator.
-  const notAKeyFile = join(root, "not-a-key-file-2");
-  mkdirSync(notAKeyFile);
-  const r = await run({
-    ASC_KEY_ID: "UNREAD0002",
-    ASC_ISSUER_ID: "unread-issuer",
-    ASC_KEY_PATH: notAKeyFile,
+    ASC_KEY_ID: "PARTIAL001",
+    ASC_ISSUER_ID: "partial-issuer",
     APPLE_API_KEY_ID: "APPLEKEY01",
     APPLE_API_ISSUER_ID: "apple-issuer",
     APPLE_API_KEY_P8_BASE64: Buffer.from(pem(), "utf8").toString("base64")
   });
-  assert.equal(r.code, 0);
+  assert.equal(r.code, 0, r.stderr);
   assert.equal(r.kid, "APPLEKEY01");
-  assert.match(r.stderr, /ASC_KEY_PATH could not be read/);
   assert.match(r.stderr, /asc-auth: using APPLE_API_\* environment/);
+  assert.match(r.stderr, /the environment is missing ASC_KEY_P8/);
 });
 
 test.after(() => rmSync(root, { recursive: true, force: true }));
