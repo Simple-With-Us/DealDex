@@ -66,3 +66,37 @@ test("autofix callers keep their least-privilege and fork guards", () => {
   const claude = read(".github/workflows/claude-code-autofix.yml");
   assert.match(claude, /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/);
 });
+
+test("Claude Autofix keeps the Sentry-capable pin and same-repository bot gate", () => {
+  const claude = read(".github/workflows/claude-code-autofix.yml");
+  // c97a2dae supersedes the AFC #657 pin c79c7840: its reusable default
+  // allowed_bots still contains sentry and sentry[bot] (verified against the
+  // coordinator repo at that SHA) and it adds the model-switch guard and the
+  // per-PR request gate.  Do not override that reviewed policy or restore an
+  // older pin.
+  assert.match(
+    claude,
+    /claude-code-autofix-reusable\.yml@c97a2dae96762eb9ffc122c753f0dfb0a7840650/,
+  );
+  assert.doesNotMatch(claude, /^\s+allowed_bots:/m);
+  const guard = claude.match(/^ {4}if: >-\n([\s\S]*?)^ {4}uses:/m)?.[1];
+  assert.ok(guard, "Claude Autofix has a job-level guard");
+  assert.equal(
+    guard.replace(/\s+/g, " ").trim(),
+    "github.event_name == 'workflow_dispatch' || " +
+      "(github.event_name == 'pull_request_review' && " +
+      "github.event.review.user.type == 'Bot' && " +
+      "github.event.pull_request.head.repo.full_name == github.repository)",
+  );
+});
+
+
+test("PR Autofix retains the reviewed stream-json CLI repair", () => {
+  // c97a2dae supersedes the b634b511 pin 00def854: the reusable at that SHA
+  // still runs claude --print --verbose with --output-format stream-json
+  // (verified against the coordinator repo) and adds the model-switch guard.
+  assert.equal(
+    pin(read(".github/workflows/autofix.yml")).ref,
+    "c97a2dae96762eb9ffc122c753f0dfb0a7840650",
+  );
+});

@@ -50,7 +50,8 @@ function run(env) {
       const base = { PATH: process.env.PATH, HOME: home, FLEET_SECRETS: fake };
       const child = spawn(process.execPath, [script, "GET", url], { env: { ...base, ...env }, stdio: ["ignore", "pipe", "pipe"] });
       child.stdout.resume();
-      child.stderr.resume();
+      let stderr = "";
+      child.stderr.on("data", (c) => { stderr += c; });
       child.on("close", (code) => {
         server.close();
         const jwt = (seen[0] || "").replace(/^Bearer /, "");
@@ -61,7 +62,7 @@ function run(env) {
           kid = part(0).kid;
           iss = part(1).iss;
         }
-        resolve({ code, kid, iss });
+        resolve({ code, kid, iss, stderr });
       });
     });
   });
@@ -116,6 +117,64 @@ test("only a leading ~/ is expanded in ASC_KEY_PATH", async () => {
   assert.equal(ok.kid, "TILDEKEY01");
   const bad = await run({ ASC_KEY_ID: "TILDEKEY01", ASC_ISSUER_ID: "tilde-issuer", ASC_KEY_PATH: "~other/tilde-key.p8", FLEET_SECRETS: gone });
   assert.notEqual(bad.code, 0);
+});
+
+test("a fleet-secrets failure names the reason instead of 'exited undefined'", async () => {
+  // A missing binary, a non-zero exit and a spawn error all reach the catch
+  // path; each must report its own cause.
+  const missing = await run({ FLEET_SECRETS: join(root, "no-such-binary") });
+  assert.match(missing.stderr, /the fleet-secrets binary is not available/);
+  assert.doesNotMatch(missing.stderr, /exited undefined/);
+
+  const failing = join(root, "failing-fleet-secrets");
+  writeFileSync(failing, "#!/usr/bin/env node\nprocess.exit(3);\n");
+  chmodSync(failing, 0o755);
+  const exited = await run({ FLEET_SECRETS: failing });
+  assert.match(exited.stderr, /fleet-secrets exited 3/);
+  assert.doesNotMatch(exited.stderr, /exited undefined/);
+
+  const notExecutable = join(root, "not-executable-fleet-secrets");
+  writeFileSync(notExecutable, "#!/usr/bin/env node\n");
+  chmodSync(notExecutable, 0o600);
+  const spawnFailed = await run({ FLEET_SECRETS: notExecutable });
+  assert.match(spawnFailed.stderr, /fleet-secrets failed: E[A-Z]+/);
+  assert.doesNotMatch(spawnFailed.stderr, /exited undefined/);
+});
+
+test("an ASC_KEY_PATH that exists but cannot be read is named, not swallowed", async () => {
+  // A directory satisfies existsSync() but readFileSync() rejects it, which is
+  // the case that used to abort the whole resolution.  It must now fall through
+  // to fleet-secrets (which resolves nothing here) and still name ASC_KEY_PATH.
+  const notAKeyFile = join(root, "not-a-key-file");
+  mkdirSync(notAKeyFile);
+  const r = await run({
+    ASC_KEY_ID: "UNREAD0001",
+    ASC_ISSUER_ID: "unread-issuer",
+    ASC_KEY_PATH: notAKeyFile,
+    FLEET_SECRETS: join(root, "no-such-binary")
+  });
+  assert.notEqual(r.code, 0);
+  assert.equal(r.kid, null);
+  assert.match(r.stderr, /ASC_KEY_PATH could not be read/);
+});
+
+test("an unreadable ASC_KEY_PATH is still named when another source resolves", async () => {
+  // The fall-through to APPLE_API_* succeeds, but the skipped source must not
+  // vanish from the log: the recorded note has to reach the operator.
+  const notAKeyFile = join(root, "not-a-key-file-2");
+  mkdirSync(notAKeyFile);
+  const r = await run({
+    ASC_KEY_ID: "UNREAD0002",
+    ASC_ISSUER_ID: "unread-issuer",
+    ASC_KEY_PATH: notAKeyFile,
+    APPLE_API_KEY_ID: "APPLEKEY01",
+    APPLE_API_ISSUER_ID: "apple-issuer",
+    APPLE_API_KEY_P8_BASE64: Buffer.from(pem(), "utf8").toString("base64")
+  });
+  assert.equal(r.code, 0);
+  assert.equal(r.kid, "APPLEKEY01");
+  assert.match(r.stderr, /ASC_KEY_PATH could not be read/);
+  assert.match(r.stderr, /asc-auth: using APPLE_API_\* environment/);
 });
 
 test.after(() => rmSync(root, { recursive: true, force: true }));

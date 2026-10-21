@@ -63,7 +63,6 @@ If you create, change, load, bootout, or retire a LaunchAgent, cron row, login i
 | Codex       | `~/apps/dealdex-codex`                  | `codex/`                     |
 | Antigravity | `~/apps/dealdex-antigravity`            | `ag/` or `agent/antigravity` |
 | Cursor      | `~/apps/dealdex-cursor`                 | `cursor/`                    |
-| Monet       | `~/apps/dealdex-monet`                  | `monet/`                     |
 
 Create a missing lane with:
 
