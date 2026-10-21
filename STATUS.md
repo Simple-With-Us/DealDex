@@ -1,3 +1,7 @@
+## 2026-10-21 CLAUDE — iOS credential failures are named, not swallowed (Kody)
+
+`scripts/ios-fleet/asc-api.mjs` no longer hides a failed credential read.  A staged key that cannot be read throws an error naming `ASC_KEY_PATH`, failed `fleet-secrets` lookups record the secret name and folder, and the "no credential found" message lists those notes plus the Infisical `/asc` source.  `scripts/ios-fleet/ship-testflight.sh` reports a failed write of the staged `.p8` and fails closed instead of leaving an empty key file.  No credential source changed.  See `docs/rollouts/2026-10-21-kody-asc-credential-diagnostics.md`.
+
 ## 2026-10-19 MM — Real market scan capture for the catalog page (SWU-15)
 
 `docs/screenshots/scan-results.png` is a real capture of the live web app at `https://dealdex.net`: a completed scan for `Umbreon VMAX Evolving Skies` that returned 11 Mercari listings and no eBay singles, at 1440 x 900 CSS pixels and device pixel ratio 2. Live verdicts, ask prices and desk ranges are visible in the listing cards. `docs/screenshots/README.md` records the provenance, and `Simple-With-Us` publishes the processed WebP on the DealDex catalog page from this file. No product code, copy or behaviour changed. See `docs/rollouts/2026-10-19-dd-scan-screenshots.md`.
