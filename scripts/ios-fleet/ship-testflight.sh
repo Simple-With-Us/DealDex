@@ -206,7 +206,13 @@ fs_get() {
 load_secrets() {
   AUTH_MODE="none"
   if [[ -n "${ASC_KEY_ID:-}" && -n "${ASC_ISSUER_ID:-}" && -n "${ASC_KEY_PATH:-}" ]]; then
-    if [[ -f "$(expand_tilde "$ASC_KEY_PATH")" ]]; then
+    local env_key_path
+    env_key_path="$(expand_tilde "$ASC_KEY_PATH")"
+    if [[ -f "$env_key_path" ]]; then
+      # Export the EXPANDED path, like the Infisical branch below: a literal
+      # "~/..." left in ASC_KEY_PATH makes link_private_key create a dangling
+      # symlink, so altool never finds the key after a costly upload.
+      export ASC_KEY_PATH="$env_key_path"
       AUTH_MODE="api_key"
       return 0
     fi
@@ -241,8 +247,16 @@ load_secrets() {
   if [[ -z "$ASC_TMP_DIR" ]]; then
     ASC_TMP_DIR="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/asc-key.XXXXXX")"
   fi
-  ( umask 077; printf '%s\n' "$p8" > "${ASC_TMP_DIR}/AuthKey_${kid}.p8" )
-  chmod 600 "${ASC_TMP_DIR}/AuthKey_${kid}.p8"
+  # A failed write would leave an empty key file behind and the real reason
+  # would be lost, so it is reported and the load fails closed.
+  if ! ( umask 077; printf '%s\n' "$p8" > "${ASC_TMP_DIR}/AuthKey_${kid}.p8" ); then
+    log "could not stage the ASC private key under ${ASC_TMP_DIR}: the file write failed (no key material printed)"
+    rm -f "${ASC_TMP_DIR}/AuthKey_${kid}.p8" 2>/dev/null || true
+    p8=""
+    return 1
+  fi
+  chmod 600 "${ASC_TMP_DIR}/AuthKey_${kid}.p8" \
+    || log "could not set mode 600 on the staged ASC private key under ${ASC_TMP_DIR}"
   p8=""
   export ASC_KEY_ID="$kid" ASC_ISSUER_ID="$iss" ASC_KEY_PATH="${ASC_TMP_DIR}/AuthKey_${kid}.p8"
   # altool searches API_PRIVATE_KEYS_DIR first, so no symlink into ~/.appstoreconnect is needed.
@@ -1103,6 +1117,27 @@ ensure_tf_ready() {
     log "warning: if the phone never gets this build, declare compliance by hand in App Store Connect"
     if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
       echo "::warning::ensure-tf-ready could not find uploaded build ${BUILD_NUM} for ${BUNDLE_ID}; export compliance not declared"
+    fi
+    return 0
+  fi
+  # rc=5 / rc=6 are NOT compliance failures: asc-api.mjs returns them only after
+  # the build reached IN_BETA_TESTING and the compliance PATCH already landed,
+  # so they say the build is ready but nobody (rc=5) or the tester count
+  # (rc=6) could not confirm. Falling through to the catch-all below would tell
+  # the owner to redeclare compliance by hand on an already-compliant build.
+  if [[ $rc -eq 5 ]]; then
+    log "warning: build ${BUILD_NUM} is compliant and in beta testing, but NO internal tester has access to all builds"
+    log "warning: add an internal tester (or a build-access group) in App Store Connect or the phone never gets this build"
+    if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+      echo "::warning::ensure-tf-ready: ${BUNDLE_ID} build ${BUILD_NUM} is ready but no internal tester can install it"
+    fi
+    return 0
+  fi
+  if [[ $rc -eq 6 ]]; then
+    log "warning: build ${BUILD_NUM} is compliant and in beta testing, but the internal tester count could not be read"
+    log "warning: installability is unverified -- check the TestFlight groups by hand in App Store Connect"
+    if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+      echo "::warning::ensure-tf-ready: ${BUNDLE_ID} build ${BUILD_NUM} is ready but the internal tester state is unreadable"
     fi
     return 0
   fi

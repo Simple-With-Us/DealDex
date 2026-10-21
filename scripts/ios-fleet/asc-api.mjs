@@ -7,8 +7,8 @@
  * (never prints values):
  *   1. ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_PATH in the environment
  *   2. APPLE_API_KEY_ID / APPLE_API_ISSUER_ID / APPLE_API_KEY_P8_BASE64
- *      (hosted ios-ship / Infisical; p8 is base64, decoded to a 0600 temp
- *      file and removed on exit)
+ *      (hosted ios-ship / Infisical; p8 is base64, decoded to a PEM kept in
+ *      memory -- signing never writes it to disk)
  *
  * Usage:
  *   node asc-api.mjs GET /v1/apps
@@ -20,10 +20,10 @@
  * echoing anything secret-shaped from the response (ASC responses don't
  * carry credentials, only app metadata, so this is safe to print as-is).
  */
-import { existsSync, readFileSync, writeFileSync, mkdtempSync, rmSync, chmodSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash, createSign } from "node:crypto";
-import { homedir, tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -44,18 +44,10 @@ function base64url(input) {
 // authenticate, and because asc_latest_seq() in ship-testflight.sh discarded
 // this script's stderr, the resulting rc=2 was undiagnosable from the run log.
 //
-// APPLE_API_KEY_P8_BASE64 is base64, so it is decoded into a 0600 file inside a
-// 0700 temp directory and unlinked on exit.  Values are never printed; only the
-// source and the key-id LENGTH are logged.
-const TEMP_KEY_DIRS = [];
-
-function cleanupTempKeys() {
-  while (TEMP_KEY_DIRS.length) {
-    const dir = TEMP_KEY_DIRS.pop();
-    try { rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
-  }
-}
-process.on("exit", cleanupTempKeys);
+// APPLE_API_KEY_P8_BASE64 is base64, so it is decoded to a PEM that stays in
+// memory: signJwt() uses privateKeyPem directly, so the key is never written
+// to the runner's disk.  Values are never printed; only the source and the
+// key-id LENGTH are logged.
 
 // Accepts either a raw PEM (some callers store the .p8 body verbatim) or the
 // base64 encoding GitHub Actions + Infisical use. Returns null when the input
@@ -73,14 +65,13 @@ function decodeP8(b64) {
   return pem.includes("-----BEGIN ") ? pem : null;
 }
 
-function materializeP8(pem) {
-  const dir = mkdtempSync(join(tmpdir(), "asc-key-"));
-  try { chmodSync(dir, 0o700); } catch { /* best effort */ }
-  const p = join(dir, "AuthKey.p8");
-  writeFileSync(p, pem, { mode: 0o600 });
-  TEMP_KEY_DIRS.push(dir);
-  return p;
-}
+// Why a credential source could not be used.  A failed lookup is never
+// swallowed: it is recorded here with the secret name and folder, and the
+// notes are printed on every path, so a broken secret read is diagnosable
+// instead of reporting a bare "no credential found" -- and a source that was
+// skipped (an unreadable ASC_KEY_PATH, a failed fleet-secrets call) stays
+// visible even when another source resolves.
+const RESOLUTION_NOTES = [];
 
 // Infisical Fleet-OPS through `fleet-secrets get` (AFC-359).  "" when absent.
 // FLEET_SECRETS_BIN / FLEET_SECRETS override the binary (tests, ship-testflight.sh).
@@ -92,20 +83,38 @@ function fleetSecretsGet(name, folder) {
   try {
     return execFileSync(bin, ["get", name, "--path", folder], {
       encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      timeout: 30000
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 30000,
+      maxBuffer: 8 * 1024 * 1024
     }).replace(/\n$/, "");
-  } catch {
+  } catch (err) {
+    // The secret may simply be absent, so this is not fatal on its own; the
+    // reason is recorded (never the value) so it can be reported.
+    const why = err.code === "ENOENT"
+      ? "the fleet-secrets binary is not available"
+      : err.code === "ETIMEDOUT"
+        ? "fleet-secrets timed out after 30s"
+        : err.code
+          ? `fleet-secrets failed: ${err.code}`
+          : err.signal
+            ? `fleet-secrets was killed by ${err.signal}`
+            : `fleet-secrets exited ${err.status}`;
+    RESOLUTION_NOTES.push(`fleet-secrets get ${name} (${folder}) failed: ${why}`);
     return "";
   }
 }
 
+// Reads the staged private key.  A read failure is never swallowed: it throws
+// an error that names ASC_KEY_PATH, so the caller reports which secret failed
+// to resolve instead of continuing without a credential.
 function fromFile(keyId, issuerId, keyPath, source) {
+  let privateKeyPem;
   try {
-    return { keyId: keyId.trim(), issuerId: issuerId.trim(), privateKeyPem: readFileSync(keyPath, "utf8"), source };
-  } catch {
-    return null;
+    privateKeyPem = readFileSync(keyPath, "utf8");
+  } catch (err) {
+    throw new Error(`Unable to resolve required secret ASC_KEY_PATH (${source}): ${err.code || err.message}`, { cause: err });
   }
+  return { keyId: keyId.trim(), issuerId: issuerId.trim(), privateKeyPem, source };
 }
 
 // Returns { keyId, issuerId, privateKeyPem, source } or { error } or { error: null }.
@@ -115,9 +124,31 @@ function resolveCredential() {
   const envIssuer = String(process.env.ASC_ISSUER_ID || "").trim();
   // Only a leading ~/ expands, so ~other/x stays a relative name (never a key read).
   const envKeyPath = String(process.env.ASC_KEY_PATH || "").trim().replace(/^~(?=\/)/, homedir());
-  if (envKeyId && envIssuer && envKeyPath && existsSync(envKeyPath)) {
-    const got = fromFile(envKeyId, envIssuer, envKeyPath, "ASC_KEY_* environment");
-    if (got) return got;
+  if (envKeyId && envIssuer && envKeyPath) {
+    if (!existsSync(envKeyPath)) {
+      RESOLUTION_NOTES.push("ASC_KEY_PATH is set but the file does not exist");
+    } else {
+      try {
+        return fromFile(envKeyId, envIssuer, envKeyPath, "ASC_KEY_* environment");
+      } catch (err) {
+        // The path exists but is unusable (a directory, a mode-000 file): name
+        // it and let the other sources try, matching ship-testflight.sh's
+        // [[ -f ]] fallthrough.  The note is printed on every path, so the
+        // fall-through is visible even when another source resolves.
+        RESOLUTION_NOTES.push(`ASC_KEY_PATH could not be read (${err.cause?.code || err.message}); trying the other credential sources`);
+      }
+    }
+  } else {
+    const missing = [
+      envKeyId ? null : "ASC_KEY_ID",
+      envIssuer ? null : "ASC_ISSUER_ID",
+      envKeyPath ? null : "ASC_KEY_PATH",
+    ].filter(Boolean);
+    // A completely empty environment is normal (the hosted runner uses the
+    // APPLE_API_* or the Infisical form); a partial one is worth naming.
+    if (missing.length && missing.length < 3) {
+      RESOLUTION_NOTES.push(`the environment is missing ${missing.join(", ")}`);
+    }
   }
 
   // No file is read here (AFC-359).  Local-Mac operators set ASC_KEY_ID /
@@ -129,10 +160,16 @@ function resolveCredential() {
   // 2) The APPLE_API_* trio the ship workflow exports from Infisical.
   const keyId = String(process.env.APPLE_API_KEY_ID || "").trim();
   const issuerId = String(process.env.APPLE_API_ISSUER_ID || "").trim();
+  if (process.env.APPLE_API_KEY_P8_BASE64 && !(keyId && issuerId)) {
+    const missing = [
+      keyId ? null : "APPLE_API_KEY_ID",
+      issuerId ? null : "APPLE_API_ISSUER_ID",
+    ].filter(Boolean);
+    RESOLUTION_NOTES.push(`the environment is missing ${missing.join(", ")}`);
+  }
   if (keyId && issuerId && process.env.APPLE_API_KEY_P8_BASE64) {
     const pem = decodeP8(process.env.APPLE_API_KEY_P8_BASE64);
     if (!pem) return { error: "APPLE_API_KEY_P8_BASE64 is set but did not decode to a PEM private key" };
-    materializeP8(pem);
     return { keyId, issuerId, privateKeyPem: pem, source: "APPLE_API_* environment (base64 p8)" };
   }
 
@@ -154,6 +191,19 @@ function resolveCredential() {
       if (!pem.endsWith("\n")) pem += "\n";
       return { keyId: infKeyId, issuerId: infIssuer, privateKeyPem: pem, source: "Infisical /asc" };
     }
+  }
+
+  // Name the piece that was missing so the failure is diagnosable.
+  if (!infKeyId) {
+    RESOLUTION_NOTES.push("no ASC_KEY_ID in the environment or in Infisical /asc");
+  } else if (!infIssuer) {
+    RESOLUTION_NOTES.push(`no ASC_ISSUER_ID for key id ${infKeyId} in the environment or in Infisical /asc`);
+  } else if (!/^[A-Za-z0-9]+$/.test(infKeyId)) {
+    RESOLUTION_NOTES.push(`key id ${infKeyId} is not a valid App Store Connect key id`);
+  } else {
+    RESOLUTION_NOTES.push(
+      `no private key for key id ${infKeyId}: expected ASC_KEY_P8 in Infisical /asc or AUTHKEY_${infKeyId} in /authkey-${infKeyId.toLowerCase()}-p8`
+    );
   }
 
   return { error: null };
@@ -656,16 +706,23 @@ async function main() {
   const cred = resolveCredential();
   if (cred.error) {
     console.error(`asc-auth: ${cred.error}`);
+    for (const note of RESOLUTION_NOTES) console.error(`asc-auth:   - ${note}`);
     process.exit(1);
   }
   if (!cred.privateKeyPem) {
     console.error(
       "asc-auth: no App Store Connect credential found. Tried, in order:\n" +
       "  1) ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_PATH in the environment\n" +
-      "  2) APPLE_API_KEY_ID / APPLE_API_ISSUER_ID / APPLE_API_KEY_P8_BASE64 in the environment"
+      "  2) APPLE_API_KEY_ID / APPLE_API_ISSUER_ID / APPLE_API_KEY_P8_BASE64 in the environment\n" +
+      "  3) ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_P8 in Infisical /asc (fleet-secrets get)"
     );
+    for (const note of RESOLUTION_NOTES) console.error(`asc-auth:   - ${note}`);
     process.exit(1);
   }
+  // A source that was skipped (an unreadable ASC_KEY_PATH, a failed
+  // fleet-secrets call) stays visible here too: falling through to another
+  // source must not hide the recorded failure.
+  for (const note of RESOLUTION_NOTES) console.error(`asc-auth:   - ${note}`);
   console.error(`asc-auth: using ${cred.source} (key id length ${cred.keyId.length})`);
   const token = signJwt({ keyId: cred.keyId, issuerId: cred.issuerId, privateKeyPem: cred.privateKeyPem });
 

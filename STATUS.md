@@ -1,3 +1,7 @@
+## 2026-10-21 CLAUDE — iOS credential failures are named, not swallowed (Kody)
+
+`scripts/ios-fleet/asc-api.mjs` no longer hides a failed credential read.  A staged key that cannot be read throws an error naming `ASC_KEY_PATH`, failed `fleet-secrets` lookups record the secret name and folder, and the "no credential found" message lists those notes plus the Infisical `/asc` source.  The recorded notes are also printed on the success path, so a source that was skipped (an unreadable `ASC_KEY_PATH`, a failed `fleet-secrets` call) stays visible even when another source resolves the credential.  `scripts/ios-fleet/ship-testflight.sh` reports a failed write of the staged `.p8` and fails closed instead of leaving an empty key file.  No credential source changed.  See `docs/rollouts/2026-10-21-kody-asc-credential-diagnostics.md`.
+
 ## 2026-10-19 MM — Real market scan capture for the catalog page (SWU-15)
 
 `docs/screenshots/scan-results.png` is a real capture of the live web app at `https://dealdex.net`: a completed scan for `Umbreon VMAX Evolving Skies` that returned 11 Mercari listings and no eBay singles, at 1440 x 900 CSS pixels and device pixel ratio 2. Live verdicts, ask prices and desk ranges are visible in the listing cards. `docs/screenshots/README.md` records the provenance, and `Simple-With-Us` publishes the processed WebP on the DealDex catalog page from this file. No product code, copy or behaviour changed. See `docs/rollouts/2026-10-19-dd-scan-screenshots.md`.
@@ -5,6 +9,12 @@
 ## 2026-10-19 CLAUDE — iOS ship scripts read Infisical (AFC-359)
 
 `ship-testflight.sh`, `asc-api.mjs` and `ios-appstore-gm-prepare.sh` no longer read or write the old local secrets folder. ASC credentials come from the environment first (CI), else Infisical `/asc` (ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8) through `fleet-secrets`. New `scripts/ios-fleet/test-asc-credentials.sh` runs in CI. See `docs/rollouts/2026-10-19-afc-359-ios-secrets-to-infisical.md`.
+
+## 2026-10-18 JET — Sentry Autofix Caller (BF-2487)
+
+Claude Code Autofix now pins AFC `c79c7840d4d3d71bffad08067ce4a1084f0bbb34`, adding the exact Sentry bot accounts to the reusable actor policy. The same-repository bot-review gate, permissions, secrets, concurrency, and prompt remain unchanged. Separately, PR Autofix pins `00def8545947e21ffe285ea67c1812c7bd321dfc` for the one-line `--verbose` CLI repair; its existing actor list still excludes Sentry, avoiding an additional Sentry loop.
+
+Validation: six workflow-guard tests pass in an isolated fixture; exact reusable diffs and diagnostics dependencies were inspected. Full local gates were not run; final-head hosted checks and a later eligible Sentry run remain to be verified. Rollout: `docs/rollouts/2026-10-18-sentry-autofix-caller.md`.
 
 ## 2026-10-18 JET — Repaired AFC Autofix Pin (AFC-350)
 
