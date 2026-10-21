@@ -201,6 +201,57 @@ test("an ASC_KEY_P8 that is not a private key is a credential error, not a stack
   assert.equal(r.kid, null);
   assert.match(r.stderr, /ASC_KEY_P8 is set but is not a PEM private key/);
   assert.doesNotMatch(r.stderr, /\n\s+at /, "a stack trace reached the operator");
+  //  The rejection carries a MASKED PREVIEW -- the first eight and the last
+  //  four characters -- and never the key itself.
+  assert.match(r.stderr, /preview: this is \.\.\. all/,
+    "the rejected key was reported without a masked preview");
+  assert.ok(!r.stderr.includes("this is not a private key at all"),
+    "the rejected key was reported whole");
+});
+
+test("a rejected key is reported with the blessed masked preview", async () => {
+  //  The first eight characters of "not a private key at all" are "not a pr"
+  //  and the last four are " all", so that value previews as "not a pr... all".
+  const r = await run({
+    ASC_KEY_ID: "ENVKEY0004",
+    ASC_ISSUER_ID: "env-issuer",
+    ASC_KEY_P8: "not a private key at all"
+  });
+  assert.notEqual(r.code, 0);
+  assert.match(r.stderr, /preview: not a pr\.\.\. all/,
+    "the rejected key was reported without the masked preview");
+  assert.ok(!r.stderr.includes("not a private key at all"),
+    "the rejected key was reported whole");
+});
+
+test("a value too short to mask safely is withheld whole", async () => {
+  //  A preview can never become the secret it describes, so a short value is
+  //  reported as a length and nothing else.
+  const r = await run({
+    ASC_KEY_ID: "ENVKEY0005",
+    ASC_ISSUER_ID: "env-issuer",
+    ASC_KEY_P8: "short"
+  });
+  assert.notEqual(r.code, 0);
+  assert.match(r.stderr, /preview: \[5 chars, withheld\]/,
+    "a short value was not withheld");
+  assert.ok(!r.stderr.includes("short"),
+    "a short value was reported whole");
+});
+
+test("a rejected base64 key is reported with a masked preview too", async () => {
+  const r = await run({
+    APPLE_API_KEY_ID: "APPLEKEY02",
+    APPLE_API_ISSUER_ID: "apple-issuer",
+    APPLE_API_KEY_P8_BASE64: Buffer.from("not a private key at all", "utf8").toString("base64")
+  });
+  assert.notEqual(r.code, 0);
+  assert.equal(r.kid, null);
+  assert.match(r.stderr, /APPLE_API_KEY_P8_BASE64 is set but did not decode to a PEM private key/);
+  assert.match(r.stderr, /preview: bm90IGEg\.\.\.YWxs/,
+    "the rejected base64 key was reported without a masked preview");
+  assert.ok(!r.stderr.includes("bm90IGEgcHJpdmF0ZSBrZXkgYXQgYWxs"),
+    "the rejected base64 key was reported whole");
 });
 
 test("a truncated ASC_KEY_P8 is refused before it reaches the signer", async () => {

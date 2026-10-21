@@ -14,9 +14,10 @@
  * A caller-supplied file is NOT a credential source (AFC-459, Kody rule 42):
  * the private key is a secret, and the approved sources are the process
  * environment, a captured `fleet-secrets get NAME` and bootstrap-only Keychain
- * credentials.  The shell layer that owns the credential reads a staged key
- * file and hands the key over in the environment, so ASC_KEY_PATH never
- * reaches this client as a path to read.
+ * credentials.  The shell layer that owns the credential stages its own
+ * short-lived, owner-only copy from the resolved key and hands the key over in
+ * the environment, so ASC_KEY_PATH never reaches this client as a path to
+ * read.
  *
  * Usage:
  *   node asc-api.mjs GET /v1/apps
@@ -38,6 +39,17 @@ import { normalizePrivateKey } from "./asc-key.mjs";
 
 function base64url(input) {
   return Buffer.from(input).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+// A rejected key is reported with a MASKED PREVIEW, never with the key
+// itself:  the first eight and the last four characters, nothing else
+// (Kody rule 28).  A value too short to mask safely is withheld whole, so
+// the preview can never become the secret.
+function maskedPreview(value) {
+  const text = String(value ?? "");
+  if (text.length === 0) return "(empty)";
+  if (text.length <= 12) return `[${text.length} chars, withheld]`;
+  return `${text.slice(0, 8)}...${text.slice(-4)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -157,7 +169,10 @@ function resolveCredential() {
   }
   if (keyId && issuerId && process.env.APPLE_API_KEY_P8_BASE64) {
     const pem = normalizePrivateKey(decodeP8(process.env.APPLE_API_KEY_P8_BASE64));
-    if (!pem) return { error: "APPLE_API_KEY_P8_BASE64 is set but did not decode to a PEM private key" };
+    if (!pem) return {
+      error: "APPLE_API_KEY_P8_BASE64 is set but did not decode to a PEM private key"
+        + `; preview: ${maskedPreview(process.env.APPLE_API_KEY_P8_BASE64)}`
+    };
     return { keyId, issuerId, privateKeyPem: pem, source: "APPLE_API_* environment (base64 p8)" };
   }
 
@@ -166,7 +181,10 @@ function resolveCredential() {
   //    hands a staged key to this client.
   if (envKeyId && envIssuer && envKeyPem) {
     const pem = normalizePrivateKey(envKeyPem);
-    if (!pem) return { error: "ASC_KEY_P8 is set but is not a PEM private key" };
+    if (!pem) return {
+      error: "ASC_KEY_P8 is set but is not a PEM private key"
+        + `; preview: ${maskedPreview(envKeyPem)}`
+    };
     return { keyId: envKeyId, issuerId: envIssuer, privateKeyPem: pem, source: "ASC_KEY_P8 environment" };
   }
 

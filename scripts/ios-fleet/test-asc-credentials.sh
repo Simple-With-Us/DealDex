@@ -3,11 +3,12 @@
 # environment first, then from Infisical through fleet-secrets, and never from
 # the old secrets folder.
 #
-# 2026-10-21 (AFC-459 / Kody rule 42): the private key is handed over in the
-# environment, never as a path the node client reads.  The shell layer owns the
-# credential, so this test drives load_secrets with a FAKE fleet-secrets binary
-# and throwaway keys generated here at test time.  No network, no real
-# secrets, and no committed key.
+# 2026-10-21 (AFC-459): the private key is handed over in the environment,
+# never as a path the node client reads.  A path on disk is not an approved
+# credential source, so ASC_KEY_PATH is ignored wherever it appears.  The shell
+# layer owns the credential, so this test drives load_secrets with a FAKE
+# fleet-secrets binary and throwaway keys generated here at test time.  No
+# network, no real secrets, and no committed key.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -49,28 +50,77 @@ esac
 FAKE
 chmod +x "${tmp}/fleet-secrets"
 export FAKE_LOG="${tmp}/fake.log"
+export ASC_TEST_LOG="${tmp}/ship.log"
 export FAKE_ASC_PEM="${tmp}/asc.p8"
 export FAKE_OTHER_PEM="${tmp}/other.p8"
 : > "$FAKE_LOG"
 
 extract() {
   awk '
-    /^fs_get\(\) \{/ || /^load_secrets\(\) \{/ || /^cleanup_asc_tmp\(\) \{/ || /^expand_tilde\(\) \{/ || /^asc_client\(\) \{/ { grab = 1 }
+    /^fs_get\(\) \{/ || /^load_secrets\(\) \{/ || /^cleanup_asc_tmp\(\) \{/ || /^expand_tilde\(\) \{/ || /^key_preview\(\) \{/ { grab = 1 }
     grab { print }
     grab && /^\}/ { grab = 0 }
   ' "$script"
 }
 
+# The comparison tool.  It answers through the exit code only, so a
+# credential is never expanded into the shell, where a trace would show it.
+#
+#   same <file>          the value in VALUE_TO_COMPARE equals the file
+#   different <file>      the value in VALUE_TO_COMPARE differs from the file
+#   samefile <a> <b>     the two files hold the same key
+#   differentfile <a> <b> the two files hold different keys
+cat > "${tmp}/compare.cjs" <<'CJS'
+const fs = require("fs");
+const mode = process.argv[2];
+const first = process.argv[3];
+const second = process.argv[4];
+const value = process.env.VALUE_TO_COMPARE || "";
+const read = (path) => fs.readFileSync(path, "utf8").trim();
+const equal = second ? read(first) === read(second) : value.trim() === read(first);
+const wantsDifferent = mode === "different" || mode === "differentfile";
+process.exit(wantsDifferent ? (equal ? 1 : 0) : (equal ? 0 : 1));
+CJS
+
 funcs="${tmp}/funcs.sh"
 {
-  echo 'log() { :; }'
+  echo 'log() { echo "$*" >> "${ASC_TEST_LOG:-/dev/null}"; }'
   echo 'ASC_TMP_DIR=""'
   echo "FLEET_SECRETS_BIN=\"${tmp}/fleet-secrets\""
   echo "FLEET_DIR=\"${here}\""
+  echo "ASC_COMPARE_TOOL=\"${tmp}/compare.cjs\""
+  cat <<'FUNCS'
+same_as_file() {
+  VALUE_TO_COMPARE="$1" node "$ASC_COMPARE_TOOL" same "$2"
+}
+different_from_file() {
+  VALUE_TO_COMPARE="$1" node "$ASC_COMPARE_TOOL" different "$2"
+}
+same_file_as_file() {
+  node "$ASC_COMPARE_TOOL" samefile "$1" "$2"
+}
+different_file_from_file() {
+  node "$ASC_COMPARE_TOOL" differentfile "$1" "$2"
+}
+FUNCS
   extract
 } > "$funcs"
 grep -q '^load_secrets()' "$funcs" || fail "load_secrets not found in ship-testflight.sh"
 grep -q '^fs_get()' "$funcs" || fail "fs_get not found in ship-testflight.sh"
+grep -q '^key_preview()' "$funcs" || fail "key_preview not found in ship-testflight.sh"
+
+#  The masked preview shows the first eight and the last four characters and
+#  nothing else.  A value too short to mask safely is withheld whole, so a
+#  preview can never become the secret it describes.
+preview_of() {
+  bash -c 'source "'"$funcs"'"; key_preview "$1"' _ "$1"
+}
+[[ "$(preview_of "not a private key at all")" == "not a pr... all" ]] \
+  || fail "key_preview did not mask the first eight and last four characters"
+[[ "$(preview_of "short")" == "[5 chars, withheld]" ]] \
+  || fail "key_preview did not withhold a short value"
+[[ "$(preview_of "")" == "(empty)" ]] \
+  || fail "key_preview did not report an empty value"
 
 # 1. Nothing in the environment:  credentials come from Infisical, the key is a 0600 temp file.
 out="$(env -u ASC_KEY_ID -u ASC_ISSUER_ID -u ASC_KEY_PATH -u ASC_KEY_P8 bash -c '
@@ -83,10 +133,10 @@ out="$(env -u ASC_KEY_ID -u ASC_ISSUER_ID -u ASC_KEY_PATH -u ASC_KEY_P8 bash -c 
   mode="$(stat -c %a "$ASC_KEY_PATH" 2>/dev/null || stat -f %Lp "$ASC_KEY_PATH")"
   [[ "$mode" == 600 ]]
   [[ "$API_PRIVATE_KEYS_DIR" == "$ASC_TMP_DIR" ]]
-  # The staged file holds the /asc key.
-  [[ "$(cat "$ASC_KEY_PATH")" == "$(cat "'"$tmp"'/asc.p8")" ]]
-  # The client takes the key from the environment, never from a path.
-  [[ "$(printf "%s" "$ASC_KEY_P8")" == "$(cat "'"$tmp"'/asc.p8")" ]]
+  # The staged file holds the /asc key, and the client takes the key from the
+  # environment.  Neither comparison prints a value.
+  same_file_as_file "$ASC_KEY_PATH" "'"$tmp"'/asc.p8"
+  same_as_file "$ASC_KEY_P8" "'"$tmp"'/asc.p8"
   echo "$ASC_KEY_PATH"
   cleanup_asc_tmp
   [[ ! -e "$ASC_KEY_PATH" ]]
@@ -96,7 +146,7 @@ grep -q '^ASC_KEY_ID /asc$' "$FAKE_LOG" || fail "did not ask Infisical /asc for 
 grep -q '^ASC_KEY_P8 /asc$' "$FAKE_LOG" || fail "did not ask Infisical /asc for the key"
 
 # 2. The environment wins over a named key file.  A disk credential never
-# overrides the environment (Kody rule 42 on PR #271):  a stale or foreign
+# overrides the environment (AFC-459):  a stale or foreign
 # value in an operator's shell would sign the upload with the wrong key.
 : > "$FAKE_LOG"
 cp "${tmp}/asc.p8" "${tmp}/named-key.p8"
@@ -107,43 +157,122 @@ ASC_KEY_ID=ENVKEY0001 ASC_ISSUER_ID=env-issuer \
   source "'"$funcs"'"
   load_secrets
   [[ "$AUTH_MODE" == api_key && "$ASC_KEY_ID" == ENVKEY0001 ]]
-  # The environment key is the credential in play.
-  [[ "$(printf "%s" "$ASC_KEY_P8")" == "$(cat "'"$tmp"'/other.p8")" ]]
-  [[ "$(printf "%s" "$ASC_KEY_P8")" != "$(cat "'"$tmp"'/asc.p8")" ]]
-  # The named file was not read:  no file was staged for the client.
-  [[ -z "${ASC_STAGED_KEY_PATH:-}" ]]
+  # The environment key is the credential in play, and the named file is not.
+  same_as_file "$ASC_KEY_P8" "'"$tmp"'/other.p8"
+  different_from_file "$ASC_KEY_P8" "'"$tmp"'/named-key.p8"
 ' || fail "a named key file overrode the environment"
 [[ ! -s "$FAKE_LOG" ]] || fail "fleet-secrets was called although the environment was complete"
 
-# 2a. A named key file is used as a FILE:  the key material never enters this
-# shell, the file is used where it lies, and the client is handed the key in
-# the child's environment by the hardened reader.
+# 2a. A named ASC_KEY_PATH is not a credential source at all:  it is ignored,
+# and the credential comes from Infisical.  A file somebody names can never
+# decide which key signs the upload (AFC-459).
 : > "$FAKE_LOG"
-cp "${tmp}/asc.p8" "${tmp}/env-key.p8"
-chmod 600 "${tmp}/env-key.p8"
-env -u ASC_KEY_P8 ASC_KEY_ID=ENVKEY0001 ASC_ISSUER_ID=env-issuer ASC_KEY_PATH="${tmp}/env-key.p8" bash -c '
+cp "${tmp}/other.p8" "${tmp}/named-file.p8"
+chmod 600 "${tmp}/named-file.p8"
+env -u ASC_KEY_P8 ASC_KEY_ID=ABCDE12345 ASC_ISSUER_ID=issuer-synthetic ASC_KEY_PATH="${tmp}/named-file.p8" bash -c '
   set -euo pipefail
   source "'"$funcs"'"
   load_secrets
-  [[ "$AUTH_MODE" == api_key && "$ASC_KEY_ID" == ENVKEY0001 && -z "$ASC_TMP_DIR" ]]
-  # The named file is used where it lies:  no copy is made of it.
-  [[ "$ASC_KEY_PATH" == "'"${tmp}"'/env-key.p8" ]]
-  # The key stays in the file:  it never enters this shell.
-  [[ -z "${ASC_KEY_P8:-}" ]]
-  # The client is handed the key from the file, in the child environment.
-  [[ "$ASC_STAGED_KEY_PATH" == "'"${tmp}"'/env-key.p8" ]]
-' || fail "the named key file was not used as a file"
-[[ ! -s "$FAKE_LOG" ]] || fail "fleet-secrets was called although the named file was usable"
+  [[ "$AUTH_MODE" == api_key && "$ASC_KEY_ID" == ABCDE12345 ]]
+  # The credential is the /asc one from Infisical, never the named file.
+  same_as_file "$ASC_KEY_P8" "'"$tmp"'/asc.p8"
+  different_from_file "$ASC_KEY_P8" "'"$tmp"'/named-file.p8"
+  cleanup_asc_tmp
+' || fail "a named key file was used as the credential"
+grep -q '^ASC_KEY_P8 /asc$' "$FAKE_LOG" || fail "fleet-secrets was not consulted for the credential"
+
+# The scanner that finds a command substitution which runs the key reader.
+#
+# It walks the file and matches the closing parenthesis of every
+# substitution, so a capture is found whatever shape it has:  with or without
+# a `||` after it, written on one line or across several, and with a nested
+# substitution inside it.  The scan is exact, so the script as it stands is
+# not flagged by a shape it does not have.
+cat > "${tmp}/find-key-capture.cjs" <<'SCAN'
+const fs = require("fs");
+const text = fs.readFileSync(process.argv[2], "utf8");
+const offenders = [];
+const lineOf = (index) => text.slice(0, index).split("\n").length;
+let depth = 0;
+let start = 0;
+let quote = null;
+for (let i = 0; i < text.length; i += 1) {
+  const c = text[i];
+  if (quote === "'") {
+    //  Single quotes are literal in bash, so nothing inside them is a
+    //  substitution.
+    if (c === quote) quote = null;
+    continue;
+  }
+  if (c === "\\") { i += 1; continue; }
+  if (c === "`") {
+    const end = text.indexOf("`", i + 1);
+    if (end === -1) break;
+    if (text.slice(i, end + 1).includes("asc-key.mjs")) offenders.push(lineOf(i));
+    i = end;
+    continue;
+  }
+  if (quote === "\"") {
+    if (c === quote) { quote = null; continue; }
+    if (c === "$" && text[i + 1] === "{") { const end = text.indexOf("}", i); if (end !== -1) { i = end; continue; } }
+    if (c === "$" && text[i + 1] === "(") { depth += 1; if (depth === 1) start = i; i += 1; continue; }
+    if (c === ")" && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && text.slice(start, i + 1).includes("asc-key.mjs")) offenders.push(lineOf(start));
+    }
+    continue;
+  }
+  if (c === "$" && text[i + 1] === "{") { const end = text.indexOf("}", i); if (end !== -1) { i = end; continue; } }
+  if (c === "#") {
+    //  A comment runs to the end of the line, and an apostrophe in it is an
+    //  apostrophe, not the start of a quoted string.
+    const end = text.indexOf("\n", i);
+    i = end === -1 ? text.length : end;
+    continue;
+  }
+  if (c === "\"" || c === "'") { quote = c; continue; }
+  if (c === "$" && text[i + 1] === "(") { depth += 1; if (depth === 1) start = i; i += 1; continue; }
+  if (c === ")" && depth > 0) {
+    depth -= 1;
+    if (depth === 0 && text.slice(start, i + 1).includes("asc-key.mjs")) offenders.push(lineOf(start));
+  }
+}
+if (offenders.length) {
+  console.error("the key reader is captured into a variable at line(s) " + offenders.join(", "));
+  process.exit(1);
+}
+SCAN
 
 # 2b. A staged key file is never read into a variable:  the shell that owns it
 # only ever holds its path.
-if grep -nE 'asc-key\.mjs" read .*\)" \|\|' "$script" >/dev/null; then
+if ! node "${tmp}/find-key-capture.cjs" "$script"; then
   fail "ship-testflight.sh reads the key material into a variable"
 fi
 
+# 2b. The guard has teeth:  a capture in every shape is caught, and the ship
+# script as it stands is not flagged.
+for shape in plain plain-with-or split-across-lines nested; do
+  cp "$script" "${tmp}/mutated.sh"
+  case "$shape" in
+    plain)
+      printf '%s\n' 'key="$(node "${FLEET_DIR}/asc-key.mjs" read "$ASC_KEY_PATH")"' >> "${tmp}/mutated.sh" ;;
+    plain-with-or)
+      printf '%s\n' 'key="$(node "${FLEET_DIR}/asc-key.mjs" read "$ASC_KEY_PATH")" || rc=$?' >> "${tmp}/mutated.sh" ;;
+    split-across-lines)
+      printf '%s\n%s\n' 'key="$(node "${FLEET_DIR}/asc-key.mjs" \' '  read "$ASC_KEY_PATH")"' >> "${tmp}/mutated.sh" ;;
+    nested)
+      printf '%s\n' 'key="$(cd "$(dirname "$0")"; node "${FLEET_DIR}/asc-key.mjs" read "$ASC_KEY_PATH")"' >> "${tmp}/mutated.sh" ;;
+  esac
+  if node "${tmp}/find-key-capture.cjs" "${tmp}/mutated.sh" >/dev/null 2>&1; then
+    fail "the capture guard did not catch a ${shape} capture"
+  fi
+done
+
 # 2b. An ambient ASC_KEY_P8 that is not a PEM private key is ignored, and the
-# run fails closed rather than signing with something that is not a key.
+# run fails closed rather than signing with something that is not a key.  The
+# rejection is reported with a MASKED PREVIEW, never with the key itself.
 : > "$FAKE_LOG"
+: > "$ASC_TEST_LOG"
 ASC_KEY_ID=NOSUCHKEY0 ASC_ISSUER_ID=any-issuer ASC_KEY_P8="not a private key at all" bash -c '
   set -euo pipefail
   source "'"$funcs"'"
@@ -151,6 +280,11 @@ ASC_KEY_ID=NOSUCHKEY0 ASC_ISSUER_ID=any-issuer ASC_KEY_P8="not a private key at 
   [[ "$AUTH_MODE" == none && -z "$ASC_TMP_DIR" ]]
   [[ -z "${ASC_KEY_P8:-}" ]]
 ' || fail "an ASC_KEY_P8 that is not a key was adopted"
+grep -q "preview: not a pr\.\.\. all" "$ASC_TEST_LOG" \
+  || fail "the rejected key was reported without a masked preview"
+if grep -q "not a private key at all" "$ASC_TEST_LOG"; then
+  fail "the rejected key was reported whole"
+fi
 
 # 2c. An ambient ASC_KEY_P8 without a key id is ignored:  the key id, the
 # issuer and the key belong together.
@@ -160,7 +294,7 @@ ASC_KEY_ID="" ASC_ISSUER_ID="" ASC_KEY_P8="$(<"${tmp}/other.p8")" bash -c '
   source "'"$funcs"'"
   load_secrets
   [[ "$AUTH_MODE" == api_key && "$ASC_KEY_ID" == ABCDE12345 ]]
-  [[ "$(printf "%s" "$ASC_KEY_P8")" == "$(cat "'"$tmp"'/asc.p8")" ]]
+  same_as_file "$ASC_KEY_P8" "'"$tmp"'/asc.p8"
 ' || fail "an ASC_KEY_P8 without a key id was adopted"
 
 # 2d. An env key id that is NOT the /asc one never gets the /asc key:  its own .p8 comes from
@@ -172,8 +306,8 @@ env -u ASC_KEY_PATH -u ASC_KEY_P8 ASC_KEY_ID=OTHERKEY01 ASC_ISSUER_ID=issuer-oth
   load_secrets
   [[ "$AUTH_MODE" == api_key && "$ASC_KEY_ID" == OTHERKEY01 ]]
   [[ "$ASC_ISSUER_ID" == issuer-other ]]
-  [[ "$(cat "$ASC_KEY_PATH")" == "$(cat "'"$tmp"'/other.p8")" ]]
-  [[ "$(cat "$ASC_KEY_PATH")" != "$(cat "'"$tmp"'/asc.p8")" ]]
+  same_file_as_file "$ASC_KEY_PATH" "'"$tmp"'/other.p8"
+  different_file_from_file "$ASC_KEY_PATH" "'"$tmp"'/asc.p8"
   cleanup_asc_tmp
 ' || fail "env key id different from /asc was not given its own key"
 grep -q '^AUTHKEY_OTHERKEY01 /authkey-otherkey01-p8$' "$FAKE_LOG" || fail "did not ask the per-key folder"
@@ -197,7 +331,7 @@ env -u ASC_KEY_PATH -u ASC_ISSUER_ID -u ASC_KEY_P8 ASC_KEY_ID=ABCDE12345 bash -c
   source "'"$funcs"'"
   load_secrets
   [[ "$AUTH_MODE" == api_key && "$ASC_KEY_ID" == ABCDE12345 ]]
-  [[ "$(cat "$ASC_KEY_PATH")" == "$(cat "'"$tmp"'/asc.p8")" ]]
+  same_file_as_file "$ASC_KEY_PATH" "'"$tmp"'/asc.p8"
   cleanup_asc_tmp
 ' || fail "env key id equal to /asc was not served from /asc"
 grep -q '^ASC_KEY_P8 /asc$' "$FAKE_LOG" || fail "did not ask /asc ASC_KEY_P8"
@@ -211,22 +345,36 @@ env -u ASC_KEY_PATH -u ASC_KEY_P8 ASC_KEY_ID=NOSUCHKEY0 ASC_ISSUER_ID=any-issuer
   [[ "$AUTH_MODE" == none && -z "$ASC_TMP_DIR" ]]
 ' || fail "missing key material did not fail closed"
 
-# 2h. A named ASC_KEY_PATH that does not exist is not a credential:  the run
-# falls through to the fleet credential instead of aborting, and the path is
-# reported as missing rather than as unreadable.
+# 2h. A named ASC_KEY_PATH that names nothing is ignored the same way:  the
+# credential comes from Infisical, and the named path is never read.
 : > "$FAKE_LOG"
-err="$(env -u ASC_KEY_P8 ASC_KEY_ID=OTHERKEY01 ASC_ISSUER_ID=issuer-other ASC_KEY_PATH="${tmp}/no-such-key.p8" bash -c '
+env -u ASC_KEY_P8 ASC_KEY_ID=ABCDE12345 ASC_ISSUER_ID=issuer-synthetic ASC_KEY_PATH="${tmp}/no-such-key.p8" bash -c '
   set -euo pipefail
   source "'"$funcs"'"
   load_secrets
-  [[ "$AUTH_MODE" == api_key && "$ASC_KEY_ID" == OTHERKEY01 ]]
-  [[ "$ASC_KEY_PATH" != "'"${tmp}"'/no-such-key.p8" ]]
-  [[ "$(cat "$ASC_KEY_PATH")" == "$(cat "'"$tmp"'/other.p8")" ]]
+  [[ "$AUTH_MODE" == api_key && "$ASC_KEY_ID" == ABCDE12345 ]]
+  same_as_file "$ASC_KEY_P8" "'"$tmp"'/asc.p8"
   cleanup_asc_tmp
-' 2>&1 >/dev/null)" || fail "a missing key file did not fall through to the fleet credential"
-[[ "$err" == *"does not exist"* ]] || fail "a missing key file was not reported as missing: ${err}"
+' || fail "a named key file that names nothing broke the run"
+grep -q '^ASC_KEY_P8 /asc$' "$FAKE_LOG" || fail "fleet-secrets was not consulted for the credential"
 
-# 2i. Only a leading "~/" is expanded:  "~user/x" must not be merged with $HOME.
+# 2i. The hosted APPLE_API_* trio is an environment source:  the credential
+#     comes from there and Infisical is not consulted at all.
+: > "$FAKE_LOG"
+env -u ASC_KEY_ID -u ASC_ISSUER_ID -u ASC_KEY_PATH -u ASC_KEY_P8 \
+  APPLE_API_KEY_ID=CIKEY0001 APPLE_API_ISSUER_ID=ci-issuer \
+  APPLE_API_KEY_P8_BASE64="$(base64 < "${tmp}/other.p8" | tr -d '\n')" bash -c '
+  set -euo pipefail
+  source "'"$funcs"'"
+  load_secrets
+  [[ "$AUTH_MODE" == api_key && "$ASC_KEY_ID" == CIKEY0001 ]]
+  [[ "$ASC_ISSUER_ID" == ci-issuer ]]
+  same_as_file "$ASC_KEY_P8" "'"$tmp"'/other.p8"
+  cleanup_asc_tmp
+' || fail "the hosted APPLE_API_* trio was not used"
+[[ ! -s "$FAKE_LOG" ]] || fail "fleet-secrets was called although the environment was complete"
+
+# 2j. Only a leading "~/" is expanded:  "~user/x" must not be merged with $HOME.
 env -u ASC_KEY_P8 ASC_KEY_ID=TILDE00001 ASC_ISSUER_ID=tilde-issuer bash -c '
   set -euo pipefail
   source "'"$funcs"'"
@@ -234,51 +382,6 @@ env -u ASC_KEY_P8 ASC_KEY_ID=TILDE00001 ASC_ISSUER_ID=tilde-issuer bash -c '
   [[ "$(expand_tilde "~other/k.p8")" == "~other/k.p8" ]]
   [[ "$(expand_tilde "/abs/k.p8")" == "/abs/k.p8" ]]
 ' || fail "expand_tilde"
-
-# 2j. The client runs through the reader:  the staged key file is used where
-# it lies, the key never enters this shell, and the client receives the key in
-# its environment.  This is the exact CI shape:  the runner stages the key to
-# a mode-600 file, publishes only its path, and the client takes the key from
-# the environment.
-: > "$FAKE_LOG"
-cp "${tmp}/asc.p8" "${tmp}/ci-key.p8"
-chmod 600 "${tmp}/ci-key.p8"
-env -u ASC_KEY_P8 ASC_KEY_ID=CIKEY00001 ASC_ISSUER_ID=ci-issuer ASC_KEY_PATH="${tmp}/ci-key.p8" bash -c '
-  set -euo pipefail
-  source "'"$funcs"'"
-  load_secrets
-  [[ "$AUTH_MODE" == api_key && "$ASC_KEY_ID" == CIKEY00001 ]]
-  # The named file is used where it lies, and the key stays in the file.
-  [[ "$ASC_STAGED_KEY_PATH" == "'"${tmp}"'/ci-key.p8" ]]
-  [[ -z "${ASC_KEY_P8:-}" ]]
-  set +e
-  asc_client GET http://127.0.0.1:1/v1/apps >/dev/null 2>"'"${tmp}"'/client.err"
-  set -e
-' || fail "the client did not take the staged key through the reader"
-grep -q "asc-auth: using ASC_KEY_P8 environment" "${tmp}/client.err" \
-  || fail "the client did not report the environment source: $(cat "${tmp}/client.err")"
-if grep -q "BEGIN PRIVATE KEY" "${tmp}/client.err"; then
-  fail "the key reached the client output"
-fi
-[[ ! -s "$FAKE_LOG" ]] || fail "fleet-secrets was called although the named file was usable"
-
-# 2k. The build-sequence query asks App Store Connect BEFORE load_secrets has
-# run, so asc_client has to resolve a named key file on its own.  The file is
-# used as a file, the key never enters this shell, and the client still gets
-# the key in its environment.
-: > "$FAKE_LOG"
-env -u ASC_KEY_P8 ASC_KEY_ID=CIKEY00001 ASC_ISSUER_ID=ci-issuer ASC_KEY_PATH="${tmp}/ci-key.p8" bash -c '
-  set -euo pipefail
-  source "'"$funcs"'"
-  set +e
-  asc_client GET http://127.0.0.1:1/v1/apps >/dev/null 2>"'"${tmp}"'/client2.err"
-  set -e
-' || fail "asc_client did not resolve the named key file on its own"
-grep -q "asc-auth: using ASC_KEY_P8 environment" "${tmp}/client2.err" \
-  || fail "the client did not get the named file's key: $(cat "${tmp}/client2.err")"
-if grep -q "BEGIN PRIVATE KEY" "${tmp}/client2.err"; then
-  fail "the key reached the client output"
-fi
 
 # 3. The credential never travels in a command argument.  The secret reaches
 # the child through the environment, so its own argv must not carry it.
@@ -306,4 +409,4 @@ if grep -nE '(~|\$\{?HOME\}?)/\.secrets' "$script" >/dev/null; then
   fail "ship-testflight.sh still names the old secrets folder"
 fi
 
-echo "ok: ASC credential resolution (env first, then the named file as a file, then Infisical, temp key removed)"
+echo "ok: ASC credential resolution (environment first, then Infisical, a named path ignored, temp key removed)"

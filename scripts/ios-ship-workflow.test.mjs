@@ -73,6 +73,50 @@ test("ios-ship.yml targets dealdex / native/ios on GitHub-hosted macos-latest", 
   assert.doesNotMatch(prepare, /echo "\$IOS_DIST_P12/);
 });
 
+test("the ASC credential crosses a step boundary as the hosted base64 trio", () => {
+  const yml = read(".github/workflows/ios-ship.yml");
+
+  // The hosted trio is one line per value, so the runner's environment file
+  // stays well formed and the raw PEM never enters GITHUB_ENV.
+  assert.match(yml, /printf 'APPLE_API_%s=%s\\n' "\$\{name#ASC_\}" "\$val" >> "\$GITHUB_ENV"/);
+  assert.match(yml, /printf 'APPLE_API_KEY_P8_BASE64=%s\\n' "\$key_b64" >> "\$GITHUB_ENV"/);
+  // base64 output is folded at 76 columns by GNU base64, so the newlines go.
+  assert.match(yml, /base64 \| tr -d '\\n'/);
+
+  // The client never reads a key file, and the workflow never hands it one.
+  assert.doesNotMatch(yml, /asc-key\.mjs/);
+
+  const ship = read("scripts/ios-fleet/ship-testflight.sh");
+  assert.match(ship, /ASC_KEY_PATH is not a credential source/);
+  assert.doesNotMatch(ship, /asc-key\.mjs exec/);
+  assert.doesNotMatch(ship, /asc-key\.mjs read/);
+});
+
+test("a rejected ASC key is reported masked, and no test reads an environment", () => {
+  const client = read("scripts/ios-fleet/asc-api.mjs");
+  assert.match(client, /function maskedPreview\(/);
+  assert.match(client, /preview: \$\{maskedPreview\(/);
+
+  const shell = read("scripts/ios-fleet/ship-testflight.sh");
+  assert.match(shell, /key_preview\(\) \{/);
+
+  // No test may read another process's environment:  on macOS `ps -E` prints
+  // it and on Linux it sits in /proc/<pid>/environ, and either way the dump
+  // carries the private key and every unrelated credential.
+  for (const file of [
+    "scripts/ios-fleet/test-asc-key.test.mjs",
+    "scripts/ios-fleet/test-asc-credentials.sh",
+    "scripts/ios-fleet/test-asc-credentials.mjs",
+  ]) {
+    const code = read(file)
+      .split("\n")
+      .filter((line) => !/^\s*\/\//.test(line))
+      .join("\n");
+    assert.doesNotMatch(code, /ps\s+-E/, `${file} reads another process's environment`);
+    assert.doesNotMatch(code, /\/proc\/[^\s]*environ/, `${file} reads another process's environment`);
+  }
+});
+
 test("vendored ios-fleet ships net.dealdex on the 1.0.N train", () => {
   const apps = JSON.parse(read("scripts/ios-fleet/apps.json"));
   const dealdex = apps.apps.dealdex;
