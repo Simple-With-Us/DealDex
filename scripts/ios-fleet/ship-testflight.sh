@@ -441,21 +441,29 @@ project_marketing_seq() {
 # Returns 1 (and prints nothing) when ASC cannot be consulted — the caller must
 # distinguish "no builds yet" (0) from "unknown" (failure).
 asc_latest_seq() {
-  local prefix="$1" plat="${2:-}" out rc
+  local prefix="$1" plat="${2:-}" out rc err_file
   if ! command -v node >/dev/null 2>&1; then
     logerr "asc-seq: node not on PATH; cannot verify against App Store Connect"
     return 1
   fi
+  # A temp file, not ${LOG_DIR}: the first resolve_seq_floor call runs before the
+  # output dirs are created, so LOG_DIR is unset here and the redirect would
+  # abort the ship before App Store Connect is ever queried.
+  err_file="$(mktemp "${TMPDIR:-/tmp}/asc-latest-seq.XXXXXX")"
   set +e
-  out=$(node "${FLEET_DIR}/asc-api.mjs" latest-build-seq "$BUNDLE_ID" "$prefix" "$plat" 2>"${LOG_DIR}/asc-latest-seq.err")
+  out=$(node "${FLEET_DIR}/asc-api.mjs" latest-build-seq "$BUNDLE_ID" "$prefix" "$plat" 2>"$err_file")
   rc=$?
   set -e
   # The credential-resolution notes asc-api.mjs prints on every path are the
   # only diagnosis for an rc=2 query failure, so they must reach the run log
-  # rather than being discarded with the rest of stderr.
-  if [[ -s "${LOG_DIR}/asc-latest-seq.err" ]]; then
-    while IFS= read -r line; do log "asc-seq: $line"; done <"${LOG_DIR}/asc-latest-seq.err"
+  # rather than being discarded with the rest of stderr.  They go out through
+  # logerr, not log: this function's stdout IS the sequence number, so a log
+  # line here would make resolve_seq_floor's `[[ "$a" -gt "$floor" ]]` fail and
+  # silently disable the duplicate-build-number guard.
+  if [[ -s "$err_file" ]]; then
+    while IFS= read -r line; do logerr "asc-seq: $line"; done <"$err_file"
   fi
+  rm -f "$err_file"
   if [[ $rc -ne 0 || ! "$out" =~ ^[0-9]+$ ]]; then
     logerr "asc-seq: query failed (rc=${rc}); cannot verify against App Store Connect"
     return 1
