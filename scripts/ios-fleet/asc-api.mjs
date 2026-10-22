@@ -190,8 +190,9 @@ function resolveCredential() {
 
   // 3) No file is read here (AFC-359, and AFC-459 / Kody rule 42).  A path on
   //    disk is not an approved secret source, so ASC_KEY_PATH is not a
-  //    credential source here:  the shell layer that owns the credential reads
-  //    a staged key and exports it as ASC_KEY_P8.  Step 4 reads Infisical
+  //    credential source here:  the shell layer that owns the credential
+  //    stages its own short-lived, owner-only copy from the key it resolved
+  //    and exports that copy as ASC_KEY_P8.  Step 4 reads Infisical
   //    directly, so a local operator needs nothing exported at all.
 
   // 4) Infisical Fleet-OPS /asc: key id and issuer (unless the environment already
