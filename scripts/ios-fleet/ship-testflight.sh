@@ -2,7 +2,7 @@
 # ship-testflight.sh - Archive + upload an iOS app to TestFlight without Xcode UI.
 #
 # Usage:
-#   bash /Users/jay/apps/ios-fleet/ship-testflight.sh <socratic|congress|usage|usage-local|dealdex|autorotate|autorotate-mac|contactlogo|contactlogo-mac|botfleet|botfleet-mac> [options]
+#   bash /Users/jay/apps/ios-fleet/ship-testflight.sh <socratic|congress|usage|usage-local|dealdex|autorotate|autorotate-mac|contactlogo|contactlogo-mac|botfleet|botfleet-mac|clutch> [options]
 #
 # Options:
 #   --repo-root PATH   Repo root (default: cwd)
@@ -19,13 +19,11 @@
 #                           AND no local/project sequence exists (dangerous:
 #                           may reuse a build number ASC rejects as duplicate)
 #
-# Version numbering (owner directive 2026-08-12, revised same day):
-#   MARKETING_VERSION       = 1.0.<seq>          +1 on EVERY rebuild
-#   CURRENT_PROJECT_VERSION = <UTC YYYYMMDDHHMM> when the build was cut
+# Version numbering (owner directive 2026-08-12, unified 2026-10-18):
+#   MARKETING_VERSION       = 1.0.<commit_count> (from git rev-list --count HEAD)
+#   CURRENT_PROJECT_VERSION = <commit_count>
 # App Store Connect renders "<marketing> (<build>)", so a ship shows
-# "1.0.8 (202609012215)". Marketing +1 every rebuild; build is the cut time.
-# The sequence is max(local cache, App Store Connect, project.pbxproj) + 1, so a
-# lost or reset local counter cannot silently reuse a shipped version.
+# "1.0.148 (148)".  Unified across macOS and iOS; timestamps permanently retired.
 #
 # ---------------------------------------------------------------------------
 # WHAT IS HOLDING BACK AUTOMATIC SHIPPING: THE MIN-INTERVAL RATE LIMIT
@@ -66,6 +64,10 @@
 #   IOS_TF_RELEASE_NOTES=1     publish to App Store Connect
 #   IOS_TF_RELEASE_NOTES=0     off entirely
 #   unset (DEFAULT)            dry render into the ship log; nothing is written
+# Owner binding 2026-09-08 (Jay): production ships MUST publish What to Test
+# (IOS_TF_RELEASE_NOTES=1). Body = 1-2 change/fix/upgrade types, or the other
+# reason for the build if not a product change. Empty/placeholder/agent names ban.
+# No --force-ship.
 #   IOS_TF_RELEASE_TITLE=...   override the "<App> Update" title
 # CI needs `fetch-depth: 0` on actions/checkout or the runner workspace holds a
 # single commit and the range is uncomputable (verified 2026-08-13 on all three
@@ -74,7 +76,7 @@
 # Secrets (never printed):
 #   ~/.secrets/appstore-connect.env  (ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_PATH)
 #   or Xcode-signed-in session for destination=upload export
-#   SENTRY_AUTH_TOKEN  (dSYM + Size Analysis upload; env or `fleet-secrets get`)
+#   SENTRY_AUTH_TOKEN  (dSYM + Size Analysis upload; env or Infisical via fleet-secrets)
 #   SENTRY_DSN         (injected into xcodebuild so Cocoa plist $(SENTRY_DSN) is set)
 #
 # Sentry after a successful archive (2026-09-01):
@@ -88,9 +90,6 @@ set -euo pipefail
 
 # LaunchAgents inherit a tiny PATH (no Homebrew). Node is required for
 # ensure-tf-ready. Prioritize /usr/bin and /bin so Apple distribution tools (rsync -E) use native macOS binaries.
-# Homebrew rsync 3.5.1 first on PATH shadows the system rsync that `xcodebuild
-# -exportArchive` spawns for the server half, and the IPA step then fails with
-# "rsync: --extended-attributes: unknown option" / "exportArchive Copy failed".
 export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin:${PATH}"
 
 FLEET_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -197,23 +196,24 @@ sentry_project_for_app() {
     autorotate|autorotate-mac) echo "autorotate" ;;
     contactlogo|contactlogo-mac) echo "contactlogo" ;;
     botfleet|botfleet-mac) echo "botfleet" ;;
+    fleetlink) echo "fleetlink" ;;
+    codecaps|codecaps-mac) echo "codecaps" ;;
+    hoghunter) echo "hoghunter" ;;
     *) echo "" ;;
   esac
 }
 
-# Pull SENTRY_AUTH_TOKEN from the environment, else from `fleet-secrets get`
-# when that helper is installed (Mac).  Extract into a var, never echo.
+# Pull SENTRY_AUTH_TOKEN from the handoff file if the environment does not
+# already have it.  Names-only grep trap: extract into a var, never echo.
 load_sentry_auth() {
   if [[ -n "${SENTRY_AUTH_TOKEN:-}" ]]; then
     return 0
   fi
-  if command -v fleet-secrets &>/dev/null; then
-    local token
-    token="$(fleet-secrets get SENTRY_AUTH_TOKEN 2>/dev/null | tr -d '\r')" || token=""
-    if [[ -n "$token" ]]; then
-      SENTRY_AUTH_TOKEN="$token"
-      export SENTRY_AUTH_TOKEN
-    fi
+  # OPS-818: read from Infisical Fleet-OPS via fleet-secrets, not the retired flat file.
+  local fs_bin="/Users/jay/.local/bin/fleet-secrets"
+  if [[ -x "$fs_bin" ]]; then
+    SENTRY_AUTH_TOKEN="$("$fs_bin" get SENTRY_AUTH_TOKEN 2>/dev/null || true)"
+    export SENTRY_AUTH_TOKEN
   fi
 }
 
@@ -627,7 +627,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ -n "$APP_KEY" ]] || die "app key required (e.g. socratic, congress, usage, usage-local, dealdex, autorotate, autorotate-mac, contactlogo, contactlogo-mac, botfleet, botfleet-mac)"
+[[ -n "$APP_KEY" ]] || die "app key required (e.g. socratic, congress, usage, usage-local, dealdex, autorotate, autorotate-mac, contactlogo, contactlogo-mac, botfleet, botfleet-mac, clutch)"
 [[ -f "$APPS_JSON" ]] || die "missing apps registry: $APPS_JSON"
 
 # Validate APP_KEY against apps.json before requiring Xcode tools so --help-adjacent
@@ -670,7 +670,16 @@ fi
 
 
 if [[ -z "$REPO_ROOT" ]]; then
-  REPO_ROOT="$(pwd)"
+  hint="$(json_get "$APP_KEY" worktreeHint || true)"
+  hint="${hint/#\~/$HOME}"
+  if [[ -n "$hint" && -d "$hint" ]]; then
+    REPO_ROOT="$hint"
+  else
+    REPO_ROOT="$(pwd)"
+  fi
+fi
+if [[ ! -d "$REPO_ROOT" ]]; then
+  die "repo root does not exist: $REPO_ROOT"
 fi
 REPO_ROOT="$(cd "$REPO_ROOT" && pwd)"
 
@@ -793,9 +802,9 @@ else
     # run that is really about to archive, and by exactly 1.
     SEQ="$(next_build_seq "$SEQ_FLOOR")"
   fi
-  MARKETING="${MARKETING_PREFIX}.${SEQ}"
-  # NOT "$MARKETING" — see the CFBundleVersion note above utc_build_stamp.
-  BUILD_NUM="$(utc_build_stamp)"
+  COMMIT_COUNT="$(git -C "$REPO_ROOT" rev-list --count HEAD 2>/dev/null || echo "$SEQ")"
+  MARKETING="${MARKETING_PREFIX}.${COMMIT_COUNT}"
+  BUILD_NUM="${COMMIT_COUNT}"
 fi
 
 # The project file and the shipped version must never disagree silently. The
