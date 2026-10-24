@@ -4,7 +4,7 @@
 > build stamp this file describes is retired.  On 2026-10-18 both numbers came
 > from the repo's commit count (marketing `1.0.<commit_count>`, build
 > `<commit_count>`, so the pair always described one commit); since 2026-10-24
-> the two numbers are independent:  the marketing version is the next patch on
+> the two numbers are independent: the marketing version is the next patch on
 > the train (App Store Connect is the only record of which patches it holds)
 > and the build is the repo commit count, raised above the App Store Connect
 > floor.  This file stays as the record of what was done on 2026-08-23; the
