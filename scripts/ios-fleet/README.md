@@ -1,11 +1,33 @@
 # DealDex-local iOS fleet ship copy
 
 Vendored from Congress.Trade `scripts/ios-fleet` so this repo can ship
-without `/Users/jay/apps/ios-fleet` on the runner. `apps.json` here is
+without `/Users/jay/apps/ios-fleet` on the runner.  `apps.json` here is
 DealDex-only: bundle `net.dealdex`, team `CC8UTF7ATG`, SKU `dealdex`,
-marketing `1.0.<commit_count>`, build `<commit_count>`. `ship-testflight.sh` accepts
+train `1.0`. `ship-testflight.sh` accepts
 the same first-arg keys as Congress/Socratic (`socratic|congress|usage|usage-local`)
 plus `dealdex`. `R2FAW69NPD` is the Apple bundle resource ID, not the team.
+
+## Version numbering (owner directive 2026-10-24, AFC-517 / CT-2444)
+
+The marketing version and the build number are independent:
+
+- `MARKETING_VERSION` is `<prefix>.<P+1>`: the next patch on the train,
+  where `P` is the highest patch App Store Connect already holds on that
+  train (App Store versions AND TestFlight trains, drift trains ignored). 
+  `--version <X.Y.Z>` pins it exactly.
+- `CURRENT_PROJECT_VERSION` is the repo commit count
+  (`git rev-list --count HEAD`), raised above every build already in the
+  target train and above the app's own plain-integer builds below
+  `1000000000` (on macOS: above every build of any size).  `--build <N>`
+  pins it exactly, and it never moves the marketing version.
+
+The two are not the same number, so App Store Connect shows
+`1.0.237 (2360)`, not `1.0.N (N)`.  The rules live in
+`version-plan.mjs` (pure, unit-tested by `version-plan.test.mjs`) and the
+App Store Connect state they need is read by `asc-api.mjs`
+(`latest-marketing-patch`, `build-floor`).  The retired local build-seq
+counter and `project.pbxproj` are not sources any more: App Store Connect
+is the only record that shipping advances.
 
 `scripts/ios-ship-testflight.sh` prefers this directory, then falls back
 to `/Users/jay/apps/ios-fleet` on Jay's Mac.
