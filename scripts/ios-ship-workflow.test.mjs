@@ -130,11 +130,24 @@ test("vendored ios-fleet ships net.dealdex on the 1.0.N train", () => {
   assert.equal(dealdex.bundleId === "me.grok.dealdex", false);
 
   const ship = read("scripts/ios-fleet/ship-testflight.sh");
-  // The fleet scheme (owner 2026-10-18): both values come from the repo commit
-  // count.  Assert the mechanism, not the old seq-plus-timestamp shape.
-  assert.match(ship, /MARKETING_VERSION\s+= 1\.0\.<commit_count>/);
-  assert.match(ship, /CURRENT_PROJECT_VERSION = <commit_count>/);
+  // The version scheme (owner 2026-10-24, AFC-517 / CT-2444):  the marketing
+  // version is the next patch on the train (App Store Connect is the only
+  // record of which patches that train holds) and the build number is the
+  // repo commit count, independent of it.  Assert the mechanism, not the old
+  // 1.0.<commit_count> shape.
+  assert.match(ship, /MARKETING_VERSION\s+= <prefix>\.<P\+1>/);
+  assert.match(ship, /CURRENT_PROJECT_VERSION = the repo commit count/);
   assert.match(ship, /rev-list --count HEAD/);
+  // The client answers the two questions the scheme asks App Store Connect.
+  const asc = read("scripts/ios-fleet/asc-api.mjs");
+  assert.match(asc, /method === "latest-marketing-patch"/);
+  assert.match(asc, /method === "build-floor"/);
+  assert.match(asc, /from "\.\/version-plan\.mjs"/);
+  // The retired local-sequence paths must not come back:  they consumed a
+  // number from a local cache and made the marketing version a function of
+  // the build number.
+  assert.doesNotMatch(ship, /resolve_seq_floor|next_build_seq|asc_latest_seq/);
+  assert.doesNotMatch(ship, /local_seq\(\)\s*\{/);
   assert.match(
     ship,
     /<socratic\|congress\|usage\|usage-local\|dealdex/,

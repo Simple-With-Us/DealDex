@@ -1,3 +1,30 @@
+## 2026-10-24 MM — iOS version numbers come from App Store Connect (AFC-517 / CT-2444)
+
+The vendored `scripts/ios-fleet` copy now follows the owner directive of
+2026-10-24:  the marketing version and the build number are INDEPENDENT and
+the `1.0.<commit_count>` scheme unified in #2801 is retired.  `MARKETING_VERSION`
+is `<prefix>.<P+1>`, where `P` is the highest patch App Store Connect already
+holds on that train (App Store versions AND TestFlight trains, drift trains
+ignored), and `CURRENT_PROJECT_VERSION` is the repo commit count raised above
+the train floor and the app's own plain-integer builds.  `scripts/ios-fleet/version-plan.mjs`
+and `version-plan.test.mjs` are the Congress.Trade files, copied verbatim (18
+tests, picked up by the `npm test` glob with no CI edit);
+`scripts/ios-fleet/asc-api.mjs` gained `latest-marketing-patch` and
+`build-floor` and keeps `latest-build-seq`; `scripts/ios-fleet/ship-testflight.sh`
+gained the `ASC_NODE` seam, the new helpers, the `ASC_PLATFORM` mapping and a
+rewritten version-resolution block, and lost `resolve_seq_floor` / `local_seq` /
+`next_build_seq` and the local build-seq counter.  `--version` and `--build`
+are exact overrides and `--build` no longer moves the marketing version;
+`--upload-only` and the ship-gate ordering are unchanged; an unreachable App
+Store Connect is fatal unless `--allow-unverified-seq` (then `P=0`, floors 0,
+loud WARNING).  The three named log lines are kept exactly.  Docs that claimed
+the marketing version equals the build number were reworded.  Nothing was
+committed or pushed.  `.github/workflows/ios-ship.yml` still carries a stale
+comment about `1.0.<commit count>` and was left alone on purpose (editing a
+ship workflow triggers a real ship), and `native/ios/project.yml` is out of
+scope and still records the old paired value.  See
+`docs/rollouts/2026-10-24-afc-517-ios-version-plan-asc.md`.
+
 ## 2026-10-21 MM — The ASC credential is never a path (AFC-459, revision 2)
 
 Revision 1 of the App Store Connect credential hardening merged as PR #523; this pass brings it to revision 2. `scripts/ios-fleet/asc-key.mjs` is the revision-2 key module verbatim from the fleet reference: it validates a key, writes one to an owner-only file and reports a key's status, and it has no `read` and no `exec` subcommand, so there is no way to read a key out of a file and no way to run a child with a key that came from one. `ship-testflight.sh` resolves the credential from the environment first (the hosted `APPLE_API_*` trio, then an ambient `ASC_KEY_P8`) and from Infisical `/asc` otherwise; a named `ASC_KEY_PATH` is ignored and the run says so, and the base64 branch decodes through a here-string instead of a `printf` pipe. The only file written is a short-lived owner-only materialization for `altool` and `xcodebuild -authenticationKeyPath`, written from the resolved credential and never read back as one. Every rejection of a key now carries a masked preview (the first eight and the last four characters; a value too short to mask safely is withheld whole). `.github/workflows/ios-ship.yml` publishes the hosted base64 trio (`APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID`, `APPLE_API_KEY_P8_BASE64`) into the job environment instead of `ASC_KEY_PATH`, and the standing tester step calls the client directly instead of through `asc-key.mjs exec`. No test reads another process's environment any more. See `docs/rollouts/2026-10-21-afc-459-asc-credential-revision-2.md`.
