@@ -566,7 +566,10 @@ project_marketing_seq() {
 asc_next_dotted_build() {
   local version="$1" plat="${2:-}" out rc
   command -v "$ASC_NODE" >/dev/null 2>&1 || return 1
-  load_secrets >/dev/null || return 1
+  # No load_secrets here:  this helper always runs inside $(...), so a staged
+  # key dir would be lost with the subshell and never reach the EXIT trap.
+  # The node client resolves the credential itself (env or Infisical /asc),
+  # exactly like asc_latest_marketing_patch below.
   set +e
   out=$(asc_client next-dotted-build "$BUNDLE_ID" "$version" "$plat")
   rc=$?
@@ -578,7 +581,7 @@ asc_next_dotted_build() {
 asc_released_store_version() {
   local plat="${1:-}" out rc
   command -v "$ASC_NODE" >/dev/null 2>&1 || return 1
-  load_secrets >/dev/null || return 1
+  # No load_secrets here:  same subshell reason as asc_next_dotted_build.
   set +e
   out=$(asc_client released-store-version "$BUNDLE_ID" "$plat" 2>/dev/null)
   rc=$?
