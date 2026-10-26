@@ -34,8 +34,8 @@ settings:
     # the ship script passes both values on the xcodebuild command line, and
     # reads this one as the build-number FLOOR, so it must stay below the
     # commit count of any commit that can ship.
-    MARKETING_VERSION: "1.0.305"
-    CURRENT_PROJECT_VERSION: "305"
+    MARKETING_VERSION: "1.0.340"
+    CURRENT_PROJECT_VERSION: "340"
     DEVELOPMENT_TEAM: CC8UTF7ATG
     CODE_SIGN_STYLE: Automatic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
