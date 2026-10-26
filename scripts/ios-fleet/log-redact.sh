@@ -44,12 +44,24 @@ redact_stream() {
 }
 
 # emit_log_tail LABEL FILE [LINES]: log a redacted tail of FILE, or a note.
+# Best-effort by contract: it always returns 0, so a caller running under
+# `set -e -o pipefail` is never aborted by a log helper.  Redaction runs on the
+# FULL line and truncation comes after it, so a secret that straddles the cut
+# column is masked before it can be split.  If redaction itself fails, nothing
+# raw is printed.
 emit_log_tail() {
-  local label="$1" file="$2" lines="${3:-20}"
+  local label="$1" file="$2" lines="${3:-20}" out
   if [[ ! -s "$file" ]]; then
     echo "[ios-ship] ${label}: no output captured"
     return 0
   fi
-  echo "[ios-ship] ${label}: last ${lines} line(s), redacted:"
-  tail -n "$lines" "$file" | cut -c1-400 | redact_stream | sed 's/^/[ios-ship]   | /'
+  if out="$(tail -n "$lines" "$file" | redact_stream | cut -c1-400 2>/dev/null)"; then
+    echo "[ios-ship] ${label}: last ${lines} line(s), redacted:"
+    if [[ -n "$out" ]]; then
+      printf '%s\n' "$out" | sed 's/^/[ios-ship]   | /'
+    fi
+  else
+    echo "[ios-ship] ${label}: log tail unavailable (redaction failed; nothing printed)"
+  fi
+  return 0
 }

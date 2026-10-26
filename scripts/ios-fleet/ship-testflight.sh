@@ -456,7 +456,7 @@ upload_sentry_artifacts() {
     log "sentry: debug-files upload ok"
   else
     log "warning: sentry debug-files upload rc=${dif_rc}; see ${LOG_DIR}/sentry-debug-files.log"
-    emit_log_tail "sentry debug-files" "${LOG_DIR}/sentry-debug-files.log"
+    emit_log_tail "sentry debug-files" "${LOG_DIR}/sentry-debug-files.log" || true
   fi
   log "sentry: Size Analysis build upload for project=${project}"
   set +e
@@ -469,7 +469,7 @@ upload_sentry_artifacts() {
     log "sentry: build upload ok"
   else
     log "warning: sentry build upload rc=${build_rc}; see ${LOG_DIR}/sentry-build-upload.log"
-    emit_log_tail "sentry build upload" "${LOG_DIR}/sentry-build-upload.log"
+    emit_log_tail "sentry build upload" "${LOG_DIR}/sentry-build-upload.log" || true
   fi
   return 0
 }
@@ -797,7 +797,7 @@ record_successful_ship() {
       log "version-manifest: published ${BUNDLE_ID} ${MARKETING}"
     else
       log "warning: version-manifest publish failed (non-fatal)"
-      emit_log_tail "version-manifest" "${LOG_DIR}/version-manifest.log"
+      emit_log_tail "version-manifest" "${LOG_DIR}/version-manifest.log" || true
     fi
   fi
 }

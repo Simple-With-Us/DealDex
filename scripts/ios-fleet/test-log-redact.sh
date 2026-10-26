@@ -51,4 +51,19 @@ seq 1 50 >"$tmp/long.log"
 n="$(emit_log_tail "lbl" "$tmp/long.log" 5 | grep -c '| ')"
 [[ "$n" -eq 5 ]] || fail "tail length $n"
 emit_log_tail "lbl" "$tmp/in.log" 40 | grep -qF -- "$TOK" && fail "emit leaked"
+# A secret that straddles the 400-column cut must be masked, not split.
+{ printf 'x%.0s' $(seq 1 380); printf ' token=%s\n' "${TOK}"; } >"$tmp/straddle.log"
+st="$(emit_log_tail "lbl" "$tmp/straddle.log" 5)"
+grep -qF -- "${TOK:0:10}" <<<"$st" && fail "secret fragment leaked at the cut"
+grep -q "REDACTED" <<<"$st" || fail "straddle line not redacted"
+
+# Best-effort contract: returns 0 under set -e + pipefail, and when redaction
+# itself fails it prints nothing raw.
+mkdir -p "$tmp/bin"; printf '#!/bin/sh\nexit 1\n' >"$tmp/bin/perl"; chmod +x "$tmp/bin/perl"
+set +e
+fo="$( set -e -o pipefail; PATH="$tmp/bin:$PATH"; emit_log_tail "lbl" "$tmp/in.log" 10; echo "rc=$?" )"
+set -e
+grep -q "rc=0" <<<"$fo" || fail "emit_log_tail did not return 0 when redaction failed"
+grep -qF -- "$TOK" <<<"$fo" && fail "raw log printed when redaction failed"
+grep -q "unavailable" <<<"$fo" || fail "no unavailable note"
 echo "ok: log-redact"
