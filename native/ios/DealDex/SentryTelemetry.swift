@@ -25,7 +25,13 @@ enum SentryTelemetry {
             options.environment = "production"
             #endif
             options.tracesSampleRate = 0.2
-            options.profilesSampleRate = 0.1
+            // sentry-cocoa 9.x removed Options.profilesSampleRate.  Profiling
+            // is now configured through SentryProfileOptions, and .trace keeps
+            // the old behaviour of profiling sampled traces.
+            options.configureProfiling = { profiling in
+                profiling.lifecycle = .trace
+                profiling.sessionSampleRate = 0.1
+            }
             options.enableAppHangTracking = true
             options.appHangTimeoutInterval = 2.0
             options.enableCaptureFailedRequests = true

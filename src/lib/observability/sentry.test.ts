@@ -69,7 +69,12 @@ test("iOS Cocoa reads SENTRY_DSN from Info.plist only", () => {
   assert.match(swift, /forInfoDictionaryKey: "SENTRY_DSN"/);
   assert.match(swift, /CFBundleShortVersionString/);
   assert.match(swift, /releaseName = build\.isEmpty \? version : "\\\(version\)\+\\\(build\)"/);
-  assert.match(swift, /profilesSampleRate = 0\.1/);
+  // sentry-cocoa 9.x removed Options.profilesSampleRate; profiling is set
+  // through SentryProfileOptions in the configureProfiling closure.
+  assert.match(swift, /configureProfiling = \{ profiling in/);
+  assert.match(swift, /profiling\.lifecycle = \.trace/);
+  assert.match(swift, /profiling\.sessionSampleRate = 0\.1/);
+  assert.doesNotMatch(swift, /options\.profilesSampleRate\s*=/);
   assert.match(swift, /sessionReplay\.onErrorSampleRate = 1\.0/);
   assert.doesNotMatch(swift, /ingest\.sentry\.io/);
   assert.doesNotMatch(swift, /\?\? "https:\/\//);
