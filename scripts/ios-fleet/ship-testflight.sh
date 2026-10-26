@@ -130,6 +130,8 @@ export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin:${PA
 ASC_NODE="${IOS_FLEET_NODE:-node}"
 
 FLEET_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=log-redact.sh
+source "${FLEET_DIR}/log-redact.sh"
 APPS_JSON="${FLEET_DIR}/apps.json"
 TEAM_ID="CC8UTF7ATG"
 # AFC-359: App Store Connect credentials come from the environment (CI sets them) or
@@ -454,6 +456,7 @@ upload_sentry_artifacts() {
     log "sentry: debug-files upload ok"
   else
     log "warning: sentry debug-files upload rc=${dif_rc}; see ${LOG_DIR}/sentry-debug-files.log"
+    emit_log_tail "sentry debug-files" "${LOG_DIR}/sentry-debug-files.log" || true
   fi
   log "sentry: Size Analysis build upload for project=${project}"
   set +e
@@ -466,6 +469,7 @@ upload_sentry_artifacts() {
     log "sentry: build upload ok"
   else
     log "warning: sentry build upload rc=${build_rc}; see ${LOG_DIR}/sentry-build-upload.log"
+    emit_log_tail "sentry build upload" "${LOG_DIR}/sentry-build-upload.log" || true
   fi
   return 0
 }
@@ -788,10 +792,12 @@ record_successful_ship() {
     [[ -n "${BUILD_NUM:-}" ]] && pub_args+=(--build "$BUILD_NUM")
     [[ -n "${apple_id:-}" ]] && pub_args+=(--apple-id "$apple_id")
     [[ -n "${display:-}" ]] && pub_args+=(--display-name "$display")
-    if bash "${FLEET_DIR}/publish-ios-versions.sh" "${pub_args[@]}" >/dev/null 2>&1; then
+    if bash "${FLEET_DIR}/publish-ios-versions.sh" "${pub_args[@]}" \
+        >"${LOG_DIR}/version-manifest.log" 2>&1; then
       log "version-manifest: published ${BUNDLE_ID} ${MARKETING}"
     else
       log "warning: version-manifest publish failed (non-fatal)"
+      emit_log_tail "version-manifest" "${LOG_DIR}/version-manifest.log" || true
     fi
   fi
 }
