@@ -1108,7 +1108,9 @@ sys.exit(0 if a>b else 1)' "$FIXED_MARKETING" "$_rel"; then
 
   # ---- the build number ---------------------------------------------------
   if [[ -n "$FORCE_BUILD" ]]; then
-    if [[ "$FIXED_MODE" -eq 1 && ! "$FORCE_BUILD" =~ ^${MARKETING%.*}\.[0-9]+$ ]]; then
+    # Escape dots in the marketing prefix so 1.1 cannot match 1x1 via regex.
+    _fixed_train_re="^$(printf '%s' "${MARKETING%.*}" | sed 's/\./\\./g')\.[0-9]+$"
+    if [[ "$FIXED_MODE" -eq 1 && ! "$FORCE_BUILD" =~ $_fixed_train_re ]]; then
       die "--build ${FORCE_BUILD} is not ${MARKETING%.*}.<n>:  in fixed-version mode the train holds only dotted builds of that shape, and a different one would block every later ship.  Pass --build ${MARKETING%.*}.<n> or leave --build off.  Nothing was shipped."
     fi
     # An explicit --build is honoured exactly, and it does NOT move the
