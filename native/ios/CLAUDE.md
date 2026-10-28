@@ -15,7 +15,7 @@
 **Title wordmark:** `Assets.xcassets/DealDexWordmark.imageset` — glossy 3D DealDex PNG used by `DealDexTitle` on Scan. Isolated DD is `DealDexMark.imageset` (not the live launcher).
 **Keys:** stay on device. Do not invent a cloud key store.
 
-Binding fleet rule: `/Users/jay/apps/AGENT-SYNC.md` § iOS agent build loop. `xcodebuild` / `xcrun simctl` via bash are pre-approved. Do not ask. Do not stand up or narrate Xcode MCP.
+Binding fleet rule: `/Users/jay/apps/FLEET-PROTOCOL.md` § iOS agent build loop. `xcodebuild` / `xcrun simctl` via bash are pre-approved. Do not ask. Do not stand up or narrate Xcode MCP.
 
 ## Build
 
