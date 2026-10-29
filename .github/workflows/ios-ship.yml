@@ -139,9 +139,18 @@ jobs:
       - name: Scheduled ship gate (skip unless iOS code changed)
         id: gate
         run: |
+          # One --path-prefix per on.push.paths entry above: the scheduled
+          # backstop must cover the same set a push would have shipped, or a
+          # missed push of a tooling-only merge never ships (owner Oct 29
+          # 2026). ios-ship-workflow.test.mjs pins the two lists together.
           bash "$GITHUB_WORKSPACE/scripts/ios-scheduled-ship-gate.sh" \
             --event "${{ github.event_name }}" \
-            --path-prefix 'native/ios/' \
+            --path-prefix 'native/ios/**' \
+            --path-prefix '.github/workflows/ios-ship.yml' \
+            --path-prefix 'scripts/ios-fleet/**' \
+            --path-prefix 'scripts/ios-ship-testflight.sh' \
+            --path-prefix 'scripts/ios-appstore-gm-prepare.sh' \
+            --path-prefix 'scripts/ios-stage-asc-key.sh' \
             --repo-root "$GITHUB_WORKSPACE" \
             dealdex
 

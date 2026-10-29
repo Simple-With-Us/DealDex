@@ -1,3 +1,7 @@
+## 2026-10-29 GROK-BUILD — Scheduled iOS gate covers every push path
+
+The scheduled TestFlight backstop now diffs the full `on.push.paths` set (native tree, workflow file, ship tooling), not just `native/ios/`.  A merge that only touched tooling can no longer sit unshipped when its push run never dispatches.  `ios-scheduled-ship-gate.sh` takes a repeatable `--path-prefix` (old single-prefix call still works; `!` excludes like push), the gate step passes one per push entry, and `ios-ship-workflow.test.mjs` pins the two lists together.  Cron, push paths, rate gate, same-HEAD skip, and fail-safe skips are unchanged; no `--force-ship`.  See `docs/rollouts/2026-10-29-ios-ship-gate-push-paths.md`.
+
 ## 2026-10-29 — Owner rule supersedes AFC-517 for TestFlight versioning
 
 The Oct 29 2026 owner rule supersedes the AFC-517 / CT-2444 entry below for TestFlight versioning: fixed-mode apps ship a FIXED marketing version (dealdex 0.1.0) with the shared merge-timestamp build max(S, M + 1), not the 1.0.N train.
