@@ -294,7 +294,7 @@ test("ios-ship.yml plans the build once and hands it to the ship via --build", (
   assert.match(yml, /bash scripts\/ios-ship-testflight\.sh --build "/);
   assert.match(
     yml,
-    /id: plan-build\n        if: steps\.gate\.outputs\.should_ship == '1'/,
+    /id: plan-build\n {8}if: steps\.gate\.outputs\.should_ship == '1'/,
   );
 
   // Triggers, throttle, concurrency and runners are unchanged.
