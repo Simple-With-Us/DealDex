@@ -1,3 +1,7 @@
+## 2026-10-29 MUSE — Scheduled iOS gate keeps push last-match-wins (Kody)
+
+Kody noted `ios-scheduled-ship-gate.sh` compiled every `!` exclusion to git `:(exclude)`, which always wins, while push re-includes on a later positive match: a future exclusion-plus-re-include paths list would ship on push but skip on the scheduled backstop.  The gate now evaluates the ordered prefix list with push semantics -- exclusions with no later positive still compile to `:(exclude)`, and each remaining exclusion drops only files matching none of its later positives, through one `matching_files` helper shared by the range diff and the timestamp fallback.  `scripts/test-ios-scheduled-ship-gate.sh` gains re-include cases for both paths (24 checks green).  See `docs/rollouts/2026-10-29-ios-ship-gate-reinclude.md`.
+
 ## 2026-10-29 GROK-BUILD — Scheduled iOS gate covers every push path
 
 The scheduled TestFlight backstop now diffs the full `on.push.paths` set (native tree, workflow file, ship tooling), not just `native/ios/`.  A merge that only touched tooling can no longer sit unshipped when its push run never dispatches.  `ios-scheduled-ship-gate.sh` takes a repeatable `--path-prefix` (old single-prefix call still works; `!` excludes like push), the gate step passes one per push entry, and `ios-ship-workflow.test.mjs` pins the two lists together.  Cron, push paths, rate gate, same-HEAD skip, and fail-safe skips are unchanged; no `--force-ship`.  See `docs/rollouts/2026-10-29-ios-ship-gate-push-paths.md`.

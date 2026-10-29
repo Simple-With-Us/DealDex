@@ -33,8 +33,10 @@
 #                     the workflow's own `on.push.paths` list). Each value
 #                     is passed to git as a pathspec, so a `dir/` prefix,
 #                     an exact file, and globs (`*`, `**`) all work, and a
-#                     leading `!` excludes, the same as push. A single
-#                     --path-prefix (the old call shape) still works.
+#                     leading `!` excludes. The ordered list keeps push's
+#                     last-match-wins semantics: a `!` exclusion loses to a
+#                     later positive re-include. A single --path-prefix
+#                     (the old call shape) still works.
 #   --event NAME      GitHub event name (default: $GITHUB_EVENT_NAME).
 #                     Anything other than "schedule" votes ship=1 for every
 #                     app: a push already passed the workflow's paths filter,
@@ -88,20 +90,95 @@ done
 if [[ -z "$REPO_ROOT" ]]; then REPO_ROOT="$(pwd)"; fi
 REPO_ROOT="$(cd "$REPO_ROOT" && pwd)" || die "bad --repo-root"
 
-# One git pathspec per --path-prefix, in order. A leading '!' becomes git's
-# :(exclude) magic, which is git's closest equivalent of push's exclusions
-# (one difference: git exclusions always win, while push re-includes on a
-# later positive match -- the scheduled backstop errs toward skipping, and
-# the workflow's own paths list carries no '!' entries today).
-SPEC=()
+# One git pathspec per --path-prefix, in order, with push's last-match-wins
+# semantics: a '!' exclusion loses to a later positive re-include. Git's
+# :(exclude) always wins instead, so only exclusions with NO later positive
+# compile to it. Each remaining (conditional) exclusion becomes one
+# TAB-separated COND_RULES record -- stripped pattern, then its later
+# positives -- applied as a set difference after the git match: a file is
+# dropped only when it matches the exclusion and none of the later
+# positives, which is exactly "the last matching pattern is positive".
+# (A TAB inside a pattern cannot survive that record format, so such a
+# pattern degrades to a pure :(exclude): fail toward skipping, as before.)
+TAB=$'\t'
+PATS=()
 while IFS= read -r p; do
   [[ -n "$p" ]] || continue
+  PATS+=("$p")
+done <<< "$PATH_PREFIXES"
+SPEC=()
+COND_RULES=""
+N_PATS=${#PATS[@]}
+for (( i=0; i<N_PATS; i++ )); do
+  p="${PATS[$i]}"
   case "$p" in
-    '!'*) SPEC+=(":(exclude)${p#!}") ;;
+    '!'*)
+      stripped="${p#!}"
+      rule="$stripped"
+      case "$stripped" in
+        *"$TAB"*) rule_has_tab=1 ;;
+        *) rule_has_tab=0
+          for (( j=i+1; j<N_PATS; j++ )); do
+            case "${PATS[$j]}" in
+              '!'*) ;;
+              *"$TAB"*) ;;
+              *) rule="${rule}${TAB}${PATS[$j]}" ;;
+            esac
+          done ;;
+      esac
+      if [[ "$rule_has_tab" -eq 0 && "$rule" == *"$TAB"* ]]; then
+        if [[ -z "$COND_RULES" ]]; then COND_RULES="$rule"; else
+          COND_RULES="$COND_RULES
+$rule"
+        fi
+      else
+        SPEC+=(":(exclude)$stripped")
+      fi ;;
     *) SPEC+=("$p") ;;
   esac
-done <<< "$PATH_PREFIXES"
+done
 PATTERNS_LABEL="$(printf '%s' "$PATH_PREFIXES" | tr '\n' ' ' | sed 's/ $//')"
+
+matching_files() {
+  # matching_files <range|since> <anchor> -- print every changed file that
+  # the ordered pattern list matches, one per line. <anchor> is the last
+  # shipped sha (range) or unix timestamp (since). Prints nothing when
+  # nothing matches. Without a conditional exclusion this is a single git
+  # call, exactly like before.
+  local mode="$1" anchor="$2"
+  local cands excl reincl eff
+  if [[ "$mode" == "range" ]]; then
+    cands="$(git -C "$REPO_ROOT" diff --name-only "$anchor" HEAD -- "${SPEC[@]}" 2>/dev/null)"
+  else
+    cands="$(git -C "$REPO_ROOT" log --since="@${anchor}" --format= --name-only -- "${SPEC[@]}" 2>/dev/null | sed '/^$/d')"
+  fi
+  if [[ -n "${COND_RULES:-}" && -n "$cands" ]]; then
+    local rule neg
+    while IFS= read -r rule; do
+      [[ -n "$rule" ]] || continue
+      IFS="$TAB" read -ra RULE_FIELDS <<<"$rule"
+      neg="${RULE_FIELDS[0]}"
+      RULE_LATER=("${RULE_FIELDS[@]:1}")
+      if [[ "$mode" == "range" ]]; then
+        excl="$(git -C "$REPO_ROOT" diff --name-only "$anchor" HEAD -- "$neg" 2>/dev/null)"
+        reincl="$(git -C "$REPO_ROOT" diff --name-only "$anchor" HEAD -- "${RULE_LATER[@]}" 2>/dev/null)"
+      else
+        excl="$(git -C "$REPO_ROOT" log --since="@${anchor}" --format= --name-only -- "$neg" 2>/dev/null | sed '/^$/d')"
+        reincl="$(git -C "$REPO_ROOT" log --since="@${anchor}" --format= --name-only -- "${RULE_LATER[@]}" 2>/dev/null | sed '/^$/d')"
+      fi
+      [[ -n "$excl" ]] || continue
+      if [[ -n "$reincl" ]]; then
+        eff="$(LC_ALL=C comm -23 <(printf '%s\n' "$excl" | LC_ALL=C sort -u) <(printf '%s\n' "$reincl" | LC_ALL=C sort -u))"
+      else
+        eff="$excl"
+      fi
+      [[ -n "$eff" ]] || continue
+      cands="$(LC_ALL=C comm -23 <(printf '%s\n' "$cands" | LC_ALL=C sort -u) <(printf '%s\n' "$eff" | LC_ALL=C sort -u))"
+      [[ -n "$cands" ]] || break
+    done <<<"$COND_RULES"
+  fi
+  if [[ -n "$cands" ]]; then printf '%s\n' "$cands"; fi
+}
 
 emit() {
   # emit <key> <value>
@@ -163,7 +240,7 @@ for app in $APPS; do
         log "[${app}] last shipped sha ${last_sha} is unreachable from HEAD (shipped from another worktree/branch, or history was rewritten)."
         last_ts="$(awk 'NR==1{print $1}' "$state" 2>/dev/null || true)"
         if [[ "${last_ts:-}" =~ ^[0-9]+$ ]]; then
-          since_changed="$(git -C "$REPO_ROOT" log --since="@${last_ts}" --format= --name-only -- "${SPEC[@]}" 2>/dev/null | sed '/^$/d' | sort -u | head -20)"
+          since_changed="$(matching_files since "$last_ts" | sort -u | head -20)"
           if [[ -n "$since_changed" ]]; then
             log "[${app}] falling back to time: ${PATTERNS_LABEL} changed after the last ship:"
             # Line-by-line, NOT `printf ... $var`: paths can contain spaces.
@@ -186,7 +263,7 @@ for app in $APPS; do
       # Captured into a variable, not piped into `grep -q`: under pipefail an
       # early-exiting grep SIGPIPEs git and the pipeline reports failure even
       # though it matched.
-      changed="$(git -C "$REPO_ROOT" diff --name-only "$last_sha" HEAD -- "${SPEC[@]}" 2>/dev/null | head -20)"
+      changed="$(matching_files range "$last_sha" | head -20)"
       if [[ -n "$changed" ]]; then
         log "[${app}] ${PATTERNS_LABEL} changed since ${last_sha}:"
         printf '%s\n' "$changed" | while IFS= read -r f; do echo "  $f"; done
