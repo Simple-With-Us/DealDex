@@ -581,6 +581,14 @@ asc_next_shared_build() {
     [[ $rc -eq 0 && -n "$feed_xml" ]] || return 1
     max="$(printf '%s' "$feed_xml" | grep -o -E '<sparkle:version>[0-9]+</sparkle:version>' 2>/dev/null | grep -o -E '[0-9]+' 2>/dev/null | /usr/bin/python3 -c 'import sys; ns=[int(x.strip()) for x in sys.stdin if x.strip().isdigit()]; print(max(ns) if ns else "")' 2>/dev/null || true)"
     [[ "$max" =~ ^[0-9]+$ ]] || return 1
+    # The feed only raises the floor above what App Store Connect already
+    # holds.  A value past the four-digit range would wedge every later ship,
+    # so it is refused here and named.  No lower bound:  a feed below 1000
+    # cannot pull the counter under its 1000 floor.
+    if (( ${#max} > 4 )); then
+      logerr "pairedBuildFeed ${feed}: <sparkle:version> ${max} is outside the four-digit range; not using it as the build floor"
+      return 1
+    fi
     floor="$max"
   fi
   set +e
