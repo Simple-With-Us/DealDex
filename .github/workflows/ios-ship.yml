@@ -36,8 +36,12 @@ name: iOS TestFlight ship (GitHub-hosted macOS)
 #
 # The in-repo wrapper prefers scripts/ios-fleet/, then
 # /Users/jay/apps/ios-fleet. App key `dealdex`, bundle `net.dealdex`.
-# Versioning is 1.0.<commit count>, and CFBundleVersion is that same integer
-# (owner 2026-10-18); UTC timestamps are retired.
+# Versioning is the fixed marketing version 0.1.0 with the shared
+# merge-timestamp build max(S, M + 1) (owner 2026-10-29): S is the committer
+# date of HEAD in America/Chicago as YYYYMMDDHHMM, M the highest first numeric
+# component across every build of the app on both platforms.  The "Plan
+# release build" step computes that value ONCE per release (read-only) and the
+# ship step below hands the same value to every upload via --build.
 #
 # Bundle `net.dealdex` and team `CC8UTF7ATG` are unchanged here.
 # The Apple Developer portal App ID resource is not a team id.
@@ -311,11 +315,32 @@ jobs:
           bash "$GITHUB_WORKSPACE/scripts/ios-appstore-gm-prepare.sh"
           unset key_material key_b64 TOKEN CLIENT_ID CLIENT_SECRET val IOS_DIST_P12_BASE64 IOS_DIST_P12_PASSWORD
 
+      # Computed ONCE per release, after the gate and after the ASC
+      # credential is in the environment: the shared merge-timestamp build
+      # max(S, M + 1) via the read-only --plan-build-only mode (which plans
+      # through asc-api.mjs plan-release-build, the same code path a local
+      # fixed-mode ship without --build uses).  Every ship step of this
+      # release hands that single value over via --build, so iOS and any
+      # future paired platform upload the same number.  When the gate skips,
+      # this step skips too and nothing is uploaded.
+      - name: Plan release build (once per release)
+        id: plan-build
+        if: steps.gate.outputs.should_ship == '1'
+        run: |
+          set -euo pipefail
+          build="$(bash scripts/ios-fleet/ship-testflight.sh dealdex --repo-root "$GITHUB_WORKSPACE" --plan-build-only)"
+          if ! [[ "$build" =~ ^[1-9][0-9]{11}$ ]]; then
+            echo "::error::plan-build did not print a 12-digit merge-stamp build."
+            exit 1
+          fi
+          echo "planned build: ${build}"
+          echo "build=${build}" >> "$GITHUB_OUTPUT"
+
       - name: Ship DealDex to TestFlight
         if: steps.gate.outputs.should_ship == '1'
         env:
           IOS_TF_RELEASE_NOTES: "1"  # Jay 2026-09-08: publish ASC What to Test
-        run: bash scripts/ios-ship-testflight.sh
+        run: bash scripts/ios-ship-testflight.sh --build "${{ steps.plan-build.outputs.build }}"
 
       - name: Sync standing TestFlight testers
         if: success() && steps.gate.outputs.should_ship == '1'

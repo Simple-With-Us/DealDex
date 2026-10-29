@@ -3,31 +3,38 @@
 Vendored from Congress.Trade `scripts/ios-fleet` so this repo can ship
 without `/Users/jay/apps/ios-fleet` on the runner.  `apps.json` here is
 DealDex-only: bundle `net.dealdex`, team `CC8UTF7ATG`, SKU `dealdex`,
-train `1.0`. `ship-testflight.sh` accepts
+fixed version `0.1.0`. `ship-testflight.sh` accepts
 the same first-arg keys as Congress/Socratic (`socratic|congress|usage|usage-local`)
 plus `dealdex`. `R2FAW69NPD` is the Apple bundle resource ID, not the team.
 
-## Version numbering (owner directive 2026-10-24, AFC-517 / CT-2444)
+## Version numbering (owner directive 2026-10-29)
 
-The marketing version and the build number are independent:
+DealDex ships a fixed marketing version with a shared merge-timestamp build:
 
-- `MARKETING_VERSION` is `<prefix>.<P+1>`: the next patch on the train,
-  where `P` is the highest patch App Store Connect already holds on that
-  train (App Store versions AND TestFlight trains, drift trains ignored). 
+- `MARKETING_VERSION` is the fixed `0.1.0` from `apps.json`
+  (`fixedMarketingVersion`). It does not count up per ship.
   `--version <X.Y.Z>` pins it exactly.
-- `CURRENT_PROJECT_VERSION` is the repo commit count
-  (`git rev-list --count HEAD`), raised above every build already in the
-  target train and above the app's own plain-integer builds below
-  `1000000000` (on macOS: above every build of any size).  `--build <N>`
-  pins it exactly, and it never moves the marketing version.
+- `CURRENT_PROJECT_VERSION` is `max(S, M + 1)` as a plain integer, where
+  `S` is the committer date of the commit being built (HEAD, the
+  squash-merge commit on main) in America/Chicago as `YYYYMMDDHHMM`
+  and `M` is the highest first numeric component among every build of
+  the app and its paired app on both platforms (expired included, all
+  trains, old timestamp-style builds included) plus every extra floor. No
+  floor: a rebuild of the same commit still goes up. One ceiling: the
+  planned build is a 12-digit merge stamp, so anything past 12 digits
+  fails closed instead of shipping.
 
-The two are not the same number, so App Store Connect shows
-`1.0.237 (2360)`, not `1.0.N (N)`.  The rules live in
-`version-plan.mjs` (pure, unit-tested by `version-plan.test.mjs`) and the
-App Store Connect state they need is read by `asc-api.mjs`
-(`latest-marketing-patch`, `build-floor`).  The retired local build-seq
-counter and `project.pbxproj` are not sources any more: App Store Connect
-is the only record that shipping advances.
+The release workflow computes that build ONCE per release (the `plan-build`
+step runs `ship-testflight.sh --plan-build-only`, which plans through
+`asc-api.mjs plan-release-build`) and hands the single value to every ship
+job via `--build <N>`. A fixed-mode `--build` must be a 12-digit stamp
+greater than every existing build of that app record on that platform and
+at or above the merge stamp of the HEAD being shipped; the
+paired platform may reuse the same number. Without `--build`, fixed mode
+plans `max(S, M + 1)` itself through the same code path, for operators
+running locally. The rule lives in `shared-build.mjs` (pure, unit-tested
+by `shared-build.test.mjs`); the non-fixed next-patch scheme still lives in
+`version-plan.mjs` for apps without `fixedMarketingVersion`.
 
 `scripts/ios-ship-testflight.sh` prefers this directory, then falls back
 to `/Users/jay/apps/ios-fleet` on Jay's Mac.

@@ -85,26 +85,24 @@ test("iOS identity includes DealDexWordmark imageset and official marketplace pa
   assert.match(marks, /viewBox\.width/);
 });
 
-test("iOS project version record is on the 1.0 train with a plain-integer build", () => {
+test("iOS project version record is the fixed 0.1.0 with a merge-stamp build", () => {
   const spec = read("native/ios/project.yml");
   const plist = read("native/ios/DealDex/Info.plist");
   const pbx = read("native/ios/DealDex.xcodeproj/project.pbxproj");
+  const apps = JSON.parse(read("scripts/ios-fleet/apps.json"));
 
   const marketing = spec.match(/^ {4}MARKETING_VERSION: "([^"]+)"/m)?.[1];
   const build = spec.match(/^ {4}CURRENT_PROJECT_VERSION: "([^"]+)"/m)?.[1];
   assert.ok(marketing, "project.yml MARKETING_VERSION");
   assert.ok(build, "project.yml CURRENT_PROJECT_VERSION");
-  assert.match(marketing, /^1\.0\.\d+$/);
-  // Fleet regimen (owner 2026-10-24, AFC-517): the marketing version and the
-  // build number are INDEPENDENT.  The marketing version is the next patch on
-  // the train (App Store Connect is the record of which patches it holds) and
-  // the build is the repo commit count, raised above the App Store Connect
-  // floor.  This file records the last shipped pair, so the two numbers no
-  // longer have to be the same value:  the ship script passes both on the
-  // xcodebuild command line and overrides whatever is recorded here.  UTC
-  // YYYYMMDDHHMM stamps are still retired.
-  assert.match(build, /^\d+$/);
-  assert.doesNotMatch(build, /^\d{12}$/, "UTC build stamps are retired");
+  // Fleet regimen (owner 2026-10-29): the marketing version is FIXED (it does
+  // not count up per ship) and the build is the shared merge-timestamp build
+  // max(S, M + 1).  This file records the last shipped pair:  the ship script
+  // passes both on the xcodebuild command line and overrides whatever is
+  // recorded here.
+  assert.equal(marketing, apps.apps.dealdex.fixedMarketingVersion);
+  assert.equal(marketing, "0.1.0");
+  assert.match(build, /^[1-9][0-9]{11}$/);
 
   assert.match(
     plist,
