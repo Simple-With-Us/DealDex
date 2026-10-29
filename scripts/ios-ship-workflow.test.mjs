@@ -231,6 +231,39 @@ test("ios-ship.yml is the auto-ship path: Fleet-OPS /asc, no standing overrides"
   assert.match(yml, /^name: iOS TestFlight ship \(GitHub-hosted macOS\)$/m);
 });
 
+test("fixed marketing version plans one shared four-digit build (owner Oct 28 2026)", () => {
+  const ship = read("scripts/ios-fleet/ship-testflight.sh");
+  const asc = read("scripts/ios-fleet/asc-api.mjs");
+  const apps = JSON.parse(read("scripts/ios-fleet/apps.json"));
+
+  // DealDex pins its marketing version; the build is the shared counter.
+  assert.equal(apps.apps.dealdex.fixedMarketingVersion, "0.1.0");
+
+  // The dotted M.m.<n> fixed-mode build is retired, and fixed mode works on
+  // macOS now (the counter sits above every Mac build).
+  assert.doesNotMatch(ship, /next-dotted-build|asc_next_dotted_build/);
+  assert.doesNotMatch(ship, /dotted build/);
+  assert.doesNotMatch(asc, /next-dotted-build/);
+  assert.doesNotMatch(ship, /fixedMarketingVersion is not supported on macOS/);
+
+  // Fixed mode plans build N as a plain four-digit integer 1000..9999 from
+  // one counter per app across iOS and macOS (optional macBundleId and
+  // pairedBuildFeed join the same counter).
+  assert.match(ship, /asc_next_shared_build\(\) \{/);
+  assert.match(ship, /macBundleId/);
+  assert.match(ship, /pairedBuildFeed/);
+  assert.match(ship, /next-shared-build/);
+  assert.match(ship, /\[1-9\]\[0-9\]\{3\}/);
+  assert.match(ship, /fixed mode requires a four-digit build 1000\.\.9999/);
+  assert.match(ship, /cannot verify four-digit build floor/);
+  assert.match(
+    ship,
+    /shared four-digit build \$\{BUILD_NUM\} for fixed version/,
+  );
+  assert.match(asc, /method === "next-shared-build"/);
+  assert.match(asc, /from "\.\/shared-build\.mjs"/);
+});
+
 test("main carries an unsigned iOS build check (ci.yml calls ios-build.yml)", () => {
   const ci = read(".github/workflows/ci.yml");
   const build = read(".github/workflows/ios-build.yml");

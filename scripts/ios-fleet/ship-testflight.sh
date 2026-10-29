@@ -558,30 +558,62 @@ project_marketing_seq() {
   printf '%s' "$best"
 }
 
-# The highest patch already used on the <prefix> train in App Store Connect
-# (App Store versions AND TestFlight trains, drift trains ignored).
-# Prints the integer on stdout.  Returns 1 (and prints nothing) when ASC
-# cannot be consulted -- the caller must distinguish "no patch yet" (0) from
-# "unknown" (failure).
-asc_next_dotted_build() {
-  local version="$1" plat="${2:-}" out rc
+# The next shared four-digit build for a fixed marketing version (owner, Oct 28 2026):
+# ONE counter per app across iOS and macOS: max(every iOS build on ALL trains,
+# every macOS build, every extra floor, 999) + 1, floored at 1000.  Prints the
+# build on stdout.  Returns 1 (and prints nothing) when it cannot be worked out.
+asc_next_shared_build() {
+  local out rc mac_id feed feed_xml max floor
   command -v "$ASC_NODE" >/dev/null 2>&1 || return 1
   # No load_secrets here:  this helper always runs inside $(...), so a staged
   # key dir would be lost with the subshell and never reach the EXIT trap.
   # The node client resolves the credential itself (env or Infisical /asc),
   # exactly like asc_latest_marketing_patch below.
+  mac_id="$(json_get "$APP_KEY" macBundleId 2>/dev/null || true)"
+  feed="$(json_get "$APP_KEY" pairedBuildFeed 2>/dev/null || true)"
+  floor=""
+  if [[ -n "$feed" ]]; then
+    command -v curl >/dev/null 2>&1 || return 1
+    set +e
+    feed_xml="$(curl -fsSL --connect-timeout 10 --max-time 20 "$feed" 2>/dev/null)"
+    rc=$?
+    set -e
+    [[ $rc -eq 0 && -n "$feed_xml" ]] || return 1
+    max="$(printf '%s' "$feed_xml" | grep -o -E '<sparkle:version>[0-9]+</sparkle:version>' 2>/dev/null | grep -o -E '[0-9]+' 2>/dev/null | /usr/bin/python3 -c 'import sys; ns=[int(x.strip()) for x in sys.stdin if x.strip().isdigit()]; print(max(ns) if ns else "")' 2>/dev/null || true)"
+    [[ "$max" =~ ^[0-9]+$ ]] || return 1
+    # The feed only raises the floor above what App Store Connect already
+    # holds.  A value past the four-digit range would wedge every later ship,
+    # so it is refused here and named.  No lower bound:  a feed below 1000
+    # cannot pull the counter under its 1000 floor.
+    if (( ${#max} > 4 )); then
+      logerr "pairedBuildFeed ${feed}: <sparkle:version> ${max} is outside the four-digit range; not using it as the build floor"
+      return 1
+    fi
+    floor="$max"
+  fi
   set +e
-  out=$(asc_client next-dotted-build "$BUNDLE_ID" "$version" "$plat")
-  rc=$?
+  if [[ -n "$mac_id" && -n "$floor" ]]; then
+    out=$(asc_client next-shared-build "$BUNDLE_ID" "$mac_id" "$floor")
+    rc=$?
+  elif [[ -n "$mac_id" ]]; then
+    out=$(asc_client next-shared-build "$BUNDLE_ID" "$mac_id")
+    rc=$?
+  elif [[ -n "$floor" ]]; then
+    out=$(asc_client next-shared-build "$BUNDLE_ID" "$floor")
+    rc=$?
+  else
+    out=$(asc_client next-shared-build "$BUNDLE_ID")
+    rc=$?
+  fi
   set -e
-  [[ $rc -eq 0 && "$out" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
+  [[ $rc -eq 0 && "$out" =~ ^[1-9][0-9]{3}$ ]] || return 1
   printf '%s' "$out"
 }
 
 asc_released_store_version() {
   local plat="${1:-}" out rc
   command -v "$ASC_NODE" >/dev/null 2>&1 || return 1
-  # No load_secrets here:  same subshell reason as asc_next_dotted_build.
+  # No load_secrets here:  same subshell reason as asc_next_shared_build.
   set +e
   out=$(asc_client released-store-version "$BUNDLE_ID" "$plat" 2>/dev/null)
   rc=$?
@@ -909,11 +941,15 @@ PROJECT_REL="$(json_get "$APP_KEY" projectRel)"
 PROJECT_REL_ALT="$(json_get "$APP_KEY" projectRelAlt)"
 XCODEGEN_DIR="$(json_get "$APP_KEY" xcodegenDir)"
 DEFAULT_MARKETING="$(json_get "$APP_KEY" marketingVersionDefault)"
-# Optional fixed-version policy (owner, 2026-10-26): the marketing version does
-# not count up per TestFlight ship; the build is a dotted M.m.<n> (see
-# asc-api.mjs next-dotted-build) that goes up inside the fixed train.  apps.json
-# key: fixedMarketingVersion ("1.1.2").  Absent key keeps the next-patch
-# behaviour.  Not used on macOS (builds must grow across all trains).
+# Optional fixed-version policy (owner, Oct 28 2026): the marketing version does
+# not count up per ship; the build is one shared four-digit counter per app
+# across iOS and macOS (see asc-api.mjs next-shared-build and shared-build.mjs).
+# apps.json keys: fixedMarketingVersion ("1.1.2"), optional macBundleId (the Mac
+# app whose builds join the counter), optional pairedBuildFeed (a Sparkle
+# appcast URL whose max <sparkle:version> joins the counter).  Absent
+# fixedMarketingVersion keeps the next-patch behaviour.  Fixed mode works on
+# both platforms: the counter sits above every Mac build, which is what macOS
+# needs.
 FIXED_MARKETING="$(json_get "$APP_KEY" fixedMarketingVersion)"
 
 if [[ -z "$PLATFORM" ]]; then
@@ -1045,9 +1081,6 @@ else
   if [[ -n "$FIXED_MARKETING" && ( -z "$FORCE_VERSION" || "$FORCE_VERSION" == "$FIXED_MARKETING" ) ]]; then
     [[ "$FIXED_MARKETING" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
       || die "fixedMarketingVersion '${FIXED_MARKETING}' for ${APP_KEY} in apps.json is not M.m.p (three dot-separated integers).  Nothing was shipped."
-    if [[ "$(printf '%s' "${ASC_PLATFORM:-}" | tr a-z A-Z)" == "MAC_OS" ]]; then
-      die "fixedMarketingVersion is not supported on macOS:  Mac builds must grow across every train, so a dotted build under a fixed version cannot be ordered safely.  Nothing was shipped."
-    fi
     FORCE_VERSION="$FIXED_MARKETING"
     FIXED_MODE=1
     log "version: fixed marketing version ${FIXED_MARKETING} from apps.json; it does not count up per ship"
@@ -1108,10 +1141,10 @@ sys.exit(0 if a>b else 1)' "$FIXED_MARKETING" "$_rel"; then
 
   # ---- the build number ---------------------------------------------------
   if [[ -n "$FORCE_BUILD" ]]; then
-    # Escape dots in the marketing prefix so 1.1 cannot match 1x1 via regex.
-    _fixed_train_re="^$(printf '%s' "${MARKETING%.*}" | sed 's/\./\\./g')\.[0-9]+$"
-    if [[ "$FIXED_MODE" -eq 1 && ! "$FORCE_BUILD" =~ $_fixed_train_re ]]; then
-      die "--build ${FORCE_BUILD} is not ${MARKETING%.*}.<n>:  in fixed-version mode the train holds only dotted builds of that shape, and a different one would block every later ship.  Pass --build ${MARKETING%.*}.<n> or leave --build off.  Nothing was shipped."
+    if [[ "$FIXED_MODE" -eq 1 ]]; then
+      [[ "$FORCE_BUILD" =~ ^[1-9][0-9]{3}$ ]] || die "fixed mode requires a four-digit build 1000..9999; nothing shipped"
+      _minimum="$(asc_next_shared_build)" || die "cannot verify four-digit build floor; nothing shipped"
+      [[ "$FORCE_BUILD" -ge "$_minimum" ]] || die "requested build is below the planned four-digit minimum ${_minimum}; nothing shipped"
     fi
     # An explicit --build is honoured exactly, and it does NOT move the
     # marketing version:  the two numbers are independent.
@@ -1122,15 +1155,8 @@ sys.exit(0 if a>b else 1)' "$FIXED_MARKETING" "$_rel"; then
       die "--build ${BUILD_NUM} equals the patch of ${MARKETING}, which would ship ${MARKETING} (${BUILD_NUM}): the 1.0.N (N) form the owner retired (AFC-517).  Pass a different --build."
     fi
   elif [[ "$FIXED_MODE" -eq 1 ]]; then
-    if [[ "$(printf '%s' "${ASC_PLATFORM:-}" | tr a-z A-Z)" == "MAC_OS" ]]; then
-      die "fixedMarketingVersion is not supported on macOS:  Mac builds must grow across every train, so a dotted build under a fixed version cannot be ordered safely.  Nothing was shipped."
-    fi
-    # The build reads like the version it ships under (1.1.2 (1.1.2)) and goes
-    # up inside the fixed train (1.1.3, 1.1.4, ...).  No floor, seed, count or
-    # patch bump applies:  the train itself is the only record.
-    BUILD_NUM="$(asc_next_dotted_build "$MARKETING" "$ASC_PLATFORM")" \
-      || die "cannot work out the next dotted build for ${MARKETING}: App Store Connect could not be read, or the train holds a build that is not ${MARKETING%.*}.<n>.  Nothing was shipped or guessed."
-    log "build: dotted build ${BUILD_NUM} for fixed version ${MARKETING}"
+    BUILD_NUM="$(asc_next_shared_build)" || die "cannot work out the next shared four-digit build: incomplete inventory or floor outside 1000..9999; nothing shipped"
+    log "build: shared four-digit build ${BUILD_NUM} for fixed version ${MARKETING}"
   else
     [[ "$PLAN_COMMIT_COUNT" =~ ^[0-9]+$ ]] || die "could not read the commit count from ${REPO_ROOT}; CFBundleVersion is the repo commit count and UTC timestamps are retired"
 
