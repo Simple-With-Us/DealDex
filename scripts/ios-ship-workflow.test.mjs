@@ -117,7 +117,7 @@ test("a rejected ASC key is reported masked, and no test reads an environment", 
   }
 });
 
-test("vendored ios-fleet ships net.dealdex on the 1.0.N train", () => {
+test("vendored ios-fleet ships net.dealdex (fixed 0.1.0; next-patch scheme kept for non-fixed apps)", () => {
   const apps = JSON.parse(read("scripts/ios-fleet/apps.json"));
   const dealdex = apps.apps.dealdex;
   assert.equal(apps.teamId, "CC8UTF7ATG");
@@ -231,37 +231,78 @@ test("ios-ship.yml is the auto-ship path: Fleet-OPS /asc, no standing overrides"
   assert.match(yml, /^name: iOS TestFlight ship \(GitHub-hosted macOS\)$/m);
 });
 
-test("fixed marketing version plans one shared four-digit build (owner Oct 28 2026)", () => {
+test("fixed marketing version plans one shared merge-stamp build (owner Oct 29 2026)", () => {
   const ship = read("scripts/ios-fleet/ship-testflight.sh");
   const asc = read("scripts/ios-fleet/asc-api.mjs");
   const apps = JSON.parse(read("scripts/ios-fleet/apps.json"));
 
-  // DealDex pins its marketing version; the build is the shared counter.
+  // DealDex pins its marketing version; the build is the shared merge stamp.
   assert.equal(apps.apps.dealdex.fixedMarketingVersion, "0.1.0");
 
-  // The dotted M.m.<n> fixed-mode build is retired, and fixed mode works on
-  // macOS now (the counter sits above every Mac build).
+  // The dotted M.m.<n> fixed-mode build and the four-digit counter are both
+  // retired, and fixed mode works on macOS (the build sits above every Mac
+  // build).
   assert.doesNotMatch(ship, /next-dotted-build|asc_next_dotted_build/);
   assert.doesNotMatch(ship, /dotted build/);
   assert.doesNotMatch(asc, /next-dotted-build/);
   assert.doesNotMatch(ship, /fixedMarketingVersion is not supported on macOS/);
+  assert.doesNotMatch(ship, /four-digit/);
+  assert.doesNotMatch(asc, /four-digit/);
+  assert.doesNotMatch(asc, /ignored \d+ .*timestamp/);
+  assert.doesNotMatch(asc, /ignoredIos/);
 
-  // Fixed mode plans build N as a plain four-digit integer 1000..9999 from
-  // one counter per app across iOS and macOS (optional macBundleId and
-  // pairedBuildFeed join the same counter).
+  // Fixed mode plans build max(S, M + 1): S is the merge stamp from the exact
+  // git command, M the max across iOS and macOS (optional macBundleId and
+  // pairedBuildFeed join the same max).
   assert.match(ship, /asc_next_shared_build\(\) \{/);
   assert.match(ship, /macBundleId/);
   assert.match(ship, /pairedBuildFeed/);
-  assert.match(ship, /next-shared-build/);
-  assert.match(ship, /\[1-9\]\[0-9\]\{3\}/);
-  assert.match(ship, /fixed mode requires a four-digit build 1000\.\.9999/);
-  assert.match(ship, /cannot verify four-digit build floor/);
+  assert.match(ship, /plan-release-build/);
+  assert.match(ship, /merge_stamp\(\) \{/);
   assert.match(
     ship,
-    /shared four-digit build \$\{BUILD_NUM\} for fixed version/,
+    /TZ=America\/Chicago git show -s --format=%cd --date=format-local:%Y%m%d%H%M HEAD/,
   );
+  assert.match(ship, /\[1-9\]\[0-9\]\{11\}/);
+  assert.match(ship, /fixed mode requires a 12-digit merge-stamp build/);
+  assert.match(ship, /cannot verify the build floor of/);
+  assert.match(ship, /at or below the highest existing build/);
+  assert.match(
+    ship,
+    /shared merge-stamp build \$\{BUILD_NUM\} for fixed version/,
+  );
+  assert.match(asc, /method === "plan-release-build"/);
   assert.match(asc, /method === "next-shared-build"/);
+  assert.match(asc, /method === "platform-build-max"/);
   assert.match(asc, /from "\.\/shared-build\.mjs"/);
+
+  // The paired feed joins the max uncapped: https-only, numeric, >= 1, at
+  // most 18 digits.  The old four-digit cap is gone.
+  assert.match(ship, /https:\/\//);
+  assert.match(ship, /at most 18 digits/);
+  assert.doesNotMatch(ship, /\$\{#max\} > 4/);
+});
+
+test("ios-ship.yml plans the build once and hands it to the ship via --build", () => {
+  const yml = read(".github/workflows/ios-ship.yml");
+
+  // One upstream plan step per release, behind the same gate, feeding --build.
+  assert.match(yml, /Plan release build \(once per release\)/);
+  assert.match(yml, /id: plan-build/);
+  assert.match(yml, /--plan-build-only/);
+  assert.match(yml, /steps\.plan-build\.outputs\.build/);
+  assert.match(yml, /bash scripts\/ios-ship-testflight\.sh --build "/);
+  assert.match(
+    yml,
+    /id: plan-build\n        if: steps\.gate\.outputs\.should_ship == '1'/,
+  );
+
+  // Triggers, throttle, concurrency and runners are unchanged.
+  assert.match(yml, /cron:\s*'22 \* \* \* \*'/);
+  assert.match(yml, /group: ios-ship-dealdex/);
+  assert.match(yml, /cancel-in-progress:\s*false/);
+  assert.doesNotMatch(yml, /--force-ship/);
+  assert.doesNotMatch(yml, /IOS_TF_MIN_INTERVAL_SEC/);
 });
 
 test("main carries an unsigned iOS build check (ci.yml calls ios-build.yml)", () => {
