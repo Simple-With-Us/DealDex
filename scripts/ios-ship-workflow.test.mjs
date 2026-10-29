@@ -17,8 +17,27 @@ test("ios-ship.yml targets dealdex / native/ios on GitHub-hosted macos-latest", 
   const prepare = read("scripts/ios-appstore-gm-prepare.sh");
 
   assert.match(yml, /native\/ios\/\*\*/);
-  assert.match(yml, /--path-prefix 'native\/ios\/'/);
   assert.match(yml, /scripts\/ios-fleet\/\*\*/);
+  // The scheduled gate covers the same set a push would have shipped: one
+  // --path-prefix per on.push.paths entry, or a missed push of a
+  // tooling-only merge never ships (owner Oct 29 2026).
+  const pushBlock = yml.match(
+    /push:\s*\n(?:.*\n)*?\s+paths:\s*\n((?:\s+- '[^\n']+'\n)+)/,
+  );
+  assert.ok(pushBlock, "on.push.paths block found");
+  const pushPaths = [...pushBlock[1].matchAll(/- '([^']+)'/g)].map((m) => m[1]);
+  assert.deepEqual(pushPaths, [
+    "native/ios/**",
+    ".github/workflows/ios-ship.yml",
+    "scripts/ios-fleet/**",
+    "scripts/ios-ship-testflight.sh",
+    "scripts/ios-appstore-gm-prepare.sh",
+    "scripts/ios-stage-asc-key.sh",
+  ]);
+  const gatePrefixes = [...yml.matchAll(/--path-prefix '([^']+)'/g)].map(
+    (m) => m[1],
+  );
+  assert.deepEqual([...gatePrefixes].sort(), [...pushPaths].sort());
   assert.match(yml, /runs-on:\s*macos-latest/);
   assert.doesNotMatch(yml, /runs-on:\s*\[self-hosted/);
   assert.match(yml, /DEVELOPER_DIR:\s*\/Applications\/Xcode\.app\/Contents\/Developer/);
