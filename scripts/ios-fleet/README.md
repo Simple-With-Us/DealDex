@@ -20,13 +20,16 @@ DealDex ships a fixed marketing version with a shared merge-timestamp build:
   and `M` is the highest first numeric component among every build of
   the app and its paired app on both platforms (expired included, all
   trains, old timestamp-style builds included) plus every extra floor. No
-  floor, no cap: a rebuild of the same commit still goes up.
+  floor: a rebuild of the same commit still goes up. One ceiling: the
+  planned build is a 12-digit merge stamp, so anything past 12 digits
+  fails closed instead of shipping.
 
 The release workflow computes that build ONCE per release (the `plan-build`
 step runs `ship-testflight.sh --plan-build-only`, which plans through
 `asc-api.mjs plan-release-build`) and hands the single value to every ship
 job via `--build <N>`. A fixed-mode `--build` must be a 12-digit stamp
-greater than every existing build of that app record on that platform; the
+greater than every existing build of that app record on that platform and
+at or above the merge stamp of the HEAD being shipped; the
 paired platform may reuse the same number. Without `--build`, fixed mode
 plans `max(S, M + 1)` itself through the same code path, for operators
 running locally. The rule lives in `shared-build.mjs` (pure, unit-tested

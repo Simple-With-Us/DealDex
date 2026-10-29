@@ -597,10 +597,12 @@ int_gt() {
 # max(S, M + 1) as a plain integer, where S is the merge_stamp above and M is
 # the highest first numeric component among EVERY build of this app and its
 # paired mac app on BOTH platforms (all trains, expired included, old
-# timestamp-style builds included) plus every extra floor.  No floor, no cap.
-# Prints the build on stdout.  Returns 1 (and prints nothing) when it cannot
-# be worked out.  This is the same plan the release workflow computes once per
-# release (via --plan-build-only) and hands to every ship job via --build.
+# timestamp-style builds included) plus every extra floor.  No floor, but the
+# planned build is a 12-digit merge stamp:  anything past 12 digits fails
+# closed (the acceptance check below keeps that gate).  Prints the build on
+# stdout.  Returns 1 (and prints nothing) when it cannot be worked out.
+# This is the same plan the release workflow computes once per release (via
+# --plan-build-only) and hands to every ship job via --build.
 asc_next_shared_build() {
   local out rc mac_id feed feed_xml max floor stamp
   command -v "$ASC_NODE" >/dev/null 2>&1 || return 1
@@ -628,11 +630,11 @@ asc_next_shared_build() {
     [[ $rc -eq 0 && -n "$feed_xml" ]] || return 1
     max="$(printf '%s' "$feed_xml" | grep -o -E '<sparkle:version>[0-9]+</sparkle:version>' 2>/dev/null | grep -o -E '[0-9]+' 2>/dev/null | /usr/bin/python3 -c 'import sys; ns=[int(x.strip()) for x in sys.stdin if x.strip().isdigit()]; print(max(ns) if ns else "")' 2>/dev/null || true)"
     [[ "$max" =~ ^[0-9]+$ ]] || return 1
-    # The feed joins the max:  it must be numeric, at least 1, and at most 18
-    # digits.  Anything else fails closed here and is named, never silently
-    # ignored and never capped.
-    if [[ ! "$max" =~ ^[1-9][0-9]*$ ]] || (( ${#max} > 18 )); then
-      logerr "pairedBuildFeed ${feed}: <sparkle:version> ${max} is not a positive integer of at most 18 digits; not using it as a build floor"
+    # The feed joins the max:  it must be numeric, at least 1, and at most 12
+    # digits, because the planned build is a 12-digit merge stamp.  Anything
+    # else fails closed here and is named, never silently ignored.
+    if [[ ! "$max" =~ ^[1-9][0-9]*$ ]] || (( ${#max} > 12 )); then
+      logerr "pairedBuildFeed ${feed}: <sparkle:version> ${max} is not a positive integer of at most 12 digits; not using it as a build floor"
       return 1
     fi
     floor="$max"
@@ -1227,6 +1229,12 @@ sys.exit(0 if a>b else 1)' "$FIXED_MARKETING" "$_rel"; then
       [[ "$FORCE_BUILD" =~ ^[1-9][0-9]{11}$ ]] || die "fixed mode requires a 12-digit merge-stamp build YYYYMMDDHHMM; nothing shipped"
       _this_max="$(asc_this_platform_max)" || die "cannot verify the build floor of ${BUNDLE_ID} on ${ASC_PLATFORM}; nothing shipped"
       int_gt "$FORCE_BUILD" "$_this_max" || die "requested build ${FORCE_BUILD} is at or below the highest existing build ${_this_max} of ${BUNDLE_ID} on ${ASC_PLATFORM}; nothing shipped"
+      # The plan and the ship check out the same SHA, so this only rejects a
+      # value planned for an older commit:  N must reach this HEAD's stamp S.
+      _stamp="$(merge_stamp)" || die "cannot read the merge stamp of HEAD in ${REPO_ROOT}; nothing shipped"
+      if int_gt "$_stamp" "$FORCE_BUILD"; then
+        die "requested build ${FORCE_BUILD} is below the merge stamp ${_stamp} of the HEAD being shipped; it was planned for an older commit.  Re-run plan-build on this HEAD.  Nothing shipped."
+      fi
     fi
     # An explicit --build is honoured exactly, and it does NOT move the
     # marketing version:  the two numbers are independent.

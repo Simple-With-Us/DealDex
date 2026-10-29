@@ -5,8 +5,10 @@
 // commit on main) in America/Chicago as YYYYMMDDHHMM (12 digits) and M is
 // the highest first numeric component among EVERY build of the app on BOTH
 // platforms (expired included, all version trains, old timestamp-style
-// builds included) plus every extra floor.  No floor and no cap:  a rebuild
-// of the same commit still goes up, because M then holds the previous ship.
+// builds included) plus every extra floor.  No floor:  a rebuild of the
+// same commit still goes up, because M then holds the previous ship.  One
+// ceiling:  the planned build is a 12-digit merge stamp, so a max(S, M + 1)
+// past 12 digits throws instead of planning a build the ship would reject.
 export function nextSharedBuild({iosBuilds, macBuilds, extraFloors = [], complete, mergeStamp}) {
   if (complete !== true || !Array.isArray(iosBuilds) || !Array.isArray(macBuilds)) {
     throw new Error('complete build inventory required');
@@ -41,5 +43,6 @@ export function nextSharedBuild({iosBuilds, macBuilds, extraFloors = [], complet
     if (highest === null || floor > highest) highest = floor;
   }
   const next = highest === null ? stamp : (highest + 1n > stamp ? highest + 1n : stamp);
+  if (next > 999999999999n) throw new Error('planned build exceeds 12 digits');
   return {build: String(next)};
 }

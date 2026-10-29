@@ -276,10 +276,10 @@ test("fixed marketing version plans one shared merge-stamp build (owner Oct 29 2
   assert.match(asc, /method === "platform-build-max"/);
   assert.match(asc, /from "\.\/shared-build\.mjs"/);
 
-  // The paired feed joins the max uncapped: https-only, numeric, >= 1, at
-  // most 18 digits.  The old four-digit cap is gone.
+  // The paired feed joins the max under the 12-digit ceiling: https-only,
+  // numeric, >= 1, at most 12 digits.  The old four-digit cap is gone.
   assert.match(ship, /https:\/\//);
-  assert.match(ship, /at most 18 digits/);
+  assert.match(ship, /at most 12 digits/);
   assert.doesNotMatch(ship, /\$\{#max\} > 4/);
 });
 

@@ -1221,8 +1221,10 @@ async function main() {
   // (the committer date of HEAD in America/Chicago as YYYYMMDDHHMM) and M is
   // the highest first numeric component among EVERY build of the app and its
   // paired app on BOTH platforms (expired included, all version trains, old
-  // timestamp-style builds included) plus every extra floor.  No floor, no
-  // cap.  plan-release-build is the name the release workflow calls once per
+  // timestamp-style builds included) plus every extra floor.  No floor, but
+  // the planned build is a 12-digit merge stamp:  the planner throws past
+  // 12 digits and this command exits 3.  plan-release-build is the name the
+  // release workflow calls once per
   // release; next-shared-build is the same command under its older name.
   //
   // Two ships at once would read the same inventory and pick the same N.  The CI

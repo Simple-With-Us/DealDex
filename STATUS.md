@@ -1,3 +1,7 @@
+## 2026-10-29 — Owner rule supersedes AFC-517 for TestFlight versioning
+
+The Oct 29 2026 owner rule supersedes the AFC-517 / CT-2444 entry below for TestFlight versioning: fixed-mode apps ship a FIXED marketing version (dealdex 0.1.0) with the shared merge-timestamp build max(S, M + 1), not the 1.0.N train.
+
 ## 2026-10-24 MM — iOS version numbers come from App Store Connect (AFC-517 / CT-2444)
 
 The vendored `scripts/ios-fleet` copy now follows the owner directive of

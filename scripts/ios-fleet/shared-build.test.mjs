@@ -34,15 +34,30 @@ test('the max is shared across iOS and macOS', () => {
   );
   assert.deepEqual(next({...input, macBuilds: ['202610300900']}), {build: '202610300901'});
 });
-test('extra floors join the same max with no cap', () => {
+test('extra floors join the same max under the 12-digit ceiling', () => {
   assert.deepEqual(next({...input, extraFloors: [986]}), {build: STAMP});
   assert.deepEqual(next({...input, extraFloors: [202610300900]}), {build: '202610300901'});
   assert.deepEqual(
     next({...input, iosBuilds: ['202610290931'], extraFloors: [202610300900]}),
     {build: '202610300901'}
   );
-  assert.deepEqual(next({...input, extraFloors: ['999999999999999999']}), {build: '1000000000000000000'});
-  assert.deepEqual(next({...input, iosBuilds: ['999999999999999999']}), {build: '1000000000000000000'});
+});
+test('a planned build past 12 digits throws instead of shipping it', () => {
+  assert.throws(
+    () => next({...input, extraFloors: ['999999999999999999']}),
+    /planned build exceeds 12 digits/
+  );
+  assert.throws(
+    () => next({...input, iosBuilds: ['999999999999999999']}),
+    /planned build exceeds 12 digits/
+  );
+  // A 12-digit max whose +1 rolls into 13 digits throws too.
+  assert.throws(
+    () => next({...input, macBuilds: ['999999999999']}),
+    /planned build exceeds 12 digits/
+  );
+  // The top 12-digit build itself still plans fine.
+  assert.deepEqual(next({...input, macBuilds: ['999999999998']}), {build: '999999999999'});
 });
 test('malformed inventory throws before computing', () => {
   for (const bad of [null, 'NaN', '1.2.3.4', 42, '', ' 1000', 'v1']) {

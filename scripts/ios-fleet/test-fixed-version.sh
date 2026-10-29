@@ -189,7 +189,15 @@ rc=$?
 check "unreadable this-platform max fails closed" 1 "$rc" "$out" "cannot verify the build floor"
 STUB_MAX_RC=0
 
-# 8. An unreadable merge stamp fails closed.
+# 8. --build above this platform's max but below this HEAD's merge stamp is
+# rejected:  it was planned for an older commit.
+STUB_THIS_MAX="0"
+out="$(ship_env bash "$SHIP" dealdex --repo-root "$REPO" --dry-run --build 202610180127 2>&1)"
+rc=$?
+check "build below the HEAD merge stamp is rejected" 1 "$rc" "$out" "below the merge stamp 202610290930"
+STUB_THIS_MAX="202610290930"
+
+# 9. An unreadable merge stamp fails closed.
 mkdir -p "${TMP}/not-a-repo"
 out="$(ship_env bash "$SHIP" dealdex --repo-root "${TMP}/not-a-repo" --plan-build-only 2>&1)"
 rc=$?
