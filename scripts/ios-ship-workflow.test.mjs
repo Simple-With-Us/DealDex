@@ -18,7 +18,7 @@ function extractPushPaths(ymlText) {
     /push:\s*\n(?:.*\n)*?\s+paths:\s*\n((?:\s+-\s+[^\n]+\n)+)/,
   );
   if (!block) return [];
-  return [...block[1].matchAll(/^\s+-\s+['"]?([^'"\s]+)['"]?\s*$/gm)].map(
+  return [...block[1].matchAll(/^\s+-\s+['"]?([^'"\s]+)['"]?\s*(?:#.*)?$/gm)].map(
     (m) => m[1],
   );
 }
@@ -35,7 +35,7 @@ function extractGatePrefixes(ymlText) {
     .split("\n")
     .filter((line) => !/^\s*#/.test(line))
     .join("\n");
-  return [...code.matchAll(/--path-prefix\s+['"]?([^'"\s]+)['"]?/g)].map(
+  return [...code.matchAll(/--path-prefix\s+['"]?([^'"\s]+)['"]?(?:\s*\\?\s*(?:#.*)?)?/g)].map(
     (m) => m[1],
   );
 }
@@ -125,6 +125,7 @@ test("ship-gate coverage extractors accept any quote style (owner Oct 29 2026)",
     "      - 'single/**'",
     '      - "double/**"',
     "      - unquoted/**",
+    "      - 'commented/**' # reason",
     "    paths-ignore:",
     "      - 'ignored/**'",
     "",
@@ -133,6 +134,7 @@ test("ship-gate coverage extractors accept any quote style (owner Oct 29 2026)",
     "single/**",
     "double/**",
     "unquoted/**",
+    "commented/**",
   ]);
 
   const gateSample = [
@@ -143,6 +145,7 @@ test("ship-gate coverage extractors accept any quote style (owner Oct 29 2026)",
     "            --path-prefix 'single/**' \\",
     '            --path-prefix "double/**" \\',
     "            --path-prefix unquoted/** \\",
+    "            --path-prefix 'commented/**' \\ # reason",
     "            dealdex",
     "      - name: Next step",
     "        run: echo --path-prefix 'elsewhere/**'",
@@ -152,6 +155,7 @@ test("ship-gate coverage extractors accept any quote style (owner Oct 29 2026)",
     "single/**",
     "double/**",
     "unquoted/**",
+    "commented/**",
   ]);
 });
 
