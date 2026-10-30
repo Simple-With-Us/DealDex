@@ -12,6 +12,7 @@ Private evidence stays in private Fleet-OPS and is excluded from public indexes.
 
 ## Rollouts
 
+- [2026-10-30-repository-report-index](../rollouts/2026-10-30-repository-report-index.md)
 - [2026-08-13-chip-settings](../rollouts/2026-08-13-chip-settings.md)
 - [2026-08-13-copy-wrap](../rollouts/2026-08-13-copy-wrap.md)
 - [2026-08-13-fleet-onboard](../rollouts/2026-08-13-fleet-onboard.md)
