@@ -11,6 +11,35 @@ function read(rel) {
   return readFileSync(join(ROOT, rel), "utf8");
 }
 
+// on.push.paths entries, any quote style.  Scoped to the paths: list under
+// push: so paths-ignore, branches and other lists never leak in.
+function extractPushPaths(ymlText) {
+  const block = ymlText.match(
+    /push:\s*\n(?:.*\n)*?\s+paths:\s*\n((?:\s+-\s+[^\n]+\n)+)/,
+  );
+  if (!block) return [];
+  return [...block[1].matchAll(/^\s+-\s+['"]?([^'"\s]+)['"]?\s*$/gm)].map(
+    (m) => m[1],
+  );
+}
+
+// --path-prefix values from the scheduled gate step only, any quote style.
+// Full-line comments are stripped so a prose mention like
+// "--path-prefix per ..." is never read as a prefix.
+function extractGatePrefixes(ymlText) {
+  const step = ymlText.match(
+    /- name: Scheduled ship gate[\s\S]*?(?=\n\s+- name:|$)/,
+  );
+  if (!step) return [];
+  const code = step[0]
+    .split("\n")
+    .filter((line) => !/^\s*#/.test(line))
+    .join("\n");
+  return [...code.matchAll(/--path-prefix\s+['"]?([^'"\s]+)['"]?/g)].map(
+    (m) => m[1],
+  );
+}
+
 test("ios-ship.yml targets dealdex / native/ios on GitHub-hosted macos-latest", () => {
   const yml = read(".github/workflows/ios-ship.yml");
   const wrapper = read("scripts/ios-ship-testflight.sh");
@@ -21,11 +50,8 @@ test("ios-ship.yml targets dealdex / native/ios on GitHub-hosted macos-latest", 
   // The scheduled gate covers the same set a push would have shipped: one
   // --path-prefix per on.push.paths entry, or a missed push of a
   // tooling-only merge never ships (owner Oct 29 2026).
-  const pushBlock = yml.match(
-    /push:\s*\n(?:.*\n)*?\s+paths:\s*\n((?:\s+- '[^\n']+'\n)+)/,
-  );
-  assert.ok(pushBlock, "on.push.paths block found");
-  const pushPaths = [...pushBlock[1].matchAll(/- '([^']+)'/g)].map((m) => m[1]);
+  const pushPaths = extractPushPaths(yml);
+  assert.ok(pushPaths.length, "on.push.paths block found");
   assert.deepEqual(pushPaths, [
     "native/ios/**",
     ".github/workflows/ios-ship.yml",
@@ -34,9 +60,7 @@ test("ios-ship.yml targets dealdex / native/ios on GitHub-hosted macos-latest", 
     "scripts/ios-appstore-gm-prepare.sh",
     "scripts/ios-stage-asc-key.sh",
   ]);
-  const gatePrefixes = [...yml.matchAll(/--path-prefix '([^']+)'/g)].map(
-    (m) => m[1],
-  );
+  const gatePrefixes = extractGatePrefixes(yml);
   assert.deepEqual([...gatePrefixes].sort(), [...pushPaths].sort());
   assert.match(yml, /runs-on:\s*macos-latest/);
   assert.doesNotMatch(yml, /runs-on:\s*\[self-hosted/);
@@ -90,6 +114,45 @@ test("ios-ship.yml targets dealdex / native/ios on GitHub-hosted macos-latest", 
   assert.match(prepare, /ASC_KEY_P8 or ASC_KEY_PATH required/);
   assert.doesNotMatch(prepare, /echo "\$ASC_KEY_P8"/);
   assert.doesNotMatch(prepare, /echo "\$IOS_DIST_P12/);
+});
+
+test("ship-gate coverage extractors accept any quote style (owner Oct 29 2026)", () => {
+  const pushSample = [
+    "on:",
+    "  push:",
+    "    branches: [main]",
+    "    paths:",
+    "      - 'single/**'",
+    '      - "double/**"',
+    "      - unquoted/**",
+    "    paths-ignore:",
+    "      - 'ignored/**'",
+    "",
+  ].join("\n");
+  assert.deepEqual(extractPushPaths(pushSample), [
+    "single/**",
+    "double/**",
+    "unquoted/**",
+  ]);
+
+  const gateSample = [
+    "      - name: Scheduled ship gate (skip unless iOS code changed)",
+    "        run: |",
+    "          # One --path-prefix per on.push.paths entry",
+    "          bash scripts/ios-scheduled-ship-gate.sh \\",
+    "            --path-prefix 'single/**' \\",
+    '            --path-prefix "double/**" \\',
+    "            --path-prefix unquoted/** \\",
+    "            dealdex",
+    "      - name: Next step",
+    "        run: echo --path-prefix 'elsewhere/**'",
+    "",
+  ].join("\n");
+  assert.deepEqual(extractGatePrefixes(gateSample), [
+    "single/**",
+    "double/**",
+    "unquoted/**",
+  ]);
 });
 
 test("the ASC credential crosses a step boundary as the hosted base64 trio", () => {
