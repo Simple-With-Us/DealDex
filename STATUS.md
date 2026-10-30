@@ -1,3 +1,7 @@
+## 2026-10-30 CODEX — Repository report index (AFC-580)
+
+Prepared the required status note for the docs-only report index change.  See `docs/rollouts/2026-10-30-repository-report-index.md`.
+
 ## 2026-10-29 MUSE — Scheduled iOS gate keeps push last-match-wins (Kody)
 
 Kody noted `ios-scheduled-ship-gate.sh` compiled every `!` exclusion to git `:(exclude)`, which always wins, while push re-includes on a later positive match: a future exclusion-plus-re-include paths list would ship on push but skip on the scheduled backstop.  The gate now evaluates the ordered prefix list with push semantics -- exclusions with no later positive still compile to `:(exclude)`, and each remaining exclusion drops only files matching none of its later positives, through one `matching_files` helper shared by the range diff and the timestamp fallback.  `scripts/test-ios-scheduled-ship-gate.sh` gains re-include cases for both paths (24 checks green).  See `docs/rollouts/2026-10-29-ios-ship-gate-reinclude.md`.
