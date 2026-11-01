@@ -47,14 +47,32 @@ fi
 body='{}'; status=200
 case "$method $url" in
   "GET "*"/contents/"*"?ref=main")
-    content="$(base64 < "${state}/remote.json" | tr -d '\n')"
-    body="{\"sha\":\"remote-sha\",\"content\":\"${content}\"}"
+    if [[ "${STUB_EMPTY_CONTENT:-}" == "1" ]]; then
+      body='{"sha":"remote-sha","content":""}'
+    else
+      content="$(base64 < "${state}/remote.json" | tr -d '\n')"
+      body="{\"sha\":\"remote-sha\",\"content\":\"${content}\"}"
+    fi
     ;;
   "GET "*"/git/ref/heads/main")
-    body='{"object":{"sha":"main-sha"}}'
+    if [[ "${STUB_NONJSON_REF:-}" == "1" ]]; then
+      body='<html>not json</html>'
+    else
+      body='{"object":{"sha":"main-sha"}}'
+    fi
     ;;
   "POST "*"/git/refs")
-    status=201; body='{"ref":"refs/heads/stub"}'
+    if [[ "${STUB_BRANCH_EXISTS:-}" == "1" ]]; then
+      status=422; body='{"message":"Reference already exists"}'
+    else
+      status=201; body='{"ref":"refs/heads/stub"}'
+    fi
+    ;;
+  "GET "*"/git/ref/heads/ios-versions/"*)
+    body='{"object":{"sha":"stale-sha"}}'
+    ;;
+  "PATCH "*"/git/refs/heads/ios-versions/"*)
+    body='{"ref":"refs/heads/stub","object":{"sha":"main-sha"}}'
     ;;
   "GET "*"/contents/"*"?ref=ios-versions/"*)
     status=404; body='{"message":"Not Found"}'
@@ -68,10 +86,24 @@ case "$method $url" in
     fi
     ;;
   "POST "*"/pulls")
-    status=201; body='{"html_url":"https://github.example/pull/7","number":7}'
+    if [[ "${STUB_PR_422_NO_PR:-}" == "1" || "${STUB_PR_422_WITH_PR:-}" == "1" ]]; then
+      status=422; body='{"message":"Validation Failed: original-422-cause"}'
+    else
+      status=201; body='{"html_url":"https://github.example/pull/7","number":7}'
+    fi
+    ;;
+  "GET "*"/pulls?state=open"*)
+    if [[ "${STUB_PR_422_WITH_PR:-}" == "1" ]]; then
+      body='[{"html_url":"https://github.example/pull/9","number":9}]'
+    else
+      body='[]'
+    fi
     ;;
   "GET "*"/pulls/7")
     body='{"node_id":"PR_node_7","number":7}'
+    ;;
+  "GET "*"/pulls/9")
+    body='{"node_id":"PR_node_9","number":9}'
     ;;
   "POST "*"/graphql")
     body='{"data":{}}'
@@ -87,10 +119,17 @@ chmod +x "${TMP}/bin/curl"
 
 cat > "${TMP}/bin/gh" <<'STUB'
 #!/usr/bin/env bash
-# Stub gh: only `gh auth token` matters (the fallback credential).
-if [[ "${1:-} ${2:-}" == "auth token" && -n "${STUB_GH_TOKEN:-}" ]]; then
-  printf '%s\n' "$STUB_GH_TOKEN"
-  exit 0
+# Stub gh: only `gh auth token` matters (the fallback credential).  With
+# STUB_GH_MIMIC_ENV=1 it echoes an inherited job token like the real gh.
+if [[ -n "${STUB_STATE_DIR:-}" ]]; then
+  printf 'gh %s GH_TOKEN=%s GITHUB_TOKEN=%s\n' "$*" "${GH_TOKEN:-<unset>}" "${GITHUB_TOKEN:-<unset>}" >> "${STUB_STATE_DIR}/gh.log"
+fi
+if [[ "${1:-} ${2:-}" == "auth token" ]]; then
+  if [[ "${STUB_GH_MIMIC_ENV:-}" == "1" ]]; then
+    if [[ -n "${GH_TOKEN:-}" ]]; then printf '%s\n' "$GH_TOKEN"; exit 0; fi
+    if [[ -n "${GITHUB_TOKEN:-}" ]]; then printf '%s\n' "$GITHUB_TOKEN"; exit 0; fi
+  fi
+  if [[ -n "${STUB_GH_TOKEN:-}" ]]; then printf '%s\n' "$STUB_GH_TOKEN"; exit 0; fi
 fi
 exit 1
 STUB
@@ -116,6 +155,7 @@ python3 - "${TMP}/state/put.json" <<'PY'
 import base64, json, sys
 put = json.load(open(sys.argv[1]))
 assert put["branch"].startswith("ios-versions/"), put["branch"]
+assert put["branch"] == "ios-versions/net.dealdex-1.0.3-202608242345", put["branch"]
 assert put["branch"] != "main"
 merged = json.loads(base64.b64decode(put["content"]))
 row = merged["apps"]["net.dealdex"]
@@ -140,7 +180,7 @@ grep -q "remote-manifest-pr-opened" <<<"$out_gh"
 
 # gh auth token fallback: no env token, the stub gh supplies one.
 : > "${TMP}/state/calls.log"
-out_gh_cli="$(env -u IOS_VERSIONS_PUBLISH_TOKEN -u GH_TOKEN -u GITHUB_TOKEN \
+out_gh_cli="$(env -u IOS_VERSIONS_PUBLISH_TOKEN -u GH_TOKEN -u GITHUB_TOKEN -u GITHUB_ACTIONS \
   STUB_STATE_DIR="${TMP}/state" STUB_GH_TOKEN="stub-token-for-tests" \
   PATH="${TMP}/bin:/usr/bin:/bin" HOME="${TMP}" \
   IOS_VERSIONS_API_BASE="https://api.github.example" \
@@ -199,5 +239,131 @@ if bash "${TMP}/fleet/publish-ios-versions.sh" --bundle-id net.dealdex \
 fi
 grep -q "remote-manifest-publish-failed: --apple-id must be a number" "${TMP}/badid.err"
 if grep -q Traceback "${TMP}/badid.err"; then echo "FAIL: traceback leaked" >&2; exit 1; fi
+
+# Finding 1: a different build gets a different branch.  A run without a
+# build falls back to a timestamped branch.
+: > "${TMP}/state/calls.log"
+STUB_STATE_DIR="${TMP}/state" PATH="${TMP}/bin:/usr/bin:/bin" \
+IOS_VERSIONS_API_BASE="https://api.github.example" \
+IOS_VERSIONS_PUBLISH_TOKEN="stub-token-for-tests" \
+  bash "${TMP}/fleet/publish-ios-versions.sh" \
+    --bundle-id net.dealdex --version 1.0.3 \
+    --build 202601010101 --apple-id 6804249232 --display-name "DealDex" \
+    >"${TMP}/branch-build.out" 2>"${TMP}/branch-build.err"
+grep -q "remote-manifest-pr-opened" "${TMP}/branch-build.out"
+python3 - "${TMP}/state/put.json" <<'PY'
+import json, sys
+put = json.load(open(sys.argv[1]))
+assert put["branch"] == "ios-versions/net.dealdex-1.0.3-202601010101", put["branch"]
+PY
+
+: > "${TMP}/state/calls.log"
+STUB_STATE_DIR="${TMP}/state" PATH="${TMP}/bin:/usr/bin:/bin" \
+IOS_VERSIONS_API_BASE="https://api.github.example" \
+IOS_VERSIONS_PUBLISH_TOKEN="stub-token-for-tests" \
+  bash "${TMP}/fleet/publish-ios-versions.sh" \
+    --bundle-id net.dealdex --version 1.0.3 \
+    --apple-id 6804249232 --display-name "DealDex" \
+    >"${TMP}/branch-nobuild.out" 2>"${TMP}/branch-nobuild.err"
+grep -q "remote-manifest-pr-opened" "${TMP}/branch-nobuild.out"
+python3 - "${TMP}/state/put.json" <<'PY'
+import json, re, sys
+put = json.load(open(sys.argv[1]))
+assert re.fullmatch(r"ios-versions/net\.dealdex-1\.0\.3-\d{14}", put["branch"]), put["branch"]
+PY
+
+# Finding 1: an existing branch is reset onto the fresh main sha.  Stale
+# commits from an earlier build must not linger on the branch.
+: > "${TMP}/state/calls.log"
+rm -f "${TMP}/state/last-PATCH.json"
+STUB_BRANCH_EXISTS=1 run_publish >"${TMP}/branchexists.out" 2>"${TMP}/branchexists.err"
+grep -q "remote-manifest-pr-opened" "${TMP}/branchexists.out"
+grep -q "PATCH .*git/refs/heads/ios-versions/net.dealdex-1.0.3-202608242345" "${TMP}/state/calls.log"
+python3 - "${TMP}/state/last-PATCH.json" <<'PY'
+import json, sys
+payload = json.load(open(sys.argv[1]))
+assert payload == {"sha": "main-sha", "force": True}, payload
+PY
+
+# Finding 2: a POST 422 with no open pull request reports the original 422.
+# The fallback GET must not hide it behind its own HTTP 200.
+: > "${TMP}/state/calls.log"
+if STUB_PR_422_NO_PR=1 run_publish >"${TMP}/pr422.out" 2>"${TMP}/pr422.err"; then
+  echo "FAIL: POST 422 with no open PR must exit non-zero" >&2; exit 1
+fi
+grep -q "HTTP 422" "${TMP}/pr422.err"
+grep -q "original-422-cause" "${TMP}/pr422.err"
+if grep -q "HTTP 200" "${TMP}/pr422.err"; then
+  echo "FAIL: fallback GET status hid the original 422" >&2; exit 1
+fi
+
+# Finding 2: a POST 422 with an open pull request still reuses it.
+: > "${TMP}/state/calls.log"
+STUB_PR_422_WITH_PR=1 run_publish >"${TMP}/pr422reuse.out" 2>"${TMP}/pr422reuse.err"
+grep -q "remote-manifest-pr-opened" "${TMP}/pr422reuse.out"
+grep -q "PR #9" "${TMP}/pr422reuse.out"
+
+# Finding 3: an empty content field is a failed fetch.  The clean refusal
+# runs instead of a later json.load crash on the empty file.
+mkdir -p "${TMP}/fleet-empty"
+cp "$SCRIPT_SRC" "${TMP}/fleet-empty/publish-ios-versions.sh"
+if STUB_STATE_DIR="${TMP}/state" STUB_EMPTY_CONTENT=1 PATH="${TMP}/bin:/usr/bin:/bin" \
+  IOS_VERSIONS_API_BASE="https://api.github.example" \
+  IOS_VERSIONS_PUBLISH_TOKEN="stub-token-for-tests" \
+  bash "${TMP}/fleet-empty/publish-ios-versions.sh" \
+    --bundle-id net.dealdex --version 1.0.3 --build 202608242345 \
+    >"${TMP}/empty.out" 2>"${TMP}/empty.err"; then
+  echo "FAIL: empty remote content must exit non-zero" >&2; exit 1
+fi
+grep -q "refusing to publish an empty apps map" "${TMP}/empty.err"
+if grep -q Traceback "${TMP}/empty.err"; then echo "FAIL: traceback leaked" >&2; exit 1; fi
+
+# Finding 4: in CI the gh fallback is skipped entirely.  The read-only job
+# token cannot bypass the empty-token skip through gh.
+: > "${TMP}/state/gh.log"
+mkdir -p "${TMP}/fleet-ci"
+cp "$SCRIPT_SRC" "${TMP}/fleet-ci/publish-ios-versions.sh"
+if env -u IOS_VERSIONS_PUBLISH_TOKEN -u GH_TOKEN \
+  STUB_STATE_DIR="${TMP}/state" STUB_GH_TOKEN="stub-token-for-tests" \
+  PATH="${TMP}/bin:/usr/bin:/bin" HOME="${TMP}" \
+  GITHUB_ACTIONS=true GITHUB_TOKEN="readonly-job-token" \
+  IOS_VERSIONS_API_BASE="https://api.github.example" \
+  bash "${TMP}/fleet-ci/publish-ios-versions.sh" \
+    --bundle-id net.dealdex --version 1.0.3 --build 202608242345 \
+    >"${TMP}/ci.out" 2>"${TMP}/ci.err"; then
+  echo "FAIL: CI run without a publish token must exit non-zero" >&2; exit 1
+fi
+grep -q "no IOS_VERSIONS_PUBLISH_TOKEN" "${TMP}/ci.err"
+if [[ -s "${TMP}/state/gh.log" ]]; then
+  echo "FAIL: gh fallback must be skipped when GITHUB_ACTIONS=true" >&2; exit 1
+fi
+
+# Finding 4: a local gh fallback never sees the job token.  Both token
+# variables are stripped from its environment.
+: > "${TMP}/state/gh.log"
+: > "${TMP}/state/calls.log"
+out_local="$(env -u IOS_VERSIONS_PUBLISH_TOKEN -u GH_TOKEN -u GITHUB_ACTIONS \
+  STUB_STATE_DIR="${TMP}/state" STUB_GH_TOKEN="stored-token-for-tests" \
+  STUB_GH_MIMIC_ENV=1 \
+  PATH="${TMP}/bin:/usr/bin:/bin" HOME="${TMP}" \
+  GITHUB_TOKEN="readonly-job-token" \
+  IOS_VERSIONS_API_BASE="https://api.github.example" \
+  bash "${TMP}/fleet/publish-ios-versions.sh" \
+    --bundle-id net.dealdex --version 1.0.3 \
+    --build 202608242345 --apple-id 6804249232 --display-name "DealDex" 2>"${TMP}/localgh.err")"
+grep -q "remote-manifest-pr-opened" <<<"$out_local"
+grep -q "GH_TOKEN=<unset> GITHUB_TOKEN=<unset>" "${TMP}/state/gh.log"
+if grep -q "readonly-job-token" "${TMP}/state/gh.log"; then
+  echo "FAIL: gh saw the job token" >&2; exit 1
+fi
+
+# Finding 5: a non-JSON API body fails cleanly without a traceback.  The
+# existing empty-sha guard reports the failure.
+: > "${TMP}/state/calls.log"
+if STUB_NONJSON_REF=1 run_publish >"${TMP}/nonjson.out" 2>"${TMP}/nonjson.err"; then
+  echo "FAIL: a non-JSON main ref body must exit non-zero" >&2; exit 1
+fi
+grep -q "returned no sha" "${TMP}/nonjson.err"
+if grep -q Traceback "${TMP}/nonjson.err"; then echo "FAIL: traceback leaked" >&2; exit 1; fi
 
 echo "test-publish-ios-versions: all tests passed"

@@ -86,8 +86,8 @@ fi
 # is the shipping repository's contents:read token and a remote write
 # attempted with it only ever produced a swallowed 403.
 TOKEN="${IOS_VERSIONS_PUBLISH_TOKEN:-${GH_TOKEN:-}}"
-if [[ -z "$TOKEN" ]] && command -v gh >/dev/null 2>&1; then
-  TOKEN="$(gh auth token 2>/dev/null || true)"
+if [[ -z "$TOKEN" && -z "${GITHUB_ACTIONS:-}" ]] && command -v gh >/dev/null 2>&1; then
+  TOKEN="$(env -u GH_TOKEN -u GITHUB_TOKEN gh auth token 2>/dev/null || true)"
 fi
 
 WORK_DIR="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/publish-ios-versions.XXXXXX")"
@@ -126,7 +126,7 @@ api_request() {
 }
 
 api_message() {
-  python3 - "$API_BODY" <<'PY' 2>/dev/null || echo "no response message"
+  python3 - "${1:-$API_BODY}" <<'PY' 2>/dev/null || echo "no response message"
 import json, sys
 try:
     data = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -139,14 +139,19 @@ PY
 
 api_fail() {
   local what="$1"
-  echo "remote-manifest-publish-failed: ${what} HTTP ${API_STATUS}: $(api_message)" >&2
+  local status="${2:-$API_STATUS}"
+  local body_file="${3:-$API_BODY}"
+  echo "remote-manifest-publish-failed: ${what} HTTP ${status}: $(api_message "$body_file")" >&2
   exit 1
 }
 
 json_field() {
   python3 - "$1" "$2" <<'PY'
 import json, sys
-data = json.load(open(sys.argv[1], encoding="utf-8"))
+try:
+    data = json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception:
+    sys.exit(1)
 cur = data
 for part in sys.argv[2].split("."):
     if isinstance(cur, dict):
@@ -173,7 +178,11 @@ fetch_remote_json() {
     "${API_BASE}/repos/${REPO}/contents/${REMOTE_PATH}?ref=main" || true)"
   API_STATUS="$status"
   [[ "$status" == "200" ]] || return 1
-  json_field "$API_BODY" "content" | tr -d '\n' | python3 -c 'import base64,sys; sys.stdout.buffer.write(base64.b64decode(sys.stdin.read()))' >"$dest" 2>/dev/null || return 1
+  local content
+  content="$(json_field "$API_BODY" "content" | tr -d '\n')" || return 1
+  [[ -n "$content" ]] || return 1
+  printf '%s' "$content" | python3 -c 'import base64,sys; sys.stdout.buffer.write(base64.b64decode(sys.stdin.read()))' >"$dest" 2>/dev/null || return 1
+  [[ -s "$dest" ]] || return 1
 }
 
 if [[ -z "$BASE_JSON" ]]; then
@@ -322,13 +331,18 @@ with open(dst, "w", encoding="utf-8") as fh:
     fh.write("\n")
 PY
 
-# 2. Branch off main.  The branch name is stable for one app version, so a
-# re-run reuses the same branch and pull request instead of opening a
-# duplicate.
-BRANCH="ios-versions/$(printf '%s-%s' "$BUNDLE_ID" "$VERSION" | tr -c 'A-Za-z0-9._-' '-')"
+# 2. Branch off main.  The branch name includes the build when one is given
+# (the marketing version can stay fixed across builds), so a re-run of the
+# same build reuses its branch instead of colliding with an earlier build's.
+# Without a build, a UTC timestamp keeps each run on a fresh branch.
+if [[ -n "$BUILD" ]]; then
+  BRANCH="ios-versions/$(printf '%s-%s-%s' "$BUNDLE_ID" "$VERSION" "$BUILD" | tr -c 'A-Za-z0-9._-' '-')"
+else
+  BRANCH="ios-versions/$(printf '%s-%s-%s' "$BUNDLE_ID" "$VERSION" "$(date -u +%Y%m%d%H%M%S)" | tr -c 'A-Za-z0-9._-' '-')"
+fi
 api_request GET "repos/${REPO}/git/ref/heads/main"
 [[ "$API_STATUS" == "200" ]] || api_fail "GET repos/${REPO}/git/ref/heads/main"
-MAIN_SHA="$(json_field "$API_BODY" "object.sha")"
+MAIN_SHA="$(json_field "$API_BODY" "object.sha" || true)"
 [[ -n "$MAIN_SHA" ]] || { echo "remote-manifest-publish-failed: GET main ref returned no sha (HTTP ${API_STATUS})" >&2; exit 1; }
 
 python3 - "${WORK_DIR}/create-ref.json" "refs/heads/${BRANCH}" "$MAIN_SHA" <<'PY'
@@ -339,6 +353,14 @@ api_request POST "repos/${REPO}/git/refs" "${WORK_DIR}/create-ref.json"
 if [[ "$API_STATUS" == "422" ]]; then
   api_request GET "repos/${REPO}/git/ref/heads/${BRANCH}"
   [[ "$API_STATUS" == "200" ]] || api_fail "POST repos/${REPO}/git/refs (branch ${BRANCH} may already exist)"
+  # The branch is a throwaway publisher branch: reset it to the fresh base
+  # so a stale tree from an earlier run can never be committed over.
+  python3 - "${WORK_DIR}/update-ref.json" "$MAIN_SHA" <<'PY'
+import json, sys
+json.dump({"sha": sys.argv[2], "force": True}, open(sys.argv[1], "w", encoding="utf-8"))
+PY
+  api_request PATCH "repos/${REPO}/git/refs/heads/${BRANCH}" "${WORK_DIR}/update-ref.json"
+  [[ "$API_STATUS" == "200" ]] || api_fail "PATCH repos/${REPO}/git/refs/heads/${BRANCH}"
 elif [[ "$API_STATUS" != "201" ]]; then
   api_fail "POST repos/${REPO}/git/refs"
 fi
@@ -347,7 +369,7 @@ fi
 api_request GET "repos/${REPO}/contents/${REMOTE_PATH}?ref=${BRANCH}"
 BRANCH_FILE_SHA=""
 if [[ "$API_STATUS" == "200" ]]; then
-  BRANCH_FILE_SHA="$(json_field "$API_BODY" "sha")"
+  BRANCH_FILE_SHA="$(json_field "$API_BODY" "sha" || true)"
 elif [[ "$API_STATUS" != "404" ]]; then
   api_fail "GET repos/${REPO}/contents/${REMOTE_PATH}?ref=${BRANCH}"
 fi
@@ -383,16 +405,19 @@ api_request POST "repos/${REPO}/pulls" "${WORK_DIR}/pr.json"
 PR_URL=""
 PR_NUMBER=""
 if [[ "$API_STATUS" == "201" ]]; then
-  PR_URL="$(json_field "$API_BODY" "html_url")"
-  PR_NUMBER="$(json_field "$API_BODY" "number")"
+  PR_URL="$(json_field "$API_BODY" "html_url" || true)"
+  PR_NUMBER="$(json_field "$API_BODY" "number" || true)"
 elif [[ "$API_STATUS" == "422" ]]; then
+  PR_POST_STATUS="$API_STATUS"
+  PR_POST_BODY="${WORK_DIR}/post-pulls-body.json"
+  cp "$API_BODY" "$PR_POST_BODY" 2>/dev/null || : > "$PR_POST_BODY"
   OWNER="${REPO%%/*}"
   api_request GET "repos/${REPO}/pulls?state=open&head=${OWNER}:${BRANCH}"
   if [[ "$API_STATUS" == "200" ]]; then
-    PR_URL="$(json_field "$API_BODY" "0.html_url")"
-    PR_NUMBER="$(json_field "$API_BODY" "0.number")"
+    PR_URL="$(json_field "$API_BODY" "0.html_url" || true)"
+    PR_NUMBER="$(json_field "$API_BODY" "0.number" || true)"
   fi
-  [[ -n "$PR_URL" ]] || api_fail "POST repos/${REPO}/pulls"
+  [[ -n "$PR_URL" ]] || api_fail "POST repos/${REPO}/pulls" "$PR_POST_STATUS" "$PR_POST_BODY"
 else
   api_fail "POST repos/${REPO}/pulls"
 fi
@@ -406,7 +431,7 @@ if [[ -n "$PR_NUMBER" ]]; then
   api_request GET "repos/${REPO}/pulls/${PR_NUMBER}"
   PR_NODE_ID=""
   if [[ "$API_STATUS" == "200" ]]; then
-    PR_NODE_ID="$(json_field "$API_BODY" "node_id")"
+    PR_NODE_ID="$(json_field "$API_BODY" "node_id" || true)"
   fi
   if [[ -n "$PR_NODE_ID" ]]; then
     python3 - "${WORK_DIR}/graphql.json" "$PR_NODE_ID" <<'PY'
