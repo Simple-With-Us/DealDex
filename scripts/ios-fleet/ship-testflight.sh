@@ -919,6 +919,7 @@ record_successful_ship() {
     if bash "${FLEET_DIR}/publish-ios-versions.sh" "${pub_args[@]}" \
         >"${LOG_DIR}/version-manifest.log" 2>&1; then
       log "version-manifest: published ${BUNDLE_ID} ${MARKETING}"
+      emit_log_tail "version-manifest" "${LOG_DIR}/version-manifest.log" || true
     else
       log "warning: version-manifest publish failed (non-fatal)"
       emit_log_tail "version-manifest" "${LOG_DIR}/version-manifest.log" || true

@@ -14,7 +14,7 @@ redact_stream() {
   local exact=() v
   for v in "${SENTRY_AUTH_TOKEN:-}" "${SENTRY_DSN:-}" "${ASC_KEY_ID:-}" \
            "${ASC_ISSUER_ID:-}" "${GH_TOKEN:-}" "${GITHUB_TOKEN:-}" \
-           "${INFISICAL_TOKEN:-}"; do
+           "${IOS_VERSIONS_PUBLISH_TOKEN:-}" "${INFISICAL_TOKEN:-}"; do
     [[ ${#v} -ge 6 ]] && exact+=("$v")
   done
   # perl, not sed: the ship runs on macOS, where BSD sed has no case-insensitive
