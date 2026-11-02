@@ -33,8 +33,8 @@ test("reuses existing Datadog env names and the US5 site", () => {
   assert.equal(firstEnv({ VITE_DD_APPLICATION_ID: "app" }, ["DD_APPLICATION_ID", "VITE_DD_APPLICATION_ID"]), "app");
 });
 
-test("production is fail-closed when the server API key is missing", () => {
-  const env = { VERCEL_ENV: "production" };
+test("explicit Datadog requirement is fail-closed when the server API key is missing", () => {
+  const env = { VERCEL_ENV: "production", DD_REQUIRE: "1" };
   assert.equal(isProductionObservability(env), true);
   assert.deepEqual(missingServerKeys(env), ["DD_API_KEY"]);
   assert.deepEqual(missingProductionKeys(env), ["DD_API_KEY"]);
