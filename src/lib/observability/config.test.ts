@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  isDatadogRequired,
-  missingServerKeys,
-  requireServerObservability,
-} from "./config";
+import { isDatadogRequired, missingServerKeys, requireServerObservability } from "./config";
 
 describe("datadog opt-in defaults", () => {
   it("stays dark in production without DD_* keys instead of throwing", () => {
