@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import middleware from "../../../server/middleware/datadog.ts";
+import middleware from "../../../server/middleware/datadog";
 const keys = ["DD_API_KEY", "DATADOG_API_KEY", "DD_REQUIRE", "VERCEL_ENV"];
 async function withEnv(values: Record<string, string>, fn: () => Promise<void>) {
   const before = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
