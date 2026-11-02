@@ -391,6 +391,26 @@ test("ios-ship.yml plans the build once and hands it to the ship via --build", (
   assert.doesNotMatch(yml, /IOS_TF_MIN_INTERVAL_SEC/);
 });
 
+test("ios-ship.yml gives the manifest publisher the org token on the ship step only", () => {
+  const yml = read(".github/workflows/ios-ship.yml");
+
+  // Port CC-202: the publisher writes the fleet manifest in another repo
+  // through a branch + PR.  The job GITHUB_TOKEN is contents:read here, so
+  // the org GH_PAT secret is scoped to the ship step that runs the
+  // publisher, and it is never printed.
+  const shipStep = yml.match(/- name: Ship DealDex to TestFlight[\s\S]*?(?=\n\s+- name:|$)/);
+  assert.ok(shipStep, "Ship DealDex to TestFlight step found");
+  assert.match(shipStep[0], /IOS_VERSIONS_PUBLISH_TOKEN: \$\{\{ secrets\.GH_PAT \}\}/);
+  const occurrences = [...yml.matchAll(/IOS_VERSIONS_PUBLISH_TOKEN:/g)];
+  assert.equal(occurrences.length, 1, "publish token is wired once, on the ship step only");
+  assert.doesNotMatch(yml, /echo[^\n]*IOS_VERSIONS_PUBLISH_TOKEN/);
+  assert.doesNotMatch(yml, /echo[^\n]*secrets\.GH_PAT/);
+
+  const publish = read("scripts/ios-fleet/publish-ios-versions.sh");
+  assert.match(publish, /IOS_VERSIONS_PUBLISH_TOKEN/);
+  assert.match(publish, /remote-manifest-pr-opened/);
+});
+
 test("main carries an unsigned iOS build check (ci.yml calls ios-build.yml)", () => {
   const ci = read(".github/workflows/ci.yml");
   const build = read(".github/workflows/ios-build.yml");

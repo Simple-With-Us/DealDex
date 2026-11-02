@@ -349,6 +349,13 @@ jobs:
         if: steps.gate.outputs.should_ship == '1'
         env:
           IOS_TF_RELEASE_NOTES: "1"  # Jay 2026-09-08: publish ASC What to Test
+          # The version-manifest publisher writes site/ios-versions.json on
+          # Simple-With-Us/AI-Fleet-Coordinator through a branch and pull
+          # request.  This job's GITHUB_TOKEN is contents:read here and cannot
+          # write that repository, so the publisher gets the org GH_PAT secret
+          # scoped to this step only.  The value is never printed, and a publish
+          # miss stays non-fatal for the TestFlight upload (port CC-202).
+          IOS_VERSIONS_PUBLISH_TOKEN: ${{ secrets.GH_PAT }}
         run: bash scripts/ios-ship-testflight.sh --build "${{ steps.plan-build.outputs.build }}"
 
       - name: Sync standing TestFlight testers
