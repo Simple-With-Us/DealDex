@@ -24,7 +24,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 git_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 
 # Nested scripts (site/, web/, apps/site) watch their own folder.
-# A repo-root script (DealDex) watches the tree minus native/docs/CI.
+# A repo-root script (DealDex) excludes native app builds, brand sources, docs and CI.
 watch_args=()
 if [[ -n "${VERCEL_IGNORE_WATCH:-}" ]]; then
   # shellcheck disable=SC2206
@@ -36,7 +36,9 @@ else
   watch_args=(
     .
     ":(exclude)docs"
-    ":(exclude)native"
+    ":(exclude)apps/ios"
+    ":(exclude)apps/android"
+    ":(exclude)assets/brand"
     ":(exclude)ios"
     ":(exclude)android"
     ":(exclude).github"
