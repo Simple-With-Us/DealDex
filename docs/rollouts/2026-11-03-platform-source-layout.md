@@ -1,0 +1,11 @@
+# Platform Source Layout — AFC-601
+
+This batch gives the independently built native applications explicit platform roots: `native/ios/` → `apps/ios/` and `native/android/` → `apps/android/`.  The shared artwork used by the native and web icon generator moves from `native/brand/` to `assets/brand/`; the native build guide moves to `docs/native-apps.md`.  The old `native/` container is removed without compatibility symlinks.
+
+The combined Vite/TanStack web and server application remains at the repository root because it has one framework build/deployment boundary.  `migrations/` remains database schema source, and served `public/` assets remain served resources.  Dated rollout and effort-log path references retain their historical meaning.
+
+CI Android working directories/cache inputs and unsigned iOS project paths follow the moves.  The local `scripts/ios-fleet/apps.json` project/XcodeGen paths change; shared vendored ship implementation is preserved.  The push filter and scheduled ship gate use the same new iOS prefix.  Vercel keeps its root application and three-hour cooldown; native application and shared source artwork changes are excluded while served web resources remain watched.  Public API paths, application identifiers, app IDs, versions, release schedules and all owner settings are unchanged.
+
+Validation: 83 local tests pass across platform identity, artwork, scan/privacy, host references, ship workflow/scheduled gate and Vercel path behavior.  The latter executes the actual ignore script against Git fixture commits, proving platform/brand changes skip and served web files still reach the existing cooldown.  Exact Git-blob comparison confirms all moved binaries and native project/Gradle source preserve bytes; only five moved prose/comment files update path references.  This Linux lane has no local dependency installation, Java/Android SDK or Xcode, so full web and native compilation remain hosted current-head gates.
+
+The PR remains Draft for parent scope/review and release decisions.  Hosted checks do not prove a TestFlight upload or published website revision.  The normal web deployment must eventually serve the updated `/install` build path; no production setting or manual deploy override is changed here.  Parent owns post-merge catalog and central documentation regeneration from the published tree.

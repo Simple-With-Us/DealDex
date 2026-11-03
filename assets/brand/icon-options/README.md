@@ -1,6 +1,6 @@
 # DealDex AppIcon options (archive)
 
-Live launcher is `native/brand/dealdex-dd-icon-1024.png` — interlocking DD on
+Live launcher is `assets/brand/dealdex-dd-icon-1024.png` — interlocking DD on
 the Socratic.Trade tiled field.  Rebuild it with
 `python3 scripts/generate-app-icons.py`.
 

@@ -103,12 +103,12 @@ test("native sign-in hands over a single-use code, never a session token", () =>
   assert.match(exchange, /redeemCode/);
 
   // Both clients must send a challenge and redeem with a verifier.
-  const swift = read("native/ios/DealDex/NativeAuth.swift");
+  const swift = read("apps/ios/DealDex/NativeAuth.swift");
   assert.match(swift, /challenge=/);
   assert.match(swift, /api\/native\/exchange/);
   assert.doesNotMatch(swift, /dict\["token"\]/);
 
-  const kotlin = read("native/android/app/src/main/java/me/grok/dealdex/data/NativeAuth.kt");
+  const kotlin = read("apps/android/app/src/main/java/me/grok/dealdex/data/NativeAuth.kt");
   assert.match(kotlin, /appendQueryParameter\("challenge"/);
   assert.match(kotlin, /api\/native\/exchange/);
   assert.doesNotMatch(kotlin, /getQueryParameter\("token"\)/);
@@ -159,7 +159,7 @@ test("native Apple Sign In uses the system sheet and HTTPS identity-token exchan
   assert.match(tree, /\/api\/native\/apple-signin/);
   assert.match(tree, /ApiNativeAppleSigninRoute/);
 
-  const swift = read("native/ios/DealDex/NativeAuth.swift");
+  const swift = read("apps/ios/DealDex/NativeAuth.swift");
   assert.match(swift, /ASAuthorizationAppleIDProvider/);
   assert.match(swift, /api\/native\/apple-signin/);
   assert.match(swift, /identityToken/);
@@ -173,12 +173,12 @@ test("native Apple Sign In uses the system sheet and HTTPS identity-token exchan
 });
 
 test("credentials are kept in the platform keystore, not a plain prefs file", () => {
-  const prefs = read("native/android/app/src/main/java/me/grok/dealdex/data/Prefs.kt");
+  const prefs = read("apps/android/app/src/main/java/me/grok/dealdex/data/Prefs.kt");
   assert.match(prefs, /EncryptedSharedPreferences/);
-  const manifest = read("native/android/app/src/main/AndroidManifest.xml");
+  const manifest = read("apps/android/app/src/main/AndroidManifest.xml");
   assert.match(manifest, /android:allowBackup="false"/);
 
-  const store = read("native/ios/DealDex/DeskStore.swift");
+  const store = read("apps/ios/DealDex/DeskStore.swift");
   assert.match(store, /kSecClassGenericPassword/);
   assert.match(store, /kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly/);
 });
@@ -189,7 +189,7 @@ test("a keystore failure loses the session, it does not write secrets in the cle
   // Falling back to a MODE_PRIVATE file there would have put the session token
   // and all three paid desk keys on disk in plaintext, silently, in exactly the
   // build that ships.
-  const prefs = readCode("native/android/app/src/main/java/me/grok/dealdex/data/Prefs.kt");
+  const prefs = readCode("apps/android/app/src/main/java/me/grok/dealdex/data/Prefs.kt");
   assert.match(prefs, /getOrElse \{ MemoryStore\(\) \}/);
   assert.doesNotMatch(
     prefs,
@@ -197,24 +197,24 @@ test("a keystore failure loses the session, it does not write secrets in the cle
     "the fallback must not be a file",
   );
 
-  const keep = read("native/android/app/proguard-rules.pro");
+  const keep = read("apps/android/app/proguard-rules.pro");
   assert.match(keep, /com\.google\.crypto\.tink/);
   assert.match(keep, /shaded\.protobuf/);
 });
 
 test("the sign-in redirect is consumed once, so rotation cannot spend the code twice", () => {
-  const main = readCode("native/android/app/src/main/java/me/grok/dealdex/MainActivity.kt");
+  const main = readCode("apps/android/app/src/main/java/me/grok/dealdex/MainActivity.kt");
   assert.match(main, /intent\.data = null/);
 });
 
 test("notification permission is asked for when alerts are on, not at cold start", () => {
-  const main = readCode("native/android/app/src/main/java/me/grok/dealdex/MainActivity.kt");
+  const main = readCode("apps/android/app/src/main/java/me/grok/dealdex/MainActivity.kt");
   // Not in onCreate any more...
   const onCreate = main.slice(main.indexOf("override fun onCreate"), main.indexOf("override fun onResume"));
   assert.doesNotMatch(onCreate, /askNotify\.launch/);
   // ...but the default rule ships enabled, so the switch's rising edge is not
   // enough on a fresh install. The Alerts screen asks on arrival.
-  const alerts = readCode("native/android/app/src/main/java/me/grok/dealdex/ui/AlertsScreen.kt");
+  const alerts = readCode("apps/android/app/src/main/java/me/grok/dealdex/ui/AlertsScreen.kt");
   assert.match(alerts, /LaunchedEffect\(rule\.enabled\)/);
   assert.match(alerts, /requestNotificationPermission\(\)/);
 });
@@ -228,8 +228,8 @@ test("the iOS card scanner reads the camera instead of faking a result", () => {
   // gone and that a real capture path is wired up; only a run on a physical
   // iPhone proves it recognises a card, and the Simulator cannot do it at all
   // (DataScannerViewController.isSupported is false there).
-  const scanView = read("native/ios/DealDex/ScanView.swift");
-  const pbx = read("native/ios/DealDex.xcodeproj/project.pbxproj");
+  const scanView = read("apps/ios/DealDex/ScanView.swift");
+  const pbx = read("apps/ios/DealDex.xcodeproj/project.pbxproj");
 
   // The fake is gone from the source and from the target.
   assert.doesNotMatch(scanView, /CameraScannerView/);
@@ -263,15 +263,15 @@ test("the iOS card scanner reads the camera instead of faking a result", () => {
   assert.equal(writes.length, 1, `desk.query written ${writes.length} times`);
 
   // No hardcoded card anywhere in the reader.
-  assert.doesNotMatch(readCode("native/ios/DealDex/ScanView.swift"), /Charizard/i);
+  assert.doesNotMatch(readCode("apps/ios/DealDex/ScanView.swift"), /Charizard/i);
 });
 
 test("the iOS camera scanner has a usage string, in the plist and in the generator", () => {
   // Reading the camera without NSCameraUsageDescription is a hard crash on
   // first use.  project.yml is the generator input, so a key added only to
   // Info.plist disappears the next time someone runs `xcodegen generate`.
-  const plist = read("native/ios/DealDex/Info.plist");
-  const yml = read("native/ios/project.yml");
+  const plist = read("apps/ios/DealDex/Info.plist");
+  const yml = read("apps/ios/project.yml");
   assert.match(plist, /<key>NSCameraUsageDescription<\/key>/);
   assert.match(yml, /NSCameraUsageDescription:/);
 
@@ -285,7 +285,7 @@ test("the iOS camera scanner has a usage string, in the plist and in the generat
 });
 
 test("Android scans on the device first and sends no keys to the website", () => {
-  const market = read("native/android/app/src/main/java/me/grok/dealdex/data/Market.kt");
+  const market = read("apps/android/app/src/main/java/me/grok/dealdex/data/Market.kt");
   assert.match(market, /\/api\/native\/scan/);
   assert.match(market, /scanViaSite/);
   // On-device is the primary path, which is what /privacy describes.
@@ -300,7 +300,7 @@ test("Android scans on the device first and sends no keys to the website", () =>
   // The site payload carries no credential of any kind.
   assert.doesNotMatch(market, /put\("keys"/);
   assert.doesNotMatch(market, /"justtcg", keys\.justTcg/);
-  const scan = read("native/android/app/src/main/java/me/grok/dealdex/ui/ScanScreen.kt");
+  const scan = read("apps/android/app/src/main/java/me/grok/dealdex/ui/ScanScreen.kt");
   assert.match(scan, /Text\("SCAN"/);
   assert.match(scan, /Hide proxies/);
   assert.match(scan, /leave blank to scan everything/);
@@ -308,20 +308,20 @@ test("Android scans on the device first and sends no keys to the website", () =>
 });
 
 test("iOS scans on the device first and sends no keys to the website", () => {
-  const market = read("native/ios/DealDex/Market.swift");
+  const market = read("apps/ios/DealDex/Market.swift");
   assert.match(market, /\/api\/native\/scan/);
   assert.match(market, /scanViaSite/);
   assert.match(market, /scanOnDevice\(query, keys: keys, sources: src\)[\s\S]{0,400}scanViaSite\(site, query, sources: src\)/);
   assert.doesNotMatch(market, /"keys": \[/);
   assert.doesNotMatch(market, /"justtcg": keys\.justTcg/);
-  const settings = read("native/ios/DealDex/SettingsView.swift");
+  const settings = read("apps/ios/DealDex/SettingsView.swift");
   assert.match(settings, /Sign in with Google/);
   assert.match(settings, /Sign in with Apple/);
   assert.match(settings, /Sign in with X/);
   assert.doesNotMatch(settings, /Sign In with email/);
   assert.doesNotMatch(settings, /Create Account/);
-  const scanView = read("native/ios/DealDex/ScanView.swift");
-  const marks = read("native/ios/DealDex/MarketplaceMarks.swift");
+  const scanView = read("apps/ios/DealDex/ScanView.swift");
+  const marks = read("apps/ios/DealDex/MarketplaceMarks.swift");
   assert.match(scanView, /MarketplaceToggle/);
   assert.match(scanView, /desk\.sources\.contains\("ebay"\)/);
   assert.match(scanView, /count: desk\.ebayCount/);
@@ -344,7 +344,7 @@ test("iOS scans on the device first and sends no keys to the website", () => {
 });
 
 test("iOS Sentry stays dark without a configured DSN", () => {
-  const sentry = read("native/ios/DealDex/SentryTelemetry.swift");
+  const sentry = read("apps/ios/DealDex/SentryTelemetry.swift");
   assert.doesNotMatch(sentry, /ingest\.us\.sentry\.io/);
   assert.match(sentry, /SENTRY_DSN/);
   assert.match(sentry, /guard !dsn.isEmpty else \{ return \}/);

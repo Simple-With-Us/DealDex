@@ -1,13 +1,13 @@
-# DealDex native apps
+# DealDex Native Apps
 
-Android and iPhone apps.  They talk to eBay, Mercari, TCGDex, JustTCG, PriceCharting, and pokemontcg.io **from the phone**.  The website is optional.  These are not React Native, Expo, Capacitor, or a web wrapper.
+Build commands below run from the repository root.  Android and iPhone apps.  They talk to eBay, Mercari, TCGDex, JustTCG, PriceCharting, and pokemontcg.io **from the phone**.  The website is optional.  These are not React Native, Expo, Capacitor, or a web wrapper.
 
 Keys you paste in **Settings** live on the device.  If the website is down, scan still uses those keys.
 
 **Settings** also has optional sign-in.  Use the same Google, Apple, or X account as the website only when you want to copy keys to or from your account.
 
 Play is not shipping yet.  Android package is `me.grok.dealdex` (build from
-`native/android` on `main`; dealdex.net does not host an APK).  iOS is
+`apps/android` on `main`; dealdex.net does not host an APK).  iOS is
 `net.dealdex` (team `CC8UTF7ATG`, Apple app SKU `dealdex`, appleId `6802474288`).
 Internal TestFlight exists.  Do not restore a public APK until a signed,
 device-tested release build exists.
@@ -31,7 +31,7 @@ R8 mappings and source context when `SENTRY_AUTH_TOKEN` is set.
 Build the debug APK locally (there is no sideload file on dealdex.net):
 
 ```
-cd native/android
+cd apps/android
 JAVA_HOME="$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebrew/opt/openjdk@17)"
 ANDROID_HOME="${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}"
 ANDROID_HOME="$ANDROID_HOME" JAVA_HOME="$JAVA_HOME" ./gradlew :app:assembleDebug --no-daemon
@@ -44,7 +44,7 @@ The repo ships a Gradle 9.8 wrapper (AGP 9.4.1).  Point `local.properties` `sdk.
 
 ## iOS
 
-1. From `native/ios`, run `xcodegen generate` after editing `project.yml` (then `xcodegen-post.py` sets Xcode 26.3 / objectVersion 100).
+1. From `apps/ios`, run `xcodegen generate` after editing `project.yml` (then `xcodegen-post.py` sets Xcode 26.3 / objectVersion 100).
 2. Open `DealDex.xcodeproj` in Xcode 26.3 (team `CC8UTF7ATG`).  Display name **DealDex**.  Minimum iOS **17.0**.
 3. Run on a phone or simulator.  Scan talks to `https://dealdex.net/api/native/scan` and does not require sign-in.  Google website accounts use **Sign in with Google**.
 
@@ -61,7 +61,7 @@ guidance is Compare Pokémon card listing prices.  Native binaries may retain ol
 copy until their next release; the website wording does not establish a native update.
 
 ```
-xcodebuild -project native/ios/DealDex.xcodeproj -scheme DealDex \
+xcodebuild -project apps/ios/DealDex.xcodeproj -scheme DealDex \
   -destination 'generic/platform=iOS Simulator' build
 ```
 
@@ -70,4 +70,4 @@ Bundle id: `net.dealdex`.  Display name: DealDex.  Min iOS: 17.0.  Project forma
 TestFlight archive + upload is `.github/workflows/ios-ship.yml` on GitHub-hosted `macos-latest` (app key `dealdex`, bundle `net.dealdex`).  Manual: `bash scripts/ios-ship-testflight.sh`.  ASC app DealDex SKU `dealdex`, appleId `6802474288`.
 
 AppIcon catalog is the DD on the ST tiled field.  Older preview variants
-live in `native/brand/icon-options/`.
+live in `assets/brand/icon-options/`.

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Resize owner artwork into iOS / Android / PWA / favicon slots.
 
-iOS AppIcon: native/brand/dealdex-dd-icon-1024.png (tiled 3D DD).
-Android + PWA 180 + favicon: native/brand/dealdex-dd-isolated.png
+iOS AppIcon: assets/brand/dealdex-dd-icon-1024.png (tiled 3D DD).
+Android + PWA 180 + favicon: assets/brand/dealdex-dd-isolated.png
   Isolated transparent DD.  Black in previews is alpha.
 
 Run from the repo root:  python3 scripts/generate-app-icons.py
@@ -18,11 +18,11 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-ICON_SOURCE = ROOT / "native/brand/dealdex-dd-icon-1024.png"
-MARK_SOURCE = ROOT / "native/brand/dealdex-dd-isolated.png"
+ICON_SOURCE = ROOT / "assets/brand/dealdex-dd-icon-1024.png"
+MARK_SOURCE = ROOT / "assets/brand/dealdex-dd-isolated.png"
 
-IOS_ICONSET = ROOT / "native/ios/DealDex/Assets.xcassets/AppIcon.appiconset"
-ANDROID_RES = ROOT / "native/android/app/src/main/res"
+IOS_ICONSET = ROOT / "apps/ios/DealDex/Assets.xcassets/AppIcon.appiconset"
+ANDROID_RES = ROOT / "apps/android/app/src/main/res"
 WEB_ICON_180 = ROOT / "public/__grok/icon-180.png"
 FAVICON_SVG = ROOT / "public/favicon.svg"
 FAVICON_PNG = ROOT / "public/favicon.png"
@@ -179,7 +179,7 @@ def write_contents_json() -> None:
 
 
 def write_catalog_root() -> None:
-    catalog = ROOT / "native/ios/DealDex/Assets.xcassets/Contents.json"
+    catalog = ROOT / "apps/ios/DealDex/Assets.xcassets/Contents.json"
     catalog.parent.mkdir(parents=True, exist_ok=True)
     catalog.write_text(
         '{\n  "info" : {\n    "author" : "xcode",\n    "version" : 1\n  }\n}\n',
@@ -217,7 +217,7 @@ def main() -> None:
     mark_path = ROOT / "public/marks/dealdex-dd.png"
     mark_path.parent.mkdir(parents=True, exist_ok=True)
     save_png_rgba(mark, mark_path)
-    imageset = ROOT / "native/ios/DealDex/Assets.xcassets/DealDexMark.imageset/dealdex-dd.png"
+    imageset = ROOT / "apps/ios/DealDex/Assets.xcassets/DealDexMark.imageset/dealdex-dd.png"
     if imageset.parent.is_dir():
         save_png_rgba(mark, imageset)
     print("wrote iOS AppIcon from tiled PNG; Android/PWA/favicon from isolated DD")

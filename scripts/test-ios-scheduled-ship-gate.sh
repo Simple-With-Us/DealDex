@@ -59,7 +59,7 @@ run_gate() {
   local event="$1"; shift
   bash "$GATE" \
     --event "$event" \
-    --path-prefix "native/ios/**" \
+    --path-prefix "apps/ios/**" \
     --path-prefix ".github/workflows/ios-ship.yml" \
     --path-prefix "scripts/ios-fleet/**" \
     --path-prefix "scripts/ios-ship-testflight.sh" \
@@ -110,10 +110,10 @@ commit "server/scan.ts" "server change" "feat(server): backend only" >/dev/null
 out="$(run_gate schedule dealdex)"
 check "unrelated-only -> should_ship" 0 "$(field "$out" should_ship)"
 
-echo "== 5. a native/ios change since the last ship DOES ship =="
-commit "native/ios/DealDex/ScanView.swift" "// ui" "fix(ios): visible change" >/dev/null
+echo "== 5. a apps/ios change since the last ship DOES ship =="
+commit "apps/ios/DealDex/ScanView.swift" "// ui" "fix(ios): visible change" >/dev/null
 out="$(run_gate schedule dealdex)"
-check "native/ios change -> should_ship" 1 "$(field "$out" should_ship)"
+check "apps/ios change -> should_ship" 1 "$(field "$out" should_ship)"
 
 echo "== 6. a ship-tooling-only merge (scripts/ios-fleet/) DOES ship =="
 set_state dealdex "$(git -C "$REPO" rev-parse HEAD)"
@@ -135,23 +135,23 @@ check "wrapper script change -> should_ship" 1 "$(field "$out" should_ship)"
 
 echo "== 9. '!' exclusions behave like push, and the old single-prefix call still works =="
 set_state dealdex "$(git -C "$REPO" rev-parse HEAD)"
-commit "native/ios/Generated/mirror.swift" "// generated" "chore(ios): generated mirror" >/dev/null
-out="$(bash "$GATE" --event schedule --path-prefix 'native/ios/**' --path-prefix '!native/ios/Generated/**' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
+commit "apps/ios/Generated/mirror.swift" "// generated" "chore(ios): generated mirror" >/dev/null
+out="$(bash "$GATE" --event schedule --path-prefix 'apps/ios/**' --path-prefix '!apps/ios/Generated/**' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
 check "excluded-only -> should_ship" 0 "$(field "$out" should_ship)"
-out="$(bash "$GATE" --event schedule --path-prefix 'native/ios/**' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
+out="$(bash "$GATE" --event schedule --path-prefix 'apps/ios/**' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
 check "same change without exclusion -> should_ship" 1 "$(field "$out" should_ship)"
-out="$(bash "$GATE" --event schedule --path-prefix 'native/ios/' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
+out="$(bash "$GATE" --event schedule --path-prefix 'apps/ios/' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
 check "old single-prefix call -> should_ship" 1 "$(field "$out" should_ship)"
 
 echo "== 9b. a later re-include wins over an earlier exclusion, like push =="
-commit "native/ios/Generated/keep/a.swift" "// kept" "fix(ios): kept generated file" >/dev/null
-out="$(bash "$GATE" --event schedule --path-prefix 'native/ios/**' --path-prefix '!native/ios/Generated/**' --path-prefix 'native/ios/Generated/keep/**' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
+commit "apps/ios/Generated/keep/a.swift" "// kept" "fix(ios): kept generated file" >/dev/null
+out="$(bash "$GATE" --event schedule --path-prefix 'apps/ios/**' --path-prefix '!apps/ios/Generated/**' --path-prefix 'apps/ios/Generated/keep/**' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
 check "exclusion + later re-include -> should_ship" 1 "$(field "$out" should_ship)"
 set_state dealdex "$(git -C "$REPO" rev-parse HEAD)"
-commit "native/ios/Generated/keep/b.swift" "// kept" "fix(ios): kept generated file only" >/dev/null
-out="$(bash "$GATE" --event schedule --path-prefix 'native/ios/**' --path-prefix '!native/ios/Generated/**' --path-prefix 'native/ios/Generated/keep/**' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
+commit "apps/ios/Generated/keep/b.swift" "// kept" "fix(ios): kept generated file only" >/dev/null
+out="$(bash "$GATE" --event schedule --path-prefix 'apps/ios/**' --path-prefix '!apps/ios/Generated/**' --path-prefix 'apps/ios/Generated/keep/**' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
 check "re-included-only change -> should_ship" 1 "$(field "$out" should_ship)"
-out="$(bash "$GATE" --event schedule --path-prefix 'native/ios/**' --path-prefix '!native/ios/Generated/**' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
+out="$(bash "$GATE" --event schedule --path-prefix 'apps/ios/**' --path-prefix '!apps/ios/Generated/**' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
 check "same change without re-include -> should_ship" 0 "$(field "$out" should_ship)"
 
 echo "== 10. per-app outputs are independent =="
@@ -189,12 +189,12 @@ echo "== 11b. the timestamp fallback honors exclusions and re-includes too =="
 TS_NOW="$(date +%s)"
 FB_STATE_TS="$((TS_NOW + 50))"
 FB_COMMIT_TS="$((TS_NOW + 100))"
-GIT_AUTHOR_DATE="@${FB_COMMIT_TS}" GIT_COMMITTER_DATE="@${FB_COMMIT_TS}" commit "native/ios/Generated/fb-only.swift" "// generated" "chore(ios): generated only" >/dev/null
-GIT_AUTHOR_DATE="@${FB_COMMIT_TS}" GIT_COMMITTER_DATE="@${FB_COMMIT_TS}" commit "native/ios/Generated/keep/fb.swift" "// kept" "fix(ios): kept generated" >/dev/null
+GIT_AUTHOR_DATE="@${FB_COMMIT_TS}" GIT_COMMITTER_DATE="@${FB_COMMIT_TS}" commit "apps/ios/Generated/fb-only.swift" "// generated" "chore(ios): generated only" >/dev/null
+GIT_AUTHOR_DATE="@${FB_COMMIT_TS}" GIT_COMMITTER_DATE="@${FB_COMMIT_TS}" commit "apps/ios/Generated/keep/fb.swift" "// kept" "fix(ios): kept generated" >/dev/null
 printf '%s %s\n' "$FB_STATE_TS" "0000000000000000000000000000000000000000" >"${STATE}/last-ship-dealdex.txt"
-out="$(bash "$GATE" --event schedule --path-prefix 'native/ios/**' --path-prefix '!native/ios/Generated/**' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
+out="$(bash "$GATE" --event schedule --path-prefix 'apps/ios/**' --path-prefix '!apps/ios/Generated/**' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
 check "fallback, excluded-only -> should_ship" 0 "$(field "$out" should_ship)"
-out="$(bash "$GATE" --event schedule --path-prefix 'native/ios/**' --path-prefix '!native/ios/Generated/**' --path-prefix 'native/ios/Generated/keep/**' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
+out="$(bash "$GATE" --event schedule --path-prefix 'apps/ios/**' --path-prefix '!apps/ios/Generated/**' --path-prefix 'apps/ios/Generated/keep/**' --repo-root "$REPO" --state-dir "$STATE" dealdex 2>&1)"
 check "fallback, re-included -> should_ship" 1 "$(field "$out" should_ship)"
 
 # Back to a clean skip state for the exit-code assertion below.

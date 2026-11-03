@@ -32,7 +32,7 @@ function InstallPage() {
           <article className="rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
             <h2 className="font-display text-2xl tracking-tight">Android</h2>
             <p className="mt-2 text-sm text-muted">
-              Build from <code className="text-xs">native/android</code> on current <code className="text-xs">main</code>.
+              Build from <code className="text-xs">apps/android</code> on current <code className="text-xs">main</code>.
               Package <code className="text-xs">me.grok.dealdex</code>.  There is no Play listing yet.
               The camera scanner is iOS-only until Android ships one.
             </p>

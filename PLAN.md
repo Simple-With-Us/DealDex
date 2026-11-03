@@ -1,6 +1,6 @@
 # DealDex plan
 
-Product direction lives in `README.md` and `native/README.md`.  This file tracks
+Product direction lives in `README.md` and `docs/native-apps.md`.  This file tracks
 fleet / delivery posture, not card-desk features.
 
 ## Now
@@ -26,7 +26,7 @@ fleet / delivery posture, not card-desk features.
   and do not move the site to Coolify.
 - iOS TestFlight via `.github/workflows/ios-ship.yml` on GitHub-hosted
   `macos-latest` (fleet protocol: no local Mac self-hosted runners), app
-  key `dealdex`, path `native/ios/`, bundle `net.dealdex`.  Team stays
+  key `dealdex`, path `apps/ios/`, bundle `net.dealdex`.  Team stays
   `CC8UTF7ATG`.  Apple bundle resource id `R2FAW69NPD` is not a team id.
   In-repo fleet is `scripts/ios-fleet`.  ASC secrets are repo secrets
   imported by `scripts/ios-appstore-gm-prepare.sh`.

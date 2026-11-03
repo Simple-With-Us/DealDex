@@ -11,10 +11,10 @@ background).  Isolated crops land at:
 
 - `public/marks/dealdex-wordmark.png` — website + login title
 - `public/marks/dealdex-dd.png` — isolated DD (not wired as the header)
-- `native/ios/DealDex/Assets.xcassets/DealDexWordmark.imageset`
-- `native/ios/DealDex/Assets.xcassets/DealDexMark.imageset`
-- `native/android/.../drawable-nodpi/dealdex_wordmark.png`
+- `apps/ios/DealDex/Assets.xcassets/DealDexWordmark.imageset`
+- `apps/ios/DealDex/Assets.xcassets/DealDexMark.imageset`
+- `apps/android/.../drawable-nodpi/dealdex_wordmark.png`
 
 Live AppIcon catalog is the DD on the ST tiled field
 (`scripts/generate-app-icons.py`).  Older scale previews remain in
-`native/brand/icon-options/`.
+`assets/brand/icon-options/`.

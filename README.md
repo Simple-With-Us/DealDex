@@ -78,10 +78,10 @@ npm run typecheck
 
 ## Native
 
-See [`native/README.md`](native/README.md).  Both apps talk to eBay, Mercari, and the price desks from the device.
+Native build roots are `apps/ios` and `apps/android`; shared source artwork is in [`assets/brand`](assets/brand).  See [`docs/native-apps.md`](docs/native-apps.md).  Both apps talk to eBay, Mercari, and the price desks from the device.
 
-- Android: Kotlin + Jetpack Compose, package `me.grok.dealdex`, launcher name DealDex, Gradle 8.7 wrapper, targetSdk 35.  Assemble locally from `native/android`.  dealdex.net does not host an APK.  Play Console credentials are not in this repo.
-- iOS: `native/ios/DealDex.xcodeproj` (XcodeGen spec `native/ios/project.yml`), bundle `net.dealdex`, display name DealDex, team `CC8UTF7ATG`.  Apple bundle resource id `R2FAW69NPD` is not a team id.  ASC app DealDex SKU `dealdex`, appleId `6802474288`.  Internal TestFlight ships via `ios-ship.yml`.
+- Android: Kotlin + Jetpack Compose, package `me.grok.dealdex`, launcher name DealDex, Gradle 8.7 wrapper, targetSdk 35.  Assemble locally from `apps/android`.  dealdex.net does not host an APK.  Play Console credentials are not in this repo.
+- iOS: `apps/ios/DealDex.xcodeproj` (XcodeGen spec `apps/ios/project.yml`), bundle `net.dealdex`, display name DealDex, team `CC8UTF7ATG`.  Apple bundle resource id `R2FAW69NPD` is not a team id.  ASC app DealDex SKU `dealdex`, appleId `6802474288`.  Internal TestFlight ships via `ios-ship.yml`.
 
 ## Valuation
 
