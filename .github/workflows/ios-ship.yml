@@ -5,7 +5,7 @@ name: iOS TestFlight ship (GitHub-hosted macOS)
 # runners are banned). Ubuntu CI stays web-only. Fork PRs never run here.
 # Unsigned compile checking lives in ios-build.yml (called from ci.yml).
 #
-# A merge to main that touches native/ios/ (or the ship tooling below) uploads a
+# A merge to main that touches apps/ios/ (or the ship tooling below) uploads a
 # fresh TestFlight build with no human step.  The scheduled tick is a catch-up
 # for merges that never dispatch a push run, and it is gated twice (see below).
 #
@@ -50,7 +50,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'native/ios/**'
+      - 'apps/ios/**'
       - '.github/workflows/ios-ship.yml'
       - 'scripts/ios-fleet/**'
       - 'scripts/ios-ship-testflight.sh'
@@ -62,7 +62,7 @@ on:
     # ('7,37'), and Usage-Monitor ('13,43').  Twice-hourly (`22,52`) plus the
     # `ios-ship-dealdex` concurrency group dropped the :52 tick whenever
     # macos-latest was still queued from :22 (FLEET-INFRA-CC).  `push:` still
-    # ships native/ios changes immediately.
+    # ships apps/ios changes immediately.
     - cron: '22 * * * *'
 
 # WHY THE CRON EXISTS, AND WHY IT NEEDS A GATE
@@ -74,7 +74,7 @@ on:
 #
 # But a cron carries no `paths:` filter, and the ship script's own gate only
 # knows "is HEAD the sha I last shipped" plus a time interval -- neither of
-# which knows whether native/ios/ changed. Siblings already paid for that gap
+# which knows whether apps/ios/ changed. Siblings already paid for that gap
 # (Socratic.Trade run 31723515355 shipped a pure-backend alerts fix). The
 # "Scheduled ship gate" step below is what stops that, and it is why this
 # workflow can keep a 30-minute tick without spamming TestFlight.
@@ -145,7 +145,7 @@ jobs:
           # 2026). ios-ship-workflow.test.mjs pins the two lists together.
           bash "$GITHUB_WORKSPACE/scripts/ios-scheduled-ship-gate.sh" \
             --event "${{ github.event_name }}" \
-            --path-prefix 'native/ios/**' \
+            --path-prefix 'apps/ios/**' \
             --path-prefix '.github/workflows/ios-ship.yml' \
             --path-prefix 'scripts/ios-fleet/**' \
             --path-prefix 'scripts/ios-ship-testflight.sh' \
