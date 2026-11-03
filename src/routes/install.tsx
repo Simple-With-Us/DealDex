@@ -11,18 +11,19 @@ function InstallPage() {
       <p className="text-xs uppercase tracking-[0.16em] text-subtle">Native apps</p>
       <h1 className="mt-1 font-display text-4xl tracking-tight">Android and iPhone</h1>
       <Lead>
-        Two phone apps.{"\u00A0 "}They scan eBay and Mercari on the device, score each ask against the desks,
-        and keep working if this website is down.{"\u00A0 "}A scan never sends a paid desk key to a DealDex
-        server.
+        Two phone apps.{"\u00A0 "}They scan eBay and Mercari on the device, score each ask against
+        the desks, and keep working if this website is down.{"\u00A0 "}
+        {"A scan never sends a paid desk key to a DealDex server."}
       </Lead>
 
       <aside className="mt-6 max-w-2xl rounded-xl border border-deal-bad/40 bg-surface p-4 text-sm shadow-[var(--shadow-border)]">
         <h2 className="font-medium text-deal-bad">No sideload build on this site right now</h2>
         <p className="mt-1 text-muted">
-          The public APK that used to live here was an older build.{"\u00A0 "}It sent paid desk keys to the
-          scan endpoint, kept them in unencrypted storage, and returned a session token on a URL
-          scheme other apps can claim.{"\u00A0 "}That file is gone.{"\u00A0 "}A refreshed Android APK ships only after a
-          signed, device-tested release build.{"\u00A0 "}Do not restore a download button until then.
+          The public APK that used to live here was an older build.{"\u00A0 "}It sent paid desk keys
+          to the scan endpoint, kept them in unencrypted storage, and returned a session token on a
+          URL scheme other apps can claim.{"\u00A0 "}That file is gone.{"\u00A0 "}A refreshed
+          Android APK ships only after a signed, device-tested release build.{"\u00A0 "}Do not
+          restore a download button until then.
         </p>
       </aside>
 
@@ -34,16 +35,16 @@ function InstallPage() {
             <p className="mt-2 text-sm text-muted">
               Build from <code className="text-xs">apps/android</code> on current{" "}
               <code className="text-xs">main</code>.{"\u00A0 "}Package{" "}
-              <code className="text-xs">me.grok.dealdex</code>.{"\u00A0 "}There is no Play listing yet.{"\u00A0 "}The
-              camera scanner is iOS-only until Android ships one.
+              <code className="text-xs">me.grok.dealdex</code>.{"\u00A0 "}There is no Play listing
+              yet.{"\u00A0 "}The camera scanner is iOS-only until Android ships one.
             </p>
           </article>
           <article className="rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
             <h2 className="font-display text-2xl tracking-tight">iPhone</h2>
             <p className="mt-2 text-sm text-muted">
-              Internal TestFlight for bundle <code className="text-xs">net.dealdex</code>.{"\u00A0 "}Apple
-              does not allow an unsigned download.{"\u00A0 "}Open the iOS project on a Mac if you are not on
-              the tester list.
+              Internal TestFlight for bundle <code className="text-xs">net.dealdex</code>.
+              {"\u00A0 "}Apple does not allow an unsigned download.{"\u00A0 "}Open the iOS project
+              on a Mac if you are not on the tester list.
             </p>
           </article>
         </div>

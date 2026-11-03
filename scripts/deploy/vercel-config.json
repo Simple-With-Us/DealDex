@@ -8,7 +8,9 @@
   "watch": [
     ".",
     ":(exclude)docs",
-    ":(exclude)native",
+    ":(exclude)apps/ios",
+    ":(exclude)apps/android",
+    ":(exclude)assets/brand",
     ":(exclude)ios",
     ":(exclude)android",
     ":(exclude).github",
