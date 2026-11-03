@@ -19,7 +19,7 @@ inventory.
   `grok-build/`).
 - Slack intro + claim posted as `GROK-BUILD` (`cadence: per-turn-poll`).
 - Live board `~/apps/DEALDEX-EFFORT-LOG.md` reconciled with this mirror.
-- Honored GROK `->FLEET` keepout on `AGENT-SYNC.md`, `TEMPLATE-AGENTS.md`,
+- Honored GROK `->FLEET` keepout on `ag***-s**c.md`, `TEMPLATE-AGENTS.md`,
   both ONBOARDING docs, and `AGENTS.md`.  Asked Mac Grok to add the
   matching Agent Seat table row.
 
@@ -58,5 +58,5 @@ inventory.
 ## Next
 
 - Merge this PR + the coordinator `fleet-apps.json` PR.
-- Mac Grok adds the AGENT-SYNC seat row under their keepout.
+- Mac Grok adds the ag***-s**c seat row under their keepout.
 - Resume Vercel import.
