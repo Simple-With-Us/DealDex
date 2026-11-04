@@ -14,6 +14,8 @@
     ":(exclude)ios",
     ":(exclude)android",
     ":(exclude).github",
+    ":(exclude)Apps",
+    ":(exclude)*.xcodeproj/**",
     ":(exclude)STATUS.md",
     ":(exclude)PLAN.md",
     ":(exclude)scripts/ios-*",

@@ -11,6 +11,35 @@ const CATCH_UP_WATCH = JSON.parse(
   readFileSync(join(ROOT, "scripts/deploy/vercel-config.json"), "utf8"),
 ).watch;
 
+// The ignore step (vercel-ignore-hourly.sh) and the catch-up watch
+// (scripts/deploy/vercel-config.json) must exclude exactly the same paths, or a
+// native-only change makes one of them build and the other skip.
+function ignoreStepWatchArgs(source) {
+  const blocks = [...source.matchAll(/watch_args=\(\n([\s\S]*?)\n\s*\)/g)].map((m) => m[1]);
+  assert.ok(blocks.length === 1, `ignore step exposes ${blocks.length} watch lists, expected exactly one`);
+  return blocks[0]
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const quoted = /^"([^"]+)"$/.exec(line);
+      assert.ok(quoted, `unparsable watch path: ${line}`);
+      return quoted[1];
+    });
+}
+
+test("ignore step and catch-up watch exclude the same paths", () => {
+  const ignoreStepWatch = ignoreStepWatchArgs(
+    readFileSync(join(ROOT, "vercel-ignore-hourly.sh"), "utf8"),
+  );
+  assert.equal(ignoreStepWatch.length, CATCH_UP_WATCH.length, "watch list length drift");
+  assert.deepEqual(
+    [...ignoreStepWatch].sort(),
+    [...CATCH_UP_WATCH].sort(),
+    "ignore step and catch-up watch lists differ",
+  );
+});
+
 test("production ignore step excludes platform and source artwork changes but watches served web files", () => {
   const dir = mkdtempSync(join(tmpdir(), "ignore-paths-"));
   const git = (...args) => execFileSync("git", args, { cwd: dir, encoding: "utf8" }).trim();
@@ -32,6 +61,18 @@ test("production ignore step excludes platform and source artwork changes but wa
       ["apps/android/app/build.gradle.kts", true],
       ["assets/brand/dealdex-dd-icon-1024.png", true],
       ["docs/native-apps.md", true],
+      // Divergent prefixes: the ignore step and the catch-up watch must agree.
+      ["scripts/ios-deploy.sh", true],
+      ["scripts/ios-identity.test.mjs", true],
+      ["scripts/test-ios-stage-asc-key.sh", true],
+      ["scripts/android-play-update.test.mjs", true],
+      ["scripts/generate-app-icons.py", true],
+      ["scripts/native-scan.test.mjs", true],
+      ["Apps/ios/DealDex/ScanView.swift", true],
+      ["apps/ios/DealDex.xcodeproj/project.pbxproj", true],
+      ["DealDex.xcodeproj/project.pbxproj", true],
+      ["scripts/deploy/vercel-catch-up.mjs", false],
+      ["marketing/screenshots/home.png", false],
       ["public/marks/dealdex-dd.png", false],
       ["src/routes/install.tsx", false],
       ["vite.config.ts", false],

@@ -33,8 +33,11 @@ elif [[ -n "$git_root" && "$script_dir" != "$git_root" ]]; then
   rel="${script_dir#"$git_root"/}"
   watch_args=(":(top)${rel}" "${rel}")
 else
+  # Keep this list identical to "watch" in scripts/deploy/vercel-config.json.
+  # scripts/vercel-ignore-paths.test.mjs asserts the two lists match and that the
+  # ignore step and the catch-up watch agree on every sampled path.
   watch_args=(
-    .
+    "."
     ":(exclude)docs"
     ":(exclude)apps/ios"
     ":(exclude)apps/android"
@@ -43,10 +46,17 @@ else
     ":(exclude)android"
     ":(exclude).github"
     ":(exclude)Apps"
-    ":(exclude)*.xcodeproj"
+    ":(exclude)*.xcodeproj/**"
     ":(exclude)STATUS.md"
-    ":(exclude)docs/EFFORT-LOG.md"
     ":(exclude)PLAN.md"
+    ":(exclude)scripts/ios-*"
+    ":(exclude)scripts/test-ios-*"
+    ":(exclude)scripts/android-*"
+    ":(exclude)scripts/app-icon.test.mjs"
+    ":(exclude)scripts/generate-app-icons.py"
+    ":(exclude)scripts/generate-icon-options.py"
+    ":(exclude)scripts/svg-path-to-swift.py"
+    ":(exclude)scripts/native-scan.test.mjs"
   )
 fi
 
