@@ -1,3 +1,9 @@
+## 2026-11-03 CODEX — Platform Source Layout (AFC-601)
+
+Prepared a source-layout batch: iOS and Android move from `native/` to `apps/ios` and `apps/android`, shared brand artwork moves to `assets/brand`, and the build guide moves to `docs/native-apps.md`.  CI, ship manifest/filter consumers, generators, active navigation and tests follow the new paths.  The root web/server runtime and database migrations keep their existing build and deployment boundary.
+
+The 83 relevant local path, identity, icon, scan and ship checks pass.  Hosted web/Android/iOS gates, current-head review, parent merge release and published web verification remain required; this source preparation does not claim a native release or production deployment.  See `docs/rollouts/2026-11-03-platform-source-layout.md`.
+
 ## 2026-10-30 CODEX — Repository report index (AFC-580)
 
 Prepared the required status note for the docs-only report index change.  See `docs/rollouts/2026-10-30-repository-report-index.md`.

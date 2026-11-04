@@ -118,7 +118,7 @@ test("no invented secrets and no iOS Datadog SDK", () => {
   assert.match(config, /DD_API_KEY/);
   assert.match(config, /DATADOG_API_KEY/);
   assert.doesNotMatch(config, /pubb[a-f0-9]{20,}/i);
-  const ios = read("native/ios/project.yml");
+  const ios = read("apps/ios/project.yml");
   assert.doesNotMatch(ios, /Datadog/);
   const middleware = read("server/middleware/datadog.ts");
   assert.match(middleware, /throw err/);

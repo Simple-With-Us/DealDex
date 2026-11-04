@@ -40,12 +40,12 @@ function extractGatePrefixes(ymlText) {
   );
 }
 
-test("ios-ship.yml targets dealdex / native/ios on GitHub-hosted macos-latest", () => {
+test("ios-ship.yml targets dealdex / apps/ios on GitHub-hosted macos-latest", () => {
   const yml = read(".github/workflows/ios-ship.yml");
   const wrapper = read("scripts/ios-ship-testflight.sh");
   const prepare = read("scripts/ios-appstore-gm-prepare.sh");
 
-  assert.match(yml, /native\/ios\/\*\*/);
+  assert.match(yml, /apps\/ios\/\*\*/);
   assert.match(yml, /scripts\/ios-fleet\/\*\*/);
   // The scheduled gate covers the same set a push would have shipped: one
   // --path-prefix per on.push.paths entry, or a missed push of a
@@ -53,7 +53,7 @@ test("ios-ship.yml targets dealdex / native/ios on GitHub-hosted macos-latest", 
   const pushPaths = extractPushPaths(yml);
   assert.ok(pushPaths.length, "on.push.paths block found");
   assert.deepEqual(pushPaths, [
-    "native/ios/**",
+    "apps/ios/**",
     ".github/workflows/ios-ship.yml",
     "scripts/ios-fleet/**",
     "scripts/ios-ship-testflight.sh",
@@ -286,7 +286,7 @@ test("ios-ship.yml is the auto-ship path: Fleet-OPS /asc, no standing overrides"
   const yml = read(".github/workflows/ios-ship.yml");
 
   // A merge to main that touches the native tree ships, plus a manual run.
-  assert.match(yml, /push:\s*\n\s+branches: \[main\]\s*\n\s+paths:\s*\n\s+- 'native\/ios\/\*\*'/);
+  assert.match(yml, /push:\s*\n\s+branches: \[main\]\s*\n\s+paths:\s*\n\s+- 'apps\/ios\/\*\*'/);
   assert.match(yml, /workflow_dispatch:/);
   assert.match(yml, /schedule:/);
   // The scheduled catch-up is behind the path gate, never a blind cron.
@@ -418,7 +418,7 @@ test("main carries an unsigned iOS build check (ci.yml calls ios-build.yml)", ()
   // ci.yml: push to main always builds; a PR only when the native tree changed.
   assert.match(ci, /\n {2}ios-changes:\n/);
   assert.match(ci, /\n {2}ios:\n\s+needs: ios-changes\n\s+if: needs\.ios-changes\.outputs\.native == 'true'\n\s+uses: \.\/\.github\/workflows\/ios-build\.yml/);
-  assert.match(ci, /\^\(native\/ios\/\|\\\.github\/workflows\/ios-build\\\.yml\$\)/);
+  assert.match(ci, /\^\(apps\/ios\/\|\\\.github\/workflows\/ios-build\\\.yml\$\)/);
   assert.match(ci, /pull_request:/);
   assert.match(ci, /push:\s*\n\s+branches: \[main\]/);
 
@@ -428,7 +428,7 @@ test("main carries an unsigned iOS build check (ci.yml calls ios-build.yml)", ()
   assert.match(build, /workflow_dispatch:/);
   assert.match(build, /runs-on:\s*macos-latest/);
   assert.doesNotMatch(build, /runs-on:\s*\[?self-hosted/);
-  assert.match(build, /-project native\/ios\/DealDex\.xcodeproj/);
+  assert.match(build, /-project apps\/ios\/DealDex\.xcodeproj/);
   assert.match(build, /-scheme DealDex/);
   assert.match(build, /-configuration Release/);
   assert.match(build, /CODE_SIGNING_ALLOWED=NO/);

@@ -27,7 +27,7 @@ test("market logos do not inject extra document titles", () => {
 
 test("canonical public host is dealdex.net", () => {
   assert.match(read("src/routes/__root.tsx"), /VITE_PUBLIC_HOSTNAME \|\| "dealdex\.net"/);
-  assert.match(read("native/ios/DealDex/NativeAuth.swift"), /https:\/\/dealdex\.net/);
+  assert.match(read("apps/ios/DealDex/NativeAuth.swift"), /https:\/\/dealdex\.net/);
   assert.match(read("docs/store-listing.md"), /https:\/\/dealdex\.net\/privacy/);
   assert.doesNotMatch(read("src/routes/__root.tsx"), /dealdex\.online/);
   assert.doesNotMatch(read("vercel.json"), /dealdex\.online/);
@@ -40,8 +40,8 @@ test("living identity files say DealDex.net and net.dealdex", () => {
     "CONTRIBUTING.md",
     "AGENTS.md",
     "STATUS.md",
-    "native/README.md",
-    "native/ios/CLAUDE.md",
+    "docs/native-apps.md",
+    "apps/ios/CLAUDE.md",
     "docs/store-listing.md",
     "docs/EFFORT-LOG.md",
     "docs/AUDIT-2026-09-01.md",
@@ -55,6 +55,6 @@ test("living identity files say DealDex.net and net.dealdex", () => {
     assert.doesNotMatch(text, /online\.dealdex/, `${rel} must not name online.dealdex`);
   }
   assert.match(read("PLAN.md"), /net\.dealdex/);
-  assert.match(read("native/ios/CLAUDE.md"), /net\.dealdex/);
+  assert.match(read("apps/ios/CLAUDE.md"), /net\.dealdex/);
   assert.match(read("scripts/ios-fleet/apps.json"), /"bundleId": "net\.dealdex"/);
 });

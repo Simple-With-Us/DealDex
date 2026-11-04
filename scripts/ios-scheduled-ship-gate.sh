@@ -12,7 +12,7 @@
 #
 # But a cron carries no `paths:` filter, and ship-testflight.sh's own gate only
 # tests "is HEAD the sha I last shipped" plus a time interval -- neither of
-# which knows whether native/ios/ changed. Socratic.Trade already paid for
+# which knows whether apps/ios/ changed. Socratic.Trade already paid for
 # that gap: run 31723515355 (event=schedule) archived a pure-backend alerts
 # fix that touched zero files under ios/. That build went to testers as a
 # byte-identical app with a new build number.
@@ -25,7 +25,7 @@
 #
 # Usage:
 #   ios-scheduled-ship-gate.sh --path-prefix <pattern> [--path-prefix <pattern>...] [options] <key> [key...]
-#   (this repo ships one app: `dealdex`, from native/ios/)
+#   (this repo ships one app: `dealdex`, from apps/ios/)
 #
 # Options:
 #   --path-prefix P   Repo-relative path pattern that counts as shippable
