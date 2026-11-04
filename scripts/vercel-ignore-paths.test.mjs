@@ -16,7 +16,10 @@ const CATCH_UP_WATCH = JSON.parse(
 // native-only change makes one of them build and the other skip.
 function ignoreStepWatchArgs(source) {
   const blocks = [...source.matchAll(/watch_args=\(\n([\s\S]*?)\n\s*\)/g)].map((m) => m[1]);
-  assert.ok(blocks.length === 1, `ignore step exposes ${blocks.length} watch lists, expected exactly one`);
+  assert.ok(
+    blocks.length === 1,
+    `ignore step exposes ${blocks.length} watch lists, expected exactly one`,
+  );
   return blocks[0]
     .split("\n")
     .map((line) => line.trim())
