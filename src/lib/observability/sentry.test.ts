@@ -152,7 +152,7 @@ test("Android Sentry SDK is present, DSN-gated, and privacy-safe", () => {
   assert.doesNotMatch(gradle, /ingest\.sentry\.io/);
 
   const rootGradle = read("apps/android/build.gradle.kts");
-  assert.match(rootGradle, /id\("io\.sentry\.android\.gradle"\) version "6\.24\.0"/);
+  assert.match(rootGradle, /id\("io\.sentry\.android\.gradle"\) version "6\.25\.0"/);
 
   const app = read("apps/android/app/src/main/java/me/grok/dealdex/DealDexApp.kt");
   assert.match(app, /SentryAndroid\.init/);
