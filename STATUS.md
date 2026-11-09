@@ -1,3 +1,10 @@
+## 2026-11-09 — OPS-1052 phase 2: post-sync TestFlight readiness recheck
+
+`ios-ship.yml` re-runs `ensure-tf-ready` after standing-tester sync and writes
+the second rc verdict to the job summary.  Shared handlers live in
+`scripts/ios-fleet/tf-ready-rc.sh`.  Branch `gb-compiler/ops-1052-post-sync-recheck`.
+Rollout: `docs/rollouts/2026-11-09-ops-1052-post-sync-tf-recheck.md`.
+
 ## 2026-10-24 MM — iOS version numbers come from App Store Connect (AFC-517 / CT-2444)
 
 The vendored `scripts/ios-fleet` copy now follows the owner directive of

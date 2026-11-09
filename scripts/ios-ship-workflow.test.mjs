@@ -231,6 +231,29 @@ test("ios-ship.yml is the auto-ship path: Fleet-OPS /asc, no standing overrides"
   assert.match(yml, /^name: iOS TestFlight ship \(GitHub-hosted macOS\)$/m);
 });
 
+test("standing-tester sync is followed by a post-sync ensure-tf-ready step", () => {
+  const yml = read(".github/workflows/ios-ship.yml");
+  const syncAt = yml.indexOf("name: Sync standing TestFlight testers");
+  const recheckAt = yml.indexOf("name: Re-check TestFlight readiness after tester sync");
+  assert.ok(syncAt > -1 && recheckAt > syncAt, "post-sync recheck follows tester sync");
+  const recheckStep = yml.slice(recheckAt).split(/\n      - name:/)[0];
+  assert.match(recheckStep, /ios-recheck-tf-ready\.sh/);
+  assert.match(recheckStep, /continue-on-error:\s*true/);
+  assert.match(recheckStep, /IOS_TF_READY_TIMEOUT_SEC:\s*"300"/);
+  assert.match(recheckStep, /recheck_tf/);
+  assert.match(yml, /recheck_tf\.outputs\.tf_ready_summary/);
+});
+
+test("ship-testflight ensure_tf_ready delegates to shared tf-ready-rc handlers", () => {
+  const ship = read("scripts/ios-fleet/ship-testflight.sh");
+  assert.match(ship, /source "\$\{FLEET_DIR\}\/tf-ready-rc\.sh"/);
+  const fnStart = ship.indexOf("ensure_tf_ready()");
+  const fnEnd = ship.indexOf("\nacquire_archive_lock", fnStart);
+  const fn = ship.slice(fnStart, fnEnd);
+  assert.match(fn, /handle_ensure_tf_ready_rc "\$rc"/);
+  assert.doesNotMatch(fn, /if \[\[ \$rc -eq 5 \]\]/);
+});
+
 test("main carries an unsigned iOS build check (ci.yml calls ios-build.yml)", () => {
   const ci = read(".github/workflows/ci.yml");
   const build = read(".github/workflows/ios-build.yml");
