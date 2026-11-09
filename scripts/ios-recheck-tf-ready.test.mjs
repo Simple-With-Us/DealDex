@@ -1,12 +1,20 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+test("ios-recheck-tf-ready avoids bash 4 mapfile for macos-latest bash 3.2", () => {
+  const sh = readFileSync(join(ROOT, "scripts/ios-recheck-tf-ready.sh"), "utf8");
+  assert.doesNotMatch(sh, /\bmapfile\b/);
+  assert.match(sh, /IFS= read -r BUNDLE_ID/);
+  assert.match(sh, /IFS= read -r MARKETING/);
+  assert.match(sh, /IFS= read -r APPLE_ID/);
+});
 
 test("ios-recheck-tf-ready fails fast on unknown app key", () => {
   const r = spawnSync(

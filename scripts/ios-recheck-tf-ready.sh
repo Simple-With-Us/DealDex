@@ -56,15 +56,19 @@ if [[ $_meta_rc -ne 0 ]]; then
   rm -f "$_APP_META_FILE"
   exit 2
 fi
-mapfile -t _APP_META < "$_APP_META_FILE"
+BUNDLE_ID=""
+MARKETING=""
+APPLE_ID=""
+{
+  IFS= read -r BUNDLE_ID
+  IFS= read -r MARKETING
+  IFS= read -r APPLE_ID
+} < "$_APP_META_FILE"
 rm -f "$_APP_META_FILE"
-if [[ ${#_APP_META[@]} -lt 3 ]]; then
+if [[ -z "$BUNDLE_ID" || -z "$MARKETING" || -z "$APPLE_ID" ]]; then
   echo "::error::recheck-tf-ready for ${APP_KEY}: apps metadata incomplete (expected bundleId, marketing, appleId)"
   exit 2
 fi
-BUNDLE_ID="${_APP_META[0]:-}"
-MARKETING="${_APP_META[1]:-}"
-APPLE_ID="${_APP_META[2]:-}"
 
 [[ "$BUILD_NUM" =~ ^[1-9][0-9]{11}$ ]] || {
   echo "::error::recheck-tf-ready for ${APP_KEY}: build '${BUILD_NUM}' is not a 12-digit merge-stamp build"

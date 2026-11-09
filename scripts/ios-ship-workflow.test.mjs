@@ -336,7 +336,8 @@ test("standing-tester sync is followed by a post-sync ensure-tf-ready step", () 
 
 test("ios-recheck-tf-ready reads three-line apps.json metadata", () => {
   const sh = read("scripts/ios-recheck-tf-ready.sh");
-  assert.match(sh, /mapfile -t _APP_META/);
+  assert.doesNotMatch(sh, /\bmapfile\b/);
+  assert.match(sh, /IFS= read -r BUNDLE_ID/);
   assert.match(sh, /missing bundleId or appleId/);
   assert.doesNotMatch(sh, /GITHUB_STEP_SUMMARY/);
 });
