@@ -11,16 +11,57 @@ FLEET_DIR="${ROOT}/scripts/ios-fleet"
 # shellcheck source=scripts/ios-fleet/tf-ready-rc.sh
 source "${FLEET_DIR}/tf-ready-rc.sh"
 
-mapfile -t _APP_META < <(python3 - "$APP_KEY" "${FLEET_DIR}/apps.json" <<'PY'
+APPS_JSON_PATH="${APPS_JSON_PATH:-${FLEET_DIR}/apps.json}"
+_APP_META_FILE="$(mktemp)"
+set +e
+python3 - "$APP_KEY" "$APPS_JSON_PATH" >"$_APP_META_FILE" 2>&1 <<'PY'
 import json, sys
+
 app_key, path = sys.argv[1], sys.argv[2]
-app = json.load(open(path))["apps"][app_key]
+try:
+    with open(path, encoding="utf-8") as f:
+        payload = json.load(f)
+except (OSError, json.JSONDecodeError) as e:
+    print(f"::error::recheck-tf-ready: cannot read apps config at {path}: {e}", file=sys.stderr)
+    sys.exit(2)
+
+apps = payload.get("apps")
+if not isinstance(apps, dict):
+    print(f"::error::recheck-tf-ready: missing apps object in {path}", file=sys.stderr)
+    sys.exit(2)
+
+app = apps.get(app_key)
+if not isinstance(app, dict):
+    print(f"::error::recheck-tf-ready: unknown app key {app_key!r} in {path}", file=sys.stderr)
+    sys.exit(2)
+
+bundle_id = app.get("bundleId")
+apple_id = app.get("appleId")
+if not bundle_id or apple_id in (None, ""):
+    print(
+        f"::error::recheck-tf-ready: app {app_key!r} missing bundleId or appleId in {path}",
+        file=sys.stderr,
+    )
+    sys.exit(2)
+
 marketing = app.get("fixedMarketingVersion") or app.get("marketingVersionDefault") or "1.0.0"
-print(app["bundleId"])
+print(bundle_id)
 print(marketing)
-print(app["appleId"])
+print(apple_id)
 PY
-)
+_meta_rc=$?
+set -e
+if [[ $_meta_rc -ne 0 ]]; then
+  cat "$_APP_META_FILE" >&2
+  rm -f "$_APP_META_FILE"
+  exit 2
+fi
+mapfile -t _APP_META < "$_APP_META_FILE"
+rm -f "$_APP_META_FILE"
+if [[ ${#_APP_META[@]} -lt 3 ]]; then
+  echo "::error::recheck-tf-ready for ${APP_KEY}: apps metadata incomplete (expected bundleId, marketing, appleId)"
+  exit 2
+fi
 BUNDLE_ID="${_APP_META[0]:-}"
 MARKETING="${_APP_META[1]:-}"
 APPLE_ID="${_APP_META[2]:-}"

@@ -337,7 +337,18 @@ test("standing-tester sync is followed by a post-sync ensure-tf-ready step", () 
 test("ios-recheck-tf-ready reads three-line apps.json metadata", () => {
   const sh = read("scripts/ios-recheck-tf-ready.sh");
   assert.match(sh, /mapfile -t _APP_META/);
+  assert.match(sh, /missing bundleId or appleId/);
   assert.doesNotMatch(sh, /GITHUB_STEP_SUMMARY/);
+});
+
+test("tester sync runs on ship success; only recheck requires uploaded", () => {
+  const yml = read(".github/workflows/ios-ship.yml");
+  const sync = yml.match(
+    /- name: Sync standing TestFlight testers[\s\S]*?(?=\n {6}- name:|$)/,
+  )?.[0];
+  assert.ok(sync);
+  assert.match(sync, /if: success\(\) && steps\.gate\.outputs\.should_ship == '1'/);
+  assert.doesNotMatch(sync, /outputs\.uploaded/);
 });
 
 test("ios-observe-ship marks skip lines as not uploaded", async () => {
