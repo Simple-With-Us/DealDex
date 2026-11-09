@@ -57,6 +57,8 @@ test("ios-ship.yml targets dealdex / apps/ios on GitHub-hosted macos-latest", ()
     ".github/workflows/ios-ship.yml",
     "scripts/ios-fleet/**",
     "scripts/ios-ship-testflight.sh",
+    "scripts/ios-observe-ship.mjs",
+    "scripts/ios-recheck-tf-ready.sh",
     "scripts/ios-appstore-gm-prepare.sh",
     "scripts/ios-stage-asc-key.sh",
   ]);
@@ -68,7 +70,7 @@ test("ios-ship.yml targets dealdex / apps/ios on GitHub-hosted macos-latest", ()
   assert.match(yml, /fetch-depth:\s*0/);
   assert.match(yml, /cancel-in-progress:\s*false/);
   assert.match(yml, /github\.event\.repository\.fork == false/);
-  assert.match(yml, /bash scripts\/ios-ship-testflight\.sh/);
+  assert.match(yml, /ios-observe-ship\.mjs bash scripts\/ios-ship-testflight\.sh/);
   assert.doesNotMatch(yml, /--force-ship/);
   assert.match(yml, /ios-appstore-gm-prepare\.sh/);
   assert.match(yml, /Load Infisical signing secrets/);
@@ -295,7 +297,7 @@ test("ios-ship.yml is the auto-ship path: Fleet-OPS /asc, no standing overrides"
 
   // Ship through the fleet script with What to Test published.
   assert.match(yml, /IOS_TF_RELEASE_NOTES:\s*"1"/);
-  assert.match(yml, /bash scripts\/ios-ship-testflight\.sh/);
+  assert.match(yml, /ios-observe-ship\.mjs bash scripts\/ios-ship-testflight\.sh/);
 
   // The rate gate and same-HEAD skip stay at the script defaults.
   assert.doesNotMatch(yml, /IOS_TF_MIN_INTERVAL_SEC/);
@@ -315,6 +317,78 @@ test("ios-ship.yml is the auto-ship path: Fleet-OPS /asc, no standing overrides"
 
   // The Sentry Crons mapping keys on this exact name.
   assert.match(yml, /^name: iOS TestFlight ship \(GitHub-hosted macOS\)$/m);
+});
+
+test("standing-tester sync is followed by a post-sync ensure-tf-ready step", () => {
+  const yml = read(".github/workflows/ios-ship.yml");
+  const syncAt = yml.indexOf("name: Sync standing TestFlight testers");
+  const recheckAt = yml.indexOf("name: Re-check TestFlight readiness after tester sync");
+  assert.ok(syncAt > -1 && recheckAt > syncAt, "post-sync recheck follows tester sync");
+  const recheckStep = yml.slice(recheckAt).split(/\n {6}- name:/)[0];
+  assert.match(recheckStep, /ios-recheck-tf-ready\.sh/);
+  assert.match(recheckStep, /continue-on-error:\s*true/);
+  assert.match(recheckStep, /IOS_TF_READY_TIMEOUT_SEC:\s*"300"/);
+  assert.match(recheckStep, /recheck_tf/);
+  assert.match(recheckStep, /steps\.plan-build\.outputs\.build/);
+  assert.match(recheckStep, /steps\.ship\.outputs\.uploaded == 'true'/);
+  assert.match(yml, /recheck_tf\.outputs\.tf_ready_summary/);
+});
+
+test("ios-recheck-tf-ready reads three-line apps.json metadata", () => {
+  const sh = read("scripts/ios-recheck-tf-ready.sh");
+  assert.doesNotMatch(sh, /\bmapfile\b/);
+  assert.match(sh, /IFS= read -r BUNDLE_ID/);
+  assert.match(sh, /missing bundleId or appleId/);
+  assert.doesNotMatch(sh, /GITHUB_STEP_SUMMARY/);
+});
+
+test("tester sync runs on ship success; only recheck requires uploaded", () => {
+  const yml = read(".github/workflows/ios-ship.yml");
+  const sync = yml.match(
+    /- name: Sync standing TestFlight testers[\s\S]*?(?=\n {6}- name:|$)/,
+  )?.[0];
+  assert.ok(sync);
+  assert.match(sync, /if: success\(\) && steps\.gate\.outputs\.should_ship == '1'/);
+  assert.doesNotMatch(sync, /outputs\.uploaded/);
+});
+
+test("ios-observe-ship marks skip lines as not uploaded", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const fakeShip = join(ROOT, "scripts", ".tmp-fake-ship.sh");
+  const { writeFileSync, unlinkSync } = await import("node:fs");
+  writeFileSync(
+    fakeShip,
+    '#!/bin/sh\necho "ship-gate: exiting 0 before any version is resolved (nothing consumed)"\nexit 0\n',
+    { mode: 0o755 },
+  );
+  const outFile = join(ROOT, "scripts", ".tmp-github-output.txt");
+  try {
+    const r = spawnSync(
+      "node",
+      ["scripts/ios-observe-ship.mjs", "sh", fakeShip],
+      {
+        cwd: ROOT,
+        env: { ...process.env, GITHUB_OUTPUT: outFile },
+      },
+    );
+    assert.equal(r.status, 0);
+    const out = readFileSync(outFile, "utf8");
+    assert.match(out, /uploaded=false/);
+    assert.match(out, /ship_observed=skipped/);
+  } finally {
+    unlinkSync(fakeShip);
+    unlinkSync(outFile);
+  }
+});
+
+test("ship-testflight ensure_tf_ready delegates to shared tf-ready-rc handlers", () => {
+  const ship = read("scripts/ios-fleet/ship-testflight.sh");
+  assert.match(ship, /source "\$\{FLEET_DIR\}\/tf-ready-rc\.sh"/);
+  const fnStart = ship.indexOf("ensure_tf_ready()");
+  const fnEnd = ship.indexOf("\nacquire_archive_lock", fnStart);
+  const fn = ship.slice(fnStart, fnEnd);
+  assert.match(fn, /handle_ensure_tf_ready_rc "\$rc"/);
+  assert.doesNotMatch(fn, /if \[\[ \$rc -eq 5 \]\]/);
 });
 
 test("fixed marketing version plans one shared merge-stamp build (owner Oct 29 2026)", () => {
@@ -377,7 +451,10 @@ test("ios-ship.yml plans the build once and hands it to the ship via --build", (
   assert.match(yml, /id: plan-build/);
   assert.match(yml, /--plan-build-only/);
   assert.match(yml, /steps\.plan-build\.outputs\.build/);
-  assert.match(yml, /bash scripts\/ios-ship-testflight\.sh --build "/);
+  assert.match(
+    yml,
+    /ios-observe-ship\.mjs bash scripts\/ios-ship-testflight\.sh --build "/,
+  );
   assert.match(
     yml,
     /id: plan-build\n {8}if: steps\.gate\.outputs\.should_ship == '1'/,

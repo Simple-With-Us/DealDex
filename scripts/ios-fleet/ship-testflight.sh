@@ -1469,6 +1469,8 @@ release_archive_lock() {
 # on 2026-08-12).
 ensure_tf_ready() {
   log "verifying TestFlight ready-to-install for ${BUNDLE_ID} build ${BUILD_NUM}"
+  # shellcheck source=scripts/ios-fleet/tf-ready-rc.sh
+  source "${FLEET_DIR}/tf-ready-rc.sh"
   set +e
   # BUILD_NUM (CFBundleVersion) is REQUIRED. Without it asc-api.mjs would have to
   # guess "the newest build", which for the first minutes after an upload is the
@@ -1486,56 +1488,7 @@ ensure_tf_ready() {
   if [[ -s "${LOG_DIR}/ensure-tf-ready.err" ]]; then
     while IFS= read -r line; do log "tf-ready: $line"; done <"${LOG_DIR}/ensure-tf-ready.err"
   fi
-  if [[ $rc -eq 0 ]]; then
-    log "TestFlight internal testers can install this build"
-    return 0
-  fi
-  if [[ $rc -eq 3 ]]; then
-    log "warning: upload succeeded but ASC has not reached IN_BETA_TESTING yet; watch TestFlight"
-    return 0
-  fi
-  if [[ $rc -eq 4 ]]; then
-    # The upload itself succeeded; ASC simply never surfaced the build in time.
-    # Warn loudly but do NOT fail: the caller must still record_successful_ship,
-    # or the rate gate never advances and the next scheduled run re-ships the
-    # same HEAD. A red job after a successful upload also mislabels the outcome.
-    log "warning: ASC never surfaced build ${BUILD_NUM}; export compliance NOT declared on it"
-    log "warning: if the phone never gets this build, declare compliance by hand in App Store Connect"
-    if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-      echo "::warning::ensure-tf-ready could not find uploaded build ${BUILD_NUM} for ${BUNDLE_ID}; export compliance not declared"
-    fi
-    return 0
-  fi
-  # rc=5 / rc=6 are NOT compliance failures: asc-api.mjs returns them only after
-  # the build reached IN_BETA_TESTING and the compliance PATCH already landed,
-  # so they say the build is ready but nobody (rc=5) or the tester count
-  # (rc=6) could not confirm. Falling through to the catch-all below would tell
-  # the owner to redeclare compliance by hand on an already-compliant build.
-  if [[ $rc -eq 5 ]]; then
-    log "warning: build ${BUILD_NUM} is compliant and in beta testing, but NO internal tester has access to all builds"
-    log "warning: add an internal tester (or a build-access group) in App Store Connect or the phone never gets this build"
-    if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-      echo "::warning::ensure-tf-ready: ${BUNDLE_ID} build ${BUILD_NUM} is ready but no internal tester can install it"
-    fi
-    return 0
-  fi
-  if [[ $rc -eq 6 ]]; then
-    log "warning: build ${BUILD_NUM} is compliant and in beta testing, but the internal tester count could not be read"
-    log "warning: installability is unverified -- check the TestFlight groups by hand in App Store Connect"
-    if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-      echo "::warning::ensure-tf-ready: ${BUNDLE_ID} build ${BUILD_NUM} is ready but the internal tester state is unreadable"
-    fi
-    return 0
-  fi
-  # rc=2 is a usage error or an ASC API error. Compliance was NOT declared, so
-  # this deserves the same CI annotation rc=4 gets -- otherwise the only trace
-  # is one log line inside a green job, which is how ST 1.0.1/2 stayed
-  # VALID-but-uninstallable without anyone noticing.
-  log "warning: ensure-tf-ready failed (rc=$rc); build may be stuck on export compliance"
-  if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-    echo "::warning::ensure-tf-ready failed (rc=${rc}) for ${BUNDLE_ID} build ${BUILD_NUM}; export compliance not declared"
-  fi
-  return 0
+  handle_ensure_tf_ready_rc "$rc"
 }
 
 acquire_archive_lock

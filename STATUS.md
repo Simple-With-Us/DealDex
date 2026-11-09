@@ -1,3 +1,12 @@
+## 2026-11-09 — OPS-1052 phase 2: post-sync TestFlight readiness recheck
+
+`ios-ship.yml` re-runs `ensure-tf-ready` after standing-tester sync and writes
+the second rc verdict to the job summary.  Shared handlers live in
+`scripts/ios-fleet/tf-ready-rc.sh`; recheck is gated on `ios-observe-ship.mjs`
+`uploaded` output (unknown/false/true; spawn_error hardening).  Branch
+`gb-compiler/ops-1052-post-sync-recheck`; Kody review threads addressed on PR #576. 
+Rollout: `docs/rollouts/2026-11-09-ops-1052-post-sync-tf-recheck.md`.
+
 ## 2026-11-03 CODEX — Platform Source Layout (AFC-601)
 
 Prepared a source-layout batch: iOS and Android move from `native/` to `apps/ios` and `apps/android`, shared brand artwork moves to `assets/brand`, and the build guide moves to `docs/native-apps.md`.  CI, ship manifest/filter consumers, generators, active navigation and tests follow the new paths.  The root web/server runtime and database migrations keep their existing build and deployment boundary.
