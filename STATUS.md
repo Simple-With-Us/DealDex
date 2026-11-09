@@ -5,6 +5,28 @@ the second rc verdict to the job summary.  Shared handlers live in
 `scripts/ios-fleet/tf-ready-rc.sh`.  Branch `gb-compiler/ops-1052-post-sync-recheck`.
 Rollout: `docs/rollouts/2026-11-09-ops-1052-post-sync-tf-recheck.md`.
 
+## 2026-11-03 CODEX — Platform Source Layout (AFC-601)
+
+Prepared a source-layout batch: iOS and Android move from `native/` to `apps/ios` and `apps/android`, shared brand artwork moves to `assets/brand`, and the build guide moves to `docs/native-apps.md`.  CI, ship manifest/filter consumers, generators, active navigation and tests follow the new paths.  The root web/server runtime and database migrations keep their existing build and deployment boundary.
+
+The 83 relevant local path, identity, icon, scan and ship checks pass.  Hosted web/Android/iOS gates, current-head review, parent merge release and published web verification remain required; this source preparation does not claim a native release or production deployment.  See `docs/rollouts/2026-11-03-platform-source-layout.md`.
+
+## 2026-10-30 CODEX — Repository report index (AFC-580)
+
+Prepared the required status note for the docs-only report index change.  See `docs/rollouts/2026-10-30-repository-report-index.md`.
+
+## 2026-10-29 MUSE — Scheduled iOS gate keeps push last-match-wins (Kody)
+
+Kody noted `ios-scheduled-ship-gate.sh` compiled every `!` exclusion to git `:(exclude)`, which always wins, while push re-includes on a later positive match: a future exclusion-plus-re-include paths list would ship on push but skip on the scheduled backstop.  The gate now evaluates the ordered prefix list with push semantics -- exclusions with no later positive still compile to `:(exclude)`, and each remaining exclusion drops only files matching none of its later positives, through one `matching_files` helper shared by the range diff and the timestamp fallback.  `scripts/test-ios-scheduled-ship-gate.sh` gains re-include cases for both paths (24 checks green).  See `docs/rollouts/2026-10-29-ios-ship-gate-reinclude.md`.
+
+## 2026-10-29 GROK-BUILD — Scheduled iOS gate covers every push path
+
+The scheduled TestFlight backstop now diffs the full `on.push.paths` set (native tree, workflow file, ship tooling), not just `native/ios/`.  A merge that only touched tooling can no longer sit unshipped when its push run never dispatches.  `ios-scheduled-ship-gate.sh` takes a repeatable `--path-prefix` (old single-prefix call still works; `!` excludes like push), the gate step passes one per push entry, and `ios-ship-workflow.test.mjs` pins the two lists together.  Cron, push paths, rate gate, same-HEAD skip, and fail-safe skips are unchanged; no `--force-ship`.  See `docs/rollouts/2026-10-29-ios-ship-gate-push-paths.md`.
+
+## 2026-10-29 — Owner rule supersedes AFC-517 for TestFlight versioning
+
+The Oct 29 2026 owner rule supersedes the AFC-517 / CT-2444 entry below for TestFlight versioning: fixed-mode apps ship a FIXED marketing version (dealdex 0.1.0) with the shared merge-timestamp build max(S, M + 1), not the 1.0.N train.
+
 ## 2026-10-24 MM — iOS version numbers come from App Store Connect (AFC-517 / CT-2444)
 
 The vendored `scripts/ios-fleet` copy now follows the owner directive of
@@ -554,7 +576,7 @@ Production on `dealdex.net` collects FCP/LCP/INP/CLS. Branch
 - **Icons & Brand**: Updated master brand assets from owner uploads. iOS AppIcon uses the subtle tiled silver grid DD; website favicon, Android launcher mipmaps/adaptive icons, and PWA icon use the isolated transparent DD; 3D DealDex title wordmark updated across web, iOS, and Android.
 - **iOS Xcode & Bundle**: Switched bundle identifier to `net.dealdex` (`PRODUCT_BUNDLE_IDENTIFIER`, `bundleId`, `CFBundleIdentifier`). Deployment target set to **iOS 17.0** (Xcode document format 26.3 / objectVersion 100). Display name `DealDex`, team `CC8UTF7ATG`, category `public.app-category.shopping`.
 - **Native Builds**: iOS Simulator build (**BUILD SUCCEEDED**), Android debug APK built (**BUILD SUCCESSFUL**) and copied to `public/DealDex.apk`.
-- **Fleet Protocols**: Updated `AGENT-SYNC.md` with typography, line spacing (1.5x body, 2.0x section breaks), and table/diagram aesthetics standards for Apple Notes.
+- **Fleet Protocols**: Updated `ag***-s**c.md` with typography, line spacing (1.5x body, 2.0x section breaks), and table/diagram aesthetics standards for Apple Notes.
 
 ## 2026-08-22 GROK — Public host dealdex.net
 

@@ -11,14 +11,58 @@ function read(rel) {
   return readFileSync(join(ROOT, rel), "utf8");
 }
 
-test("ios-ship.yml targets dealdex / native/ios on GitHub-hosted macos-latest", () => {
+// on.push.paths entries, any quote style.  Scoped to the paths: list under
+// push: so paths-ignore, branches and other lists never leak in.
+function extractPushPaths(ymlText) {
+  const block = ymlText.match(
+    /push:\s*\n(?:.*\n)*?\s+paths:\s*\n((?:\s+-\s+[^\n]+\n)+)/,
+  );
+  if (!block) return [];
+  return [...block[1].matchAll(/^\s+-\s+['"]?([^'"\s]+)['"]?\s*(?:#.*)?$/gm)].map(
+    (m) => m[1],
+  );
+}
+
+// --path-prefix values from the scheduled gate step only, any quote style.
+// Full-line comments are stripped so a prose mention like
+// "--path-prefix per ..." is never read as a prefix.
+function extractGatePrefixes(ymlText) {
+  const step = ymlText.match(
+    /- name: Scheduled ship gate[\s\S]*?(?=\n\s+- name:|$)/,
+  );
+  if (!step) return [];
+  const code = step[0]
+    .split("\n")
+    .filter((line) => !/^\s*#/.test(line))
+    .join("\n");
+  return [...code.matchAll(/--path-prefix\s+['"]?([^'"\s]+)['"]?(?:\s*\\?\s*(?:#.*)?)?/g)].map(
+    (m) => m[1],
+  );
+}
+
+test("ios-ship.yml targets dealdex / apps/ios on GitHub-hosted macos-latest", () => {
   const yml = read(".github/workflows/ios-ship.yml");
   const wrapper = read("scripts/ios-ship-testflight.sh");
   const prepare = read("scripts/ios-appstore-gm-prepare.sh");
 
-  assert.match(yml, /native\/ios\/\*\*/);
-  assert.match(yml, /--path-prefix 'native\/ios\/'/);
+  assert.match(yml, /apps\/ios\/\*\*/);
   assert.match(yml, /scripts\/ios-fleet\/\*\*/);
+  // The scheduled gate covers the same set a push would have shipped: one
+  // --path-prefix per on.push.paths entry, or a missed push of a
+  // tooling-only merge never ships (owner Oct 29 2026).
+  const pushPaths = extractPushPaths(yml);
+  assert.ok(pushPaths.length, "on.push.paths block found");
+  assert.deepEqual(pushPaths, [
+    "apps/ios/**",
+    ".github/workflows/ios-ship.yml",
+    "scripts/ios-fleet/**",
+    "scripts/ios-ship-testflight.sh",
+    "scripts/ios-recheck-tf-ready.sh",
+    "scripts/ios-appstore-gm-prepare.sh",
+    "scripts/ios-stage-asc-key.sh",
+  ]);
+  const gatePrefixes = extractGatePrefixes(yml);
+  assert.deepEqual([...gatePrefixes].sort(), [...pushPaths].sort());
   assert.match(yml, /runs-on:\s*macos-latest/);
   assert.doesNotMatch(yml, /runs-on:\s*\[self-hosted/);
   assert.match(yml, /DEVELOPER_DIR:\s*\/Applications\/Xcode\.app\/Contents\/Developer/);
@@ -73,6 +117,49 @@ test("ios-ship.yml targets dealdex / native/ios on GitHub-hosted macos-latest", 
   assert.doesNotMatch(prepare, /echo "\$IOS_DIST_P12/);
 });
 
+test("ship-gate coverage extractors accept any quote style (owner Oct 29 2026)", () => {
+  const pushSample = [
+    "on:",
+    "  push:",
+    "    branches: [main]",
+    "    paths:",
+    "      - 'single/**'",
+    '      - "double/**"',
+    "      - unquoted/**",
+    "      - 'commented/**' # reason",
+    "    paths-ignore:",
+    "      - 'ignored/**'",
+    "",
+  ].join("\n");
+  assert.deepEqual(extractPushPaths(pushSample), [
+    "single/**",
+    "double/**",
+    "unquoted/**",
+    "commented/**",
+  ]);
+
+  const gateSample = [
+    "      - name: Scheduled ship gate (skip unless iOS code changed)",
+    "        run: |",
+    "          # One --path-prefix per on.push.paths entry",
+    "          bash scripts/ios-scheduled-ship-gate.sh \\",
+    "            --path-prefix 'single/**' \\",
+    '            --path-prefix "double/**" \\',
+    "            --path-prefix unquoted/** \\",
+    "            --path-prefix 'commented/**' \\ # reason",
+    "            dealdex",
+    "      - name: Next step",
+    "        run: echo --path-prefix 'elsewhere/**'",
+    "",
+  ].join("\n");
+  assert.deepEqual(extractGatePrefixes(gateSample), [
+    "single/**",
+    "double/**",
+    "unquoted/**",
+    "commented/**",
+  ]);
+});
+
 test("the ASC credential crosses a step boundary as the hosted base64 trio", () => {
   const yml = read(".github/workflows/ios-ship.yml");
 
@@ -117,7 +204,7 @@ test("a rejected ASC key is reported masked, and no test reads an environment", 
   }
 });
 
-test("vendored ios-fleet ships net.dealdex on the 1.0.N train", () => {
+test("vendored ios-fleet ships net.dealdex (fixed 0.1.0; next-patch scheme kept for non-fixed apps)", () => {
   const apps = JSON.parse(read("scripts/ios-fleet/apps.json"));
   const dealdex = apps.apps.dealdex;
   assert.equal(apps.teamId, "CC8UTF7ATG");
@@ -200,7 +287,7 @@ test("ios-ship.yml is the auto-ship path: Fleet-OPS /asc, no standing overrides"
   const yml = read(".github/workflows/ios-ship.yml");
 
   // A merge to main that touches the native tree ships, plus a manual run.
-  assert.match(yml, /push:\s*\n\s+branches: \[main\]\s*\n\s+paths:\s*\n\s+- 'native\/ios\/\*\*'/);
+  assert.match(yml, /push:\s*\n\s+branches: \[main\]\s*\n\s+paths:\s*\n\s+- 'apps\/ios\/\*\*'/);
   assert.match(yml, /workflow_dispatch:/);
   assert.match(yml, /schedule:/);
   // The scheduled catch-up is behind the path gate, never a blind cron.
@@ -241,6 +328,7 @@ test("standing-tester sync is followed by a post-sync ensure-tf-ready step", () 
   assert.match(recheckStep, /continue-on-error:\s*true/);
   assert.match(recheckStep, /IOS_TF_READY_TIMEOUT_SEC:\s*"300"/);
   assert.match(recheckStep, /recheck_tf/);
+  assert.match(recheckStep, /steps\.plan-build\.outputs\.build/);
   assert.match(yml, /recheck_tf\.outputs\.tf_ready_summary/);
 });
 
@@ -254,6 +342,100 @@ test("ship-testflight ensure_tf_ready delegates to shared tf-ready-rc handlers",
   assert.doesNotMatch(fn, /if \[\[ \$rc -eq 5 \]\]/);
 });
 
+test("fixed marketing version plans one shared merge-stamp build (owner Oct 29 2026)", () => {
+  const ship = read("scripts/ios-fleet/ship-testflight.sh");
+  const asc = read("scripts/ios-fleet/asc-api.mjs");
+  const apps = JSON.parse(read("scripts/ios-fleet/apps.json"));
+
+  // DealDex pins its marketing version; the build is the shared merge stamp.
+  assert.equal(apps.apps.dealdex.fixedMarketingVersion, "0.1.0");
+
+  // The dotted M.m.<n> fixed-mode build and the four-digit counter are both
+  // retired, and fixed mode works on macOS (the build sits above every Mac
+  // build).
+  assert.doesNotMatch(ship, /next-dotted-build|asc_next_dotted_build/);
+  assert.doesNotMatch(ship, /dotted build/);
+  assert.doesNotMatch(asc, /next-dotted-build/);
+  assert.doesNotMatch(ship, /fixedMarketingVersion is not supported on macOS/);
+  assert.doesNotMatch(ship, /four-digit/);
+  assert.doesNotMatch(asc, /four-digit/);
+  assert.doesNotMatch(asc, /ignored \d+ .*timestamp/);
+  assert.doesNotMatch(asc, /ignoredIos/);
+
+  // Fixed mode plans build max(S, M + 1): S is the merge stamp from the exact
+  // git command, M the max across iOS and macOS (optional macBundleId and
+  // pairedBuildFeed join the same max).
+  assert.match(ship, /asc_next_shared_build\(\) \{/);
+  assert.match(ship, /macBundleId/);
+  assert.match(ship, /pairedBuildFeed/);
+  assert.match(ship, /plan-release-build/);
+  assert.match(ship, /merge_stamp\(\) \{/);
+  assert.match(
+    ship,
+    /TZ=America\/Chicago git show -s --format=%cd --date=format-local:%Y%m%d%H%M HEAD/,
+  );
+  assert.match(ship, /\[1-9\]\[0-9\]\{11\}/);
+  assert.match(ship, /fixed mode requires a 12-digit merge-stamp build/);
+  assert.match(ship, /cannot verify the build floor of/);
+  assert.match(ship, /at or below the highest existing build/);
+  assert.match(
+    ship,
+    /shared merge-stamp build \$\{BUILD_NUM\} for fixed version/,
+  );
+  assert.match(asc, /method === "plan-release-build"/);
+  assert.match(asc, /method === "next-shared-build"/);
+  assert.match(asc, /method === "platform-build-max"/);
+  assert.match(asc, /from "\.\/shared-build\.mjs"/);
+
+  // The paired feed joins the max under the 12-digit ceiling: https-only,
+  // numeric, >= 1, at most 12 digits.  The old four-digit cap is gone.
+  assert.match(ship, /https:\/\//);
+  assert.match(ship, /at most 12 digits/);
+  assert.doesNotMatch(ship, /\$\{#max\} > 4/);
+});
+
+test("ios-ship.yml plans the build once and hands it to the ship via --build", () => {
+  const yml = read(".github/workflows/ios-ship.yml");
+
+  // One upstream plan step per release, behind the same gate, feeding --build.
+  assert.match(yml, /Plan release build \(once per release\)/);
+  assert.match(yml, /id: plan-build/);
+  assert.match(yml, /--plan-build-only/);
+  assert.match(yml, /steps\.plan-build\.outputs\.build/);
+  assert.match(yml, /bash scripts\/ios-ship-testflight\.sh --build "/);
+  assert.match(
+    yml,
+    /id: plan-build\n {8}if: steps\.gate\.outputs\.should_ship == '1'/,
+  );
+
+  // Triggers, throttle, concurrency and runners are unchanged.
+  assert.match(yml, /cron:\s*'22 \* \* \* \*'/);
+  assert.match(yml, /group: ios-ship-dealdex/);
+  assert.match(yml, /cancel-in-progress:\s*false/);
+  assert.doesNotMatch(yml, /--force-ship/);
+  assert.doesNotMatch(yml, /IOS_TF_MIN_INTERVAL_SEC/);
+});
+
+test("ios-ship.yml gives the manifest publisher the org token on the ship step only", () => {
+  const yml = read(".github/workflows/ios-ship.yml");
+
+  // Port CC-202: the publisher writes the fleet manifest in another repo
+  // through a branch + PR.  The job GITHUB_TOKEN is contents:read here, so
+  // the org GH_PAT secret is scoped to the ship step that runs the
+  // publisher, and it is never printed.
+  const shipStep = yml.match(/- name: Ship DealDex to TestFlight[\s\S]*?(?=\n\s+- name:|$)/);
+  assert.ok(shipStep, "Ship DealDex to TestFlight step found");
+  assert.match(shipStep[0], /IOS_VERSIONS_PUBLISH_TOKEN: \$\{\{ secrets\.GH_PAT \}\}/);
+  const occurrences = [...yml.matchAll(/IOS_VERSIONS_PUBLISH_TOKEN:/g)];
+  assert.equal(occurrences.length, 1, "publish token is wired once, on the ship step only");
+  assert.doesNotMatch(yml, /echo[^\n]*IOS_VERSIONS_PUBLISH_TOKEN/);
+  assert.doesNotMatch(yml, /echo[^\n]*secrets\.GH_PAT/);
+
+  const publish = read("scripts/ios-fleet/publish-ios-versions.sh");
+  assert.match(publish, /IOS_VERSIONS_PUBLISH_TOKEN/);
+  assert.match(publish, /remote-manifest-pr-opened/);
+});
+
 test("main carries an unsigned iOS build check (ci.yml calls ios-build.yml)", () => {
   const ci = read(".github/workflows/ci.yml");
   const build = read(".github/workflows/ios-build.yml");
@@ -261,7 +443,7 @@ test("main carries an unsigned iOS build check (ci.yml calls ios-build.yml)", ()
   // ci.yml: push to main always builds; a PR only when the native tree changed.
   assert.match(ci, /\n {2}ios-changes:\n/);
   assert.match(ci, /\n {2}ios:\n\s+needs: ios-changes\n\s+if: needs\.ios-changes\.outputs\.native == 'true'\n\s+uses: \.\/\.github\/workflows\/ios-build\.yml/);
-  assert.match(ci, /\^\(native\/ios\/\|\\\.github\/workflows\/ios-build\\\.yml\$\)/);
+  assert.match(ci, /\^\(apps\/ios\/\|\\\.github\/workflows\/ios-build\\\.yml\$\)/);
   assert.match(ci, /pull_request:/);
   assert.match(ci, /push:\s*\n\s+branches: \[main\]/);
 
@@ -271,7 +453,7 @@ test("main carries an unsigned iOS build check (ci.yml calls ios-build.yml)", ()
   assert.match(build, /workflow_dispatch:/);
   assert.match(build, /runs-on:\s*macos-latest/);
   assert.doesNotMatch(build, /runs-on:\s*\[?self-hosted/);
-  assert.match(build, /-project native\/ios\/DealDex\.xcodeproj/);
+  assert.match(build, /-project apps\/ios\/DealDex\.xcodeproj/);
   assert.match(build, /-scheme DealDex/);
   assert.match(build, /-configuration Release/);
   assert.match(build, /CODE_SIGNING_ALLOWED=NO/);

@@ -94,7 +94,7 @@ Look first at Linear (`https://linear.app/simple-with-us`, through the `simple-b
 - Tooling: the `simple-chat` CLI (`~/.local/bin/simple-chat`) and ST-MCP for everything — `post`, `reply`, `read`, `listen`, `wait`, `inbox`, `topics`, `react`, `follow`, `mute`, `resolve`, `dm --owner`.
   Details: `~/apps/FLEET-PROTOCOL.md` § Chat: The Zulip Contract, § Posting, and § Linear and the Claim Lifecycle.
 
-**Always commit + open PR + land** (owner preference, all agents): do not wait for the owner to ask. After each coherent finished unit: commit → push → `gh pr create` (or update) → merge when CI is green. A remote branch with no PR is unfinished. Canonical: `~/apps/FLEET-PROTOCOL.md` "Always commit + land finished work".
+**Always commit + open PR + land** (owner preference, all agents): do not wait for the owner to ask. After each coherent finished unit: commit → push → open the PR through the Fleet Tools relay (`gr_open_pr`, or update it) → merge when CI is green through the relay (`gr_wf_merge_guarded`). A remote branch with no PR is unfinished. Canonical: `~/apps/FLEET-PROTOCOL.md` "Always commit + land finished work".
 
 ## Fleet docs (start here)
 
@@ -149,8 +149,8 @@ npm run build          # vite build; db migrate no-ops without DATABASE_URL
 
 Native:
 
-- Android: `cd native/android && ANDROID_HOME=… ./gradlew :app:assembleDebug --no-daemon`
-- iOS: `xcodebuild -project native/ios/DealDex.xcodeproj -scheme DealDex -destination 'generic/platform=iOS Simulator' build` (bundle `net.dealdex`, team `CC8UTF7ATG`). Onboarding: `native/ios/CLAUDE.md`.
+- Android: `cd apps/android && ANDROID_HOME=… ./gradlew :app:assembleDebug --no-daemon`
+- iOS: `xcodebuild -project apps/ios/DealDex.xcodeproj -scheme DealDex -destination 'generic/platform=iOS Simulator' build` (bundle `net.dealdex`, team `CC8UTF7ATG`). Onboarding: `apps/ios/CLAUDE.md`.
 
 ## iOS agent build loop (owner 2026-08-13)
 
@@ -168,8 +168,8 @@ Canonical: `/Users/jay/apps/FLEET-PROTOCOL.md` § iOS agent build loop.
   `npm run dev` → `0.0.0.0:8080`.
 - Routes: `/` live scan, `/settings` keys, `/alerts`, `/saved` ledger,
   `/install` native apps (no public APK), `/login` Google/Apple/X.
-- Native: `native/android` (package `me.grok.dealdex`),
-  `native/ios/DealDex.xcodeproj` (bundle `net.dealdex`, team
+- Native: `apps/android` (package `me.grok.dealdex`),
+  `apps/ios/DealDex.xcodeproj` (bundle `net.dealdex`, team
   `CC8UTF7ATG`). Keys stay on device. Apple bundle resource id
   `R2FAW69NPD` is not a team id — never put it in `DEVELOPMENT_TEAM`.
 - Theme default is **light**. Do not boot into dark from

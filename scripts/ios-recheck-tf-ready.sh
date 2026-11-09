@@ -4,7 +4,7 @@
 set -euo pipefail
 
 APP_KEY="${1:?app key (dealdex)}"
-BUILD_NUM="${2:?CFBundleVersion (commit-count build for dealdex)}"
+BUILD_NUM="${2:?12-digit CFBundleVersion (merge-stamp build)}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FLEET_DIR="${ROOT}/scripts/ios-fleet"
@@ -24,8 +24,8 @@ PY
 )
 EOF
 
-[[ "$BUILD_NUM" =~ ^[0-9]+$ ]] && [[ "$BUILD_NUM" -gt 0 ]] || {
-  echo "::error::recheck-tf-ready for ${APP_KEY}: build '${BUILD_NUM}' is not a positive integer"
+[[ "$BUILD_NUM" =~ ^[1-9][0-9]{11}$ ]] || {
+  echo "::error::recheck-tf-ready for ${APP_KEY}: build '${BUILD_NUM}' is not a 12-digit merge-stamp build"
   exit 1
 }
 

@@ -1,0 +1,122 @@
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.plugin.compose")
+    id("io.sentry.android.gradle")
+}
+
+// Release signing comes from the environment, never the repo. Set
+// DEALDEX_KEYSTORE / DEALDEX_KEYSTORE_PASSWORD / DEALDEX_KEY_ALIAS /
+// DEALDEX_KEY_PASSWORD in CI. Absent, `assembleRelease` still builds and is
+// simply unsigned, which is what happened before this existed.
+val keystorePath: String? = System.getenv("DEALDEX_KEYSTORE")
+    ?: (project.findProperty("dealdex.keystore") as String?)
+
+android {
+    namespace = "me.grok.dealdex"
+    // Google Play has required API 35 for new and updated submissions since
+    // 31 Aug 2025. At 34 the Play Console rejects the upload before review.
+    // Compose BOM 2026 / OkHttp 5 AARs require compileSdk 37; targetSdk stays 35 until Play policy moves.
+    compileSdk = 37
+    defaultConfig {
+        applicationId = "me.grok.dealdex"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 3
+        versionName = "1.0.3"
+
+        // Compile-time DSN only.  Empty when SENTRY_DSN is unset so the SDK stays
+        // dark in debug CI.  Release CI / Play ships inject the GitHub secret.
+        val sentryDsn = (System.getenv("SENTRY_DSN") ?: "")
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+        buildConfigField("String", "SENTRY_DSN", "\"$sentryDsn\"")
+    }
+    signingConfigs {
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("DEALDEX_KEYSTORE_PASSWORD")
+                    ?: (project.findProperty("dealdex.keystorePassword") as String?)
+                keyAlias = System.getenv("DEALDEX_KEY_ALIAS")
+                    ?: (project.findProperty("dealdex.keyAlias") as String?)
+                keyPassword = System.getenv("DEALDEX_KEY_PASSWORD")
+                    ?: (project.findProperty("dealdex.keyPassword") as String?)
+            }
+        }
+    }
+    buildTypes {
+        release {
+            // R8 was off entirely, so the release APK shipped unshrunk and
+            // unobfuscated. Keep rules live in proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (keystorePath != null) signingConfig = signingConfigs.getByName("release")
+        }
+        debug {
+            isMinifyEnabled = false
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+    packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+}
+
+base {
+    archivesName.set("DealDex")
+}
+
+dependencies {
+    val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
+    implementation(composeBom)
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.activity:activity-compose:1.13.0")
+    // lintVitalRelease: registerForActivityResult needs Fragment >= 1.3.0.
+    // sentry-android-fragment can pull an older transitive; pin a current one.
+    implementation("androidx.fragment:fragment-ktx:1.9.1")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    implementation("androidx.navigation:navigation-compose:2.10.2")
+    implementation("androidx.core:core-ktx:1.19.1")
+    // Credentials (session token, PKCE verifier, desk API keys) belong in an
+    // encrypted store, not a plain SharedPreferences plist.
+    implementation("androidx.security:security-crypto:1.1.0")
+    implementation("com.squareup.okhttp3:okhttp:5.5.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    implementation("com.google.android.play:app-update:2.1.0")
+    implementation("com.google.android.play:app-update-ktx:2.1.0")
+    // Crash + ANR + profiling + scan spans.  Mapping + source-context upload
+    // is the `io.sentry.android.gradle` plugin below (needs SENTRY_AUTH_TOKEN).
+    val sentryVersion = "8.62.0"
+    implementation("io.sentry:sentry-android:$sentryVersion")
+    implementation("io.sentry:sentry-android-ndk:$sentryVersion")
+    implementation("io.sentry:sentry-okhttp:$sentryVersion")
+    implementation("io.sentry:sentry-android-fragment:$sentryVersion")
+    implementation("io.sentry:sentry-compose-android:$sentryVersion")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+}
+
+sentry {
+    org.set("simple-with-us")
+    projectName.set("dealdex")
+    // Auth token is env `SENTRY_AUTH_TOKEN`.  Missing token skips upload.
+    includeProguardMapping.set(true)
+    autoUploadProguardMapping.set(true)
+    includeSourceContext.set(true)
+    autoUploadSourceContext.set(true)
+    ignoredBuildTypes.set(setOf("debug"))
+    telemetry.set(false)
+    // SDK versions are pinned in `dependencies {}` above.  Do not auto-add AARs.
+    autoInstallation {
+        enabled.set(false)
+    }
+}
