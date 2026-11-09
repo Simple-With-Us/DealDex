@@ -54,6 +54,7 @@ on:
       - '.github/workflows/ios-ship.yml'
       - 'scripts/ios-fleet/**'
       - 'scripts/ios-ship-testflight.sh'
+      - 'scripts/ios-observe-ship.mjs'
       - 'scripts/ios-recheck-tf-ready.sh'
       - 'scripts/ios-appstore-gm-prepare.sh'
       - 'scripts/ios-stage-asc-key.sh'
@@ -150,6 +151,7 @@ jobs:
             --path-prefix '.github/workflows/ios-ship.yml' \
             --path-prefix 'scripts/ios-fleet/**' \
             --path-prefix 'scripts/ios-ship-testflight.sh' \
+            --path-prefix 'scripts/ios-observe-ship.mjs' \
             --path-prefix 'scripts/ios-recheck-tf-ready.sh' \
             --path-prefix 'scripts/ios-appstore-gm-prepare.sh' \
             --path-prefix 'scripts/ios-stage-asc-key.sh' \
@@ -359,7 +361,7 @@ jobs:
           # scoped to this step only.  The value is never printed, and a publish
           # miss stays non-fatal for the TestFlight upload (port CC-202).
           IOS_VERSIONS_PUBLISH_TOKEN: ${{ secrets.GH_PAT }}
-        run: bash scripts/ios-ship-testflight.sh --build "${{ steps.plan-build.outputs.build }}"
+        run: node scripts/ios-observe-ship.mjs bash scripts/ios-ship-testflight.sh --build "${{ steps.plan-build.outputs.build }}"
 
       - name: Sync standing TestFlight testers
         if: success() && steps.gate.outputs.should_ship == '1'
@@ -393,7 +395,7 @@ jobs:
       # can be a false alarm.  This read-only pass is the verdict on the summary.
       - name: Re-check TestFlight readiness after tester sync
         id: recheck_tf
-        if: success() && steps.gate.outputs.should_ship == '1'
+        if: success() && steps.gate.outputs.should_ship == '1' && steps.ship.outputs.uploaded == 'true'
         continue-on-error: true
         env:
           IOS_TF_READY_TIMEOUT_SEC: "300"

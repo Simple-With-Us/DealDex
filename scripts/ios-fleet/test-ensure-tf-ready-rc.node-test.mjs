@@ -20,7 +20,9 @@ test("ensure-tf-ready rc codes map to distinct handler branches", () => {
   for (const rc of [0, 2, 3, 4, 5, 6]) {
     assert.ok(branchAfter(rc).length > 10, `rc=${rc} branch is empty`);
   }
-  const bodies = [0, 2, 3, 4, 5, 6].map((rc) => branchAfter(rc));
+  const bodies = [0, 2, 3, 4, 5, 6].map((rc) =>
+    branchAfter(rc).replace(/^\n\s*\d+\)/, ""),
+  );
   const uniq = new Set(bodies);
   assert.equal(uniq.size, bodies.length, "each rc branch must be distinct");
 });

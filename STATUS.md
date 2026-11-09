@@ -2,8 +2,9 @@
 
 `ios-ship.yml` re-runs `ensure-tf-ready` after standing-tester sync and writes
 the second rc verdict to the job summary.  Shared handlers live in
-`scripts/ios-fleet/tf-ready-rc.sh`.  Branch `gb-compiler/ops-1052-post-sync-recheck`.
-Rollout: `docs/rollouts/2026-11-09-ops-1052-post-sync-tf-recheck.md`.
+`scripts/ios-fleet/tf-ready-rc.sh`; recheck is gated on `ios-observe-ship.mjs`
+`uploaded` output.  Branch `gb-compiler/ops-1052-post-sync-recheck`; Kody review
+threads addressed on PR #576.  Rollout: `docs/rollouts/2026-11-09-ops-1052-post-sync-tf-recheck.md`.
 
 ## 2026-11-03 CODEX — Platform Source Layout (AFC-601)
 
