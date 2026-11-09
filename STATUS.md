@@ -1,3 +1,78 @@
+## 2026-11-03 CODEX — Platform Source Layout (AFC-601)
+
+Prepared a source-layout batch: iOS and Android move from `native/` to `apps/ios` and `apps/android`, shared brand artwork moves to `assets/brand`, and the build guide moves to `docs/native-apps.md`.  CI, ship manifest/filter consumers, generators, active navigation and tests follow the new paths.  The root web/server runtime and database migrations keep their existing build and deployment boundary.
+
+The 83 relevant local path, identity, icon, scan and ship checks pass.  Hosted web/Android/iOS gates, current-head review, parent merge release and published web verification remain required; this source preparation does not claim a native release or production deployment.  See `docs/rollouts/2026-11-03-platform-source-layout.md`.
+
+## 2026-10-30 CODEX — Repository report index (AFC-580)
+
+Prepared the required status note for the docs-only report index change.  See `docs/rollouts/2026-10-30-repository-report-index.md`.
+
+## 2026-10-29 MUSE — Scheduled iOS gate keeps push last-match-wins (Kody)
+
+Kody noted `ios-scheduled-ship-gate.sh` compiled every `!` exclusion to git `:(exclude)`, which always wins, while push re-includes on a later positive match: a future exclusion-plus-re-include paths list would ship on push but skip on the scheduled backstop.  The gate now evaluates the ordered prefix list with push semantics -- exclusions with no later positive still compile to `:(exclude)`, and each remaining exclusion drops only files matching none of its later positives, through one `matching_files` helper shared by the range diff and the timestamp fallback.  `scripts/test-ios-scheduled-ship-gate.sh` gains re-include cases for both paths (24 checks green).  See `docs/rollouts/2026-10-29-ios-ship-gate-reinclude.md`.
+
+## 2026-10-29 GROK-BUILD — Scheduled iOS gate covers every push path
+
+The scheduled TestFlight backstop now diffs the full `on.push.paths` set (native tree, workflow file, ship tooling), not just `native/ios/`.  A merge that only touched tooling can no longer sit unshipped when its push run never dispatches.  `ios-scheduled-ship-gate.sh` takes a repeatable `--path-prefix` (old single-prefix call still works; `!` excludes like push), the gate step passes one per push entry, and `ios-ship-workflow.test.mjs` pins the two lists together.  Cron, push paths, rate gate, same-HEAD skip, and fail-safe skips are unchanged; no `--force-ship`.  See `docs/rollouts/2026-10-29-ios-ship-gate-push-paths.md`.
+
+## 2026-10-29 — Owner rule supersedes AFC-517 for TestFlight versioning
+
+The Oct 29 2026 owner rule supersedes the AFC-517 / CT-2444 entry below for TestFlight versioning: fixed-mode apps ship a FIXED marketing version (dealdex 0.1.0) with the shared merge-timestamp build max(S, M + 1), not the 1.0.N train.
+
+## 2026-10-24 MM — iOS version numbers come from App Store Connect (AFC-517 / CT-2444)
+
+The vendored `scripts/ios-fleet` copy now follows the owner directive of
+2026-10-24:  the marketing version and the build number are INDEPENDENT and
+the `1.0.<commit_count>` scheme unified in #2801 is retired.  `MARKETING_VERSION`
+is `<prefix>.<P+1>`, where `P` is the highest patch App Store Connect already
+holds on that train (App Store versions AND TestFlight trains, drift trains
+ignored), and `CURRENT_PROJECT_VERSION` is the repo commit count raised above
+the train floor and the app's own plain-integer builds.  `scripts/ios-fleet/version-plan.mjs`
+and `version-plan.test.mjs` are the Congress.Trade files, copied verbatim (18
+tests, picked up by the `npm test` glob with no CI edit);
+`scripts/ios-fleet/asc-api.mjs` gained `latest-marketing-patch` and
+`build-floor` and keeps `latest-build-seq`; `scripts/ios-fleet/ship-testflight.sh`
+gained the `ASC_NODE` seam, the new helpers, the `ASC_PLATFORM` mapping and a
+rewritten version-resolution block, and lost `resolve_seq_floor` / `local_seq` /
+`next_build_seq` and the local build-seq counter.  `--version` and `--build`
+are exact overrides and `--build` no longer moves the marketing version;
+`--upload-only` and the ship-gate ordering are unchanged; an unreachable App
+Store Connect is fatal unless `--allow-unverified-seq` (then `P=0`, floors 0,
+loud WARNING).  The three named log lines are kept exactly.  Docs that claimed
+the marketing version equals the build number were reworded.  Nothing was
+committed or pushed.  `.github/workflows/ios-ship.yml` still carries a stale
+comment about `1.0.<commit count>` and was left alone on purpose (editing a
+ship workflow triggers a real ship), and `native/ios/project.yml` is out of
+scope and still records the old paired value.  See
+`docs/rollouts/2026-10-24-afc-517-ios-version-plan-asc.md`.
+
+## 2026-10-21 MM — The ASC credential is never a path (AFC-459, revision 2)
+
+Revision 1 of the App Store Connect credential hardening merged as PR #523; this pass brings it to revision 2. `scripts/ios-fleet/asc-key.mjs` is the revision-2 key module verbatim from the fleet reference: it validates a key, writes one to an owner-only file and reports a key's status, and it has no `read` and no `exec` subcommand, so there is no way to read a key out of a file and no way to run a child with a key that came from one. `ship-testflight.sh` resolves the credential from the environment first (the hosted `APPLE_API_*` trio, then an ambient `ASC_KEY_P8`) and from Infisical `/asc` otherwise; a named `ASC_KEY_PATH` is ignored and the run says so, and the base64 branch decodes through a here-string instead of a `printf` pipe. The only file written is a short-lived owner-only materialization for `altool` and `xcodebuild -authenticationKeyPath`, written from the resolved credential and never read back as one. Every rejection of a key now carries a masked preview (the first eight and the last four characters; a value too short to mask safely is withheld whole). `.github/workflows/ios-ship.yml` publishes the hosted base64 trio (`APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID`, `APPLE_API_KEY_P8_BASE64`) into the job environment instead of `ASC_KEY_PATH`, and the standing tester step calls the client directly instead of through `asc-key.mjs exec`. No test reads another process's environment any more. See `docs/rollouts/2026-10-21-afc-459-asc-credential-revision-2.md`.
+
+## 2026-10-21 ECHO — Kody reusable pin advanced to the M3.1-Flash helper (#519)
+
+`.github/workflows/kody-fleet-autofix.yml` now pins CTS `917a49dfb77e4fce307a985510ab814a6f684ef6`, matching Congress.Trade #2832. Upstream congress-trading-shared #393/#398 shipped native `MiniMax-M3.1-Flash` handling in the trusted helper; the helper at the old pin covered only the exact `MiniMax-M3` id while this caller passes `MiniMax-M3.1-Flash`. The workflow label and header comment now say M3.1 Flash to match. No other inputs, permissions, budgets, or secrets changed. See `docs/rollouts/2026-10-21-kody-m31-flash-pin.md`.
+
+## 2026-10-21 CLAUDE — iOS credential failures are named, not swallowed (Kody)
+
+`scripts/ios-fleet/asc-api.mjs` no longer hides a failed credential read. A staged key that cannot be read is recorded as a note naming `ASC_KEY_PATH` and its OS error code, failed `fleet-secrets` lookups record the secret name and folder, and the "no credential found" message lists those notes plus the Infisical `/asc` source. The recorded notes are also printed on the success path, so a source that was skipped (an unreadable `ASC_KEY_PATH`, a failed `fleet-secrets` call) stays visible even when another source resolves the credential. `scripts/ios-fleet/ship-testflight.sh` reports a failed write of the staged `.p8` and fails closed instead of leaving an empty key file. No credential source changed. See `docs/rollouts/2026-10-21-kody-asc-credential-diagnostics.md`.
+
+## 2026-10-19 MM — Real market scan capture for the catalog page (SWU-15)
+
+`docs/screenshots/scan-results.png` is a real capture of the live web app at `https://dealdex.net`: a completed scan for `Umbreon VMAX Evolving Skies` that returned 11 Mercari listings and no eBay singles, at 1440 x 900 CSS pixels and device pixel ratio 2. Live verdicts, ask prices and desk ranges are visible in the listing cards. `docs/screenshots/README.md` records the provenance, and `Simple-With-Us` publishes the processed WebP on the DealDex catalog page from this file. No product code, copy or behaviour changed. See `docs/rollouts/2026-10-19-dd-scan-screenshots.md`.
+
+## 2026-10-19 CLAUDE — iOS ship scripts read Infisical (AFC-359)
+
+`ship-testflight.sh`, `asc-api.mjs` and `ios-appstore-gm-prepare.sh` no longer read or write the old local secrets folder. ASC credentials come from the environment first (CI), else Infisical `/asc` (ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8) through `fleet-secrets`. New `scripts/ios-fleet/test-asc-credentials.sh` runs in CI. See `docs/rollouts/2026-10-19-afc-359-ios-secrets-to-infisical.md`.
+
+## 2026-10-18 JET — Sentry Autofix Caller (BF-2487)
+
+Claude Code Autofix now pins AFC `c79c7840d4d3d71bffad08067ce4a1084f0bbb34`, adding the exact Sentry bot accounts to the reusable actor policy. The same-repository bot-review gate, permissions, secrets, concurrency, and prompt remain unchanged. Separately, PR Autofix pins `00def8545947e21ffe285ea67c1812c7bd321dfc` for the one-line `--verbose` CLI repair; its existing actor list still excludes Sentry, avoiding an additional Sentry loop.
+
+Validation: six workflow-guard tests pass in an isolated fixture; exact reusable diffs and diagnostics dependencies were inspected. Full local gates were not run; final-head hosted checks and a later eligible Sentry run remain to be verified. Rollout: `docs/rollouts/2026-10-18-sentry-autofix-caller.md`.
+
 ## 2026-10-18 JET — Repaired AFC Autofix Pin (AFC-350)
 
 PR #493 now pins Claude Code Autofix to AFC `b718446588a365406cb0eb3aca7feec3a3fe5903`, the merged #651 repair for the unresolved diagnostics action dependency. The migration's existing guard-test update is preserved. PR Autofix and Kody pins remain unchanged because they do not reference the broken AFC dependency. Trigger guards, permissions, prompts, and secret names are unchanged.
@@ -46,7 +121,7 @@ Fleet hold (Jay, Oct 2026): `renovate.json` adds `allowedVersions: "<7"` for `ty
 
 ## 2026-10-11 CURSOR — Sentry release, source maps, Android mappings, FLEET-INFRA-CC
 
-Web/server now set `release` from `VERCEL_GIT_COMMIT_SHA`, upload hidden source maps via `@sentry/vite-plugin` when `SENTRY_AUTH_TOKEN` is present, and emit Sentry logs through `consoleLoggingIntegration` plus a `dealdex.*.sentry_ready` logger line. Android applies `io.sentry.android.gradle` 6.23.0 (R8 mappings + source context), injects `SENTRY_DSN` on the CI release assemble, and tags `release` as `versionName+versionCode`. iOS Cocoa now sets `releaseName` the same way. FLEET-INFRA-CC is a parked TestFlight cron: `ios-ship.yml` is `disabled_manually` since 2026-09-27, so the fleet-infra monitor never got check-ins. Cron is now hourly (`22 * * * *`) and `.github/workflows/ios-ship-cron-park.yml` heartbeats the existing monitor slug until ships resume. Branch `cursor/sentry-release-sourcemaps-af57`. Rollout: `docs/rollouts/2026-10-11-sentry-release-sourcemaps.md`.
+Web/server now set `release` from `VERCEL_GIT_COMMIT_SHA`, upload hidden source maps via `@sentry/vite-plugin` when `SENTRY_AUTH_TOKEN` is present, and emit Sentry logs through `consoleLoggingIntegration` plus a `dealdex.*.sentry_ready` logger line. Android applies `io.sentry.android.gradle` 6.24.0 (R8 mappings + source context), injects `SENTRY_DSN` on the CI release assemble, and tags `release` as `versionName+versionCode`. iOS Cocoa now sets `releaseName` the same way. FLEET-INFRA-CC is a parked TestFlight cron: `ios-ship.yml` is `disabled_manually` since 2026-09-27, so the fleet-infra monitor never got check-ins. Cron is now hourly (`22 * * * *`) and `.github/workflows/ios-ship-cron-park.yml` heartbeats the existing monitor slug until ships resume. Branch `cursor/sentry-release-sourcemaps-af57`. Rollout: `docs/rollouts/2026-10-11-sentry-release-sourcemaps.md`.
 
 ## 2026-10-11 CURSOR — Android Gradle 9 build fix (cloud)
 
@@ -494,7 +569,7 @@ Production on `dealdex.net` collects FCP/LCP/INP/CLS. Branch
 - **Icons & Brand**: Updated master brand assets from owner uploads. iOS AppIcon uses the subtle tiled silver grid DD; website favicon, Android launcher mipmaps/adaptive icons, and PWA icon use the isolated transparent DD; 3D DealDex title wordmark updated across web, iOS, and Android.
 - **iOS Xcode & Bundle**: Switched bundle identifier to `net.dealdex` (`PRODUCT_BUNDLE_IDENTIFIER`, `bundleId`, `CFBundleIdentifier`). Deployment target set to **iOS 17.0** (Xcode document format 26.3 / objectVersion 100). Display name `DealDex`, team `CC8UTF7ATG`, category `public.app-category.shopping`.
 - **Native Builds**: iOS Simulator build (**BUILD SUCCEEDED**), Android debug APK built (**BUILD SUCCESSFUL**) and copied to `public/DealDex.apk`.
-- **Fleet Protocols**: Updated `AGENT-SYNC.md` with typography, line spacing (1.5x body, 2.0x section breaks), and table/diagram aesthetics standards for Apple Notes.
+- **Fleet Protocols**: Updated `ag***-s**c.md` with typography, line spacing (1.5x body, 2.0x section breaks), and table/diagram aesthetics standards for Apple Notes.
 
 ## 2026-08-22 GROK — Public host dealdex.net
 
@@ -688,7 +763,7 @@ Updated: 2026-08-25 (CURSOR — pin AppUpdatePrompt.swift; Apple IDs off Swift)
 
 - Keepout: DealDex #183 Datadog / Vercel keys stay HOLD. Do not land
   or extend that PR from this seat.
-- Google Play Console credentials are not in `~/.secrets/`.
+- Google Play Console credentials do not exist yet (no Play developer account).
 - Infisical project (prod env), `SENTRY_FLEET_DSN`, and
   `FLEET_GITHUB_TOKEN` still need the owner.
 - Integration tree `~/Code/DealDex` is dirty (uncommitted

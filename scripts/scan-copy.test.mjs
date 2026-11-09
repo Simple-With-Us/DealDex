@@ -23,7 +23,7 @@ test("site uses shared comparison subtitle and native copy remains release-scope
   const og = read("scripts/og-dealdex.html");
   assert.doesNotMatch(og, new RegExp(SUBTITLE.replace("é", "é")));
   assert.match(og, /dealdex-wordmark\.png/);
-  assert.match(read("native/android/app/src/main/res/values/strings.xml"), new RegExp(LEGACY_NATIVE_SUBTITLE));
+  assert.match(read("apps/android/app/src/main/res/values/strings.xml"), new RegExp(LEGACY_NATIVE_SUBTITLE));
   assert.doesNotMatch(read("src/routes/index.tsx"), /Find the best listings/);
   assert.doesNotMatch(read("src/routes/__root.tsx"), /Find the best listings/);
 });
@@ -64,7 +64,7 @@ test("OG card is logo-only and centers a large wordmark", () => {
 });
 
 test("Android scan has no suggested chips and shows counts on source toggles", () => {
-  const kt = read("native/android/app/src/main/java/me/grok/dealdex/ui/ScanScreen.kt");
+  const kt = read("apps/android/app/src/main/java/me/grok/dealdex/ui/ScanScreen.kt");
   assert.doesNotMatch(kt, /charizard/);
   assert.doesNotMatch(kt, /POKÉMON LISTING DESK/);
   assert.match(kt, /MarketplaceSourceToggle/);
