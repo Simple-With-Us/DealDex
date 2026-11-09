@@ -323,7 +323,7 @@ test("standing-tester sync is followed by a post-sync ensure-tf-ready step", () 
   const syncAt = yml.indexOf("name: Sync standing TestFlight testers");
   const recheckAt = yml.indexOf("name: Re-check TestFlight readiness after tester sync");
   assert.ok(syncAt > -1 && recheckAt > syncAt, "post-sync recheck follows tester sync");
-  const recheckStep = yml.slice(recheckAt).split(/\n      - name:/)[0];
+  const recheckStep = yml.slice(recheckAt).split(/\n {6}- name:/)[0];
   assert.match(recheckStep, /ios-recheck-tf-ready\.sh/);
   assert.match(recheckStep, /continue-on-error:\s*true/);
   assert.match(recheckStep, /IOS_TF_READY_TIMEOUT_SEC:\s*"300"/);
