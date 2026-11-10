@@ -7,15 +7,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DealDexWordmark } from "@/components/app-mark";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { openSentryFeedback } from "@/lib/observability/sentry";
 
 function AuthSlot() {
   const { user, isPending } = useCurrentUserState();
   if (isPending) return <Skeleton className="size-9 rounded-full" />;
-  return user ? (
-    <AccountMenu />
-  ) : (
-    <GuestMenu />
-  );
+  return user ? <AccountMenu /> : <GuestMenu />;
 }
 
 const PAGE = "mx-auto w-full min-w-0 max-w-7xl px-4";
@@ -47,17 +44,57 @@ export function Shell({ children }: { children: ReactNode }) {
       </header>
       <div className={cn(PAGE, "pb-16 pt-8 sm:pt-12")}>{children}</div>
       <footer className="border-t border-border/80">
-        <div className={cn(PAGE, "flex flex-col gap-2 py-8 text-xs text-subtle sm:flex-row sm:items-start sm:justify-between sm:gap-8")}>
+        <div
+          className={cn(
+            PAGE,
+            "flex flex-col gap-2 py-8 text-xs text-subtle sm:flex-row sm:items-start sm:justify-between sm:gap-8",
+          )}
+        >
           <p>
-            Values from TCGPlayer, Cardmarket, eBay solds, and PriceCharting.  Not affiliated with
-            those markets or Pokémon.{" "}
-            <Link to="/privacy" className="underline decoration-border underline-offset-2 hover:text-fg">
+            Reference values may come from TCGPlayer, Cardmarket, eBay solds, and PriceCharting when
+            available. Not affiliated with those markets or Pokémon.{" "}
+            <Link
+              to="/privacy"
+              className="underline decoration-border underline-offset-2 hover:text-fg"
+            >
               Privacy
-            </Link>
+            </Link>{" "}
+            ·{" "}
+            <button
+              type="button"
+              onClick={() => openSentryFeedback()}
+              className="underline decoration-border underline-offset-2 hover:text-fg"
+            >
+              Report a Problem
+            </button>
           </p>
-          <p className="sm:max-w-sm sm:text-right">
-            Grade multipliers are estimates. Confirm authenticity before you buy.
-          </p>
+          <div className="sm:max-w-sm sm:text-right">
+            <p>Grade multipliers are estimates. Confirm authenticity before you buy.</p>
+            <a
+              href="https://simplewithus.com/"
+              className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-subtle transition-colors hover:text-fg focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 no-underline hover:no-underline"
+              aria-label="From Simple With Us"
+            >
+              <span>From</span>
+              <span className="block w-[288px] max-w-[calc(100vw-92px)]">
+                <img
+                  src="/assets/swu-wordmark-light.webp"
+                  alt="Simple With Us by Jay Wedgeworth"
+                  width={288}
+                  height={30}
+                  className="h-auto w-full dark:hidden"
+                />
+                <img
+                  src="/assets/swu-wordmark-dark.webp"
+                  alt=""
+                  aria-hidden
+                  width={288}
+                  height={30}
+                  className="hidden h-auto w-full dark:block"
+                />
+              </span>
+            </a>
+          </div>
         </div>
       </footer>
     </div>

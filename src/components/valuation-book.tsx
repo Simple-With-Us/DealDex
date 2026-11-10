@@ -20,7 +20,6 @@ export function ValuationBookPanel({ cardId }: { cardId: string }) {
 
   useEffect(() => {
     let live = true;
-    setBook(undefined);
     getValuationBook({ data: { id: cardId, grade: "raw", keys: loadDeskKeys() } })
       .then((row) => {
         if (live) setBook(row);

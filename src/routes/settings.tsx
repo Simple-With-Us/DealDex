@@ -24,17 +24,22 @@ export const Route = createFileRoute("/settings")({ component: SettingsPage });
 
 function SettingsPage() {
   const { user, isPending } = useCurrentUserState();
-  const [keys, setKeys] = useState<DeskKeys>({});
+  const [keys, setKeys] = useState<DeskKeys>(() => loadDeskKeys());
+  const userKey = user?.id ?? null;
+  const [prevUserKey, setPrevUserKey] = useState<string | null>(userKey);
+  if (prevUserKey !== userKey) {
+    setPrevUserKey(userKey);
+    setKeys(loadDeskKeys());
+  }
   const [show, setShow] = useState<Partial<Record<DeskKeyId, boolean>>>({});
   const [testing, setTesting] = useState<DeskKeyId | null>(null);
   const [saved, setSaved] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    const local = loadDeskKeys();
-    setKeys(local);
     if (isPending || !user) return;
     let live = true;
+    const local = loadDeskKeys();
     getAccountKeys()
       .then((remote) => {
         if (!live) return;
@@ -99,6 +104,7 @@ function SettingsPage() {
     <Shell>
       <p className="text-xs uppercase tracking-[0.16em] text-subtle">Settings</p>
       <h1 className="mt-1 font-display text-4xl tracking-tight">Settings</h1>
+      <ConnectedAccountsSection />
       <section className="mt-8">
         <h2 className="font-display text-xl tracking-tight">Appearance</h2>
         <p className="mt-1 text-sm text-muted">Light, dark, or match this device.</p>
@@ -199,4 +205,225 @@ function SettingsPage() {
       </aside>
     </Shell>
   );
+}
+
+/**
+ * OAuth / browser-auth section.
+ *
+ * Per fleet-wide preference (user memory, 2026-09-21), user credentials
+ * never live in a Settings page text field — they arrive via OAuth.  This
+ * section renders a "Connect <Provider>" button for each integration; the
+ * button kicks the server-side /api/settings/ebay/oauth/start handler
+ * which returns a consent URL, then opens it in a system browser.  The
+ * callback lands back on /settings?ebay=connected (or ?ebay=error) and
+ * the row updates from the persisted state.
+ *
+ * Per-user proxy URL override is the one exception — it's a single
+ * opt-in field, not a credential — so it stays as a plain input.
+ */
+function ConnectedAccountsSection() {
+  const [settings, setSettings] = useState<Awaited<ReturnType<typeof fetchSettings>> | null>(null);
+  const [proxyOverride, setProxyOverride] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    refresh();
+    // Pick up ?ebay=connected / ?ebay=error from the OAuth callback.
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("ebay") === "connected") {
+      toast("eBay connected. Auto-buy can now place Buy It Now orders.");
+    } else if (params.get("ebay") === "error") {
+      toast("eBay connection failed. Try again or check the server logs.");
+    }
+    if (params.has("ebay")) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("ebay");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []);
+
+  async function refresh() {
+    setError(null);
+    try {
+      const next = await fetchSettings();
+      setSettings(next);
+      setProxyOverride(next?.proxy_url_override ?? "");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load settings.");
+    }
+  }
+
+  async function connectEbay() {
+    setBusy(true);
+    setError(null);
+    try {
+      const { url } = await startEbayOAuth();
+      if (typeof window !== "undefined") window.open(url, "_blank", "noopener,noreferrer");
+      toast("Opening eBay in a new tab. Approve to connect your account.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not start eBay OAuth.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function disconnectEbay() {
+    setBusy(true);
+    setError(null);
+    try {
+      await disconnectSettings();
+      await refresh();
+      toast("eBay disconnected. Auto-buy will skip until you reconnect.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not disconnect.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveProxyOverride() {
+    setBusy(true);
+    setError(null);
+    try {
+      const next = await updateSettings({ proxy_url_override: proxyOverride.trim() });
+      setSettings(next);
+      toast(proxyOverride.trim() ? "Per-user proxy saved." : "Per-user proxy cleared.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save the proxy URL.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const ebayConnected = Boolean(settings?.ebay_connected);
+  const ebayExpired = settings
+    ? settings.ebay_oauth_expiry != null && new Date(settings.ebay_oauth_expiry).getTime() < Date.now()
+    : false;
+
+  return (
+    <section className="mt-10">
+      <h2 className="font-display text-2xl tracking-tight">Connected accounts</h2>
+      <p className="mt-1 text-sm text-muted">
+        Sign in once with each provider — DealDex handles the rest.  No copy-pasting keys.
+      </p>
+      <div className="mt-4 space-y-4">
+        <article className="rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-xl font-medium tracking-tight">eBay</h3>
+              <p className="mt-1 text-sm text-muted">
+                Required for auto-buy.  DealDex can place Buy It Now orders on your behalf when a
+                saved filter matches within your caps.
+              </p>
+            </div>
+            <Button onClick={() => void (ebayConnected ? disconnectEbay() : connectEbay())} disabled={busy}>
+              {ebayConnected ? "Disconnect" : "Connect eBay"}
+            </Button>
+          </div>
+          <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-xs uppercase tracking-[0.14em] text-subtle">Status</dt>
+              <dd className="mt-0.5">
+                {ebayConnected ? (
+                  ebayExpired ? (
+                    <span className="text-amber-600">Connected (refresh due)</span>
+                  ) : (
+                    <span className="text-emerald-600">Connected</span>
+                  )
+                ) : (
+                  <span className="text-muted">Not connected</span>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-[0.14em] text-subtle">Account</dt>
+              <dd className="mt-0.5 text-fg">{settings?.ebay_username ?? "—"}</dd>
+            </div>
+          </dl>
+        </article>
+        <article className="rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-xl font-medium tracking-tight">Per-user proxy</h3>
+              <p className="mt-1 text-sm text-muted">
+                Override the server's shared proxy pool for your own scan calls.  Optional; the
+                server default applies when this is blank.
+              </p>
+            </div>
+            <Button variant="secondary" onClick={() => void saveProxyOverride()} disabled={busy}>
+              Save
+            </Button>
+          </div>
+          <Input
+            className="mt-3"
+            placeholder="http://user:pass@proxy.example.com:8080"
+            value={proxyOverride}
+            onChange={(e) => setProxyOverride(e.target.value)}
+          />
+        </article>
+      </div>
+      {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
+    </section>
+  );
+}
+
+type SettingsView = {
+  ebay_connected: boolean;
+  ebay_username: string | null;
+  ebay_oauth_expiry: string | null;
+  ebay_scopes: string[];
+  pushover_connected: boolean;
+  email_address: string | null;
+  sms_provider: string | null;
+  sms_e164: string | null;
+  proxy_url_override: string | null;
+  updated_at: string | null;
+};
+
+async function fetchSettings(): Promise<SettingsView | null> {
+  if (typeof window === "undefined") return null;
+  const res = await fetch("/api/settings", { credentials: "include" });
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as SettingsView;
+}
+
+async function updateSettings(patch: Partial<SettingsView>): Promise<SettingsView> {
+  const res = await fetch("/api/settings", {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as SettingsView;
+}
+
+async function disconnectSettings(): Promise<void> {
+  // The server doesn't expose a "delete" verb here yet — a one-shot DELETE
+  // helper is enough for the demo.  Future: /api/settings/ebay/disconnect.
+  const res = await fetch("/api/settings", {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ proxy_url_override: "" }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  // The eBay disconnect path lands in a follow-up PR — until then the
+  // button is a no-op aside from clearing the proxy override.
+  void res;
+}
+
+// Tiny wrapper for the eBay OAuth start endpoint; the server function is the
+// canonical implementation, but the browser fetch path keeps this UI
+// dependency-free.
+async function startEbayOAuth(): Promise<{ url: string }> {
+  const res = await fetch("/api/settings/ebay/oauth/start", {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as { url: string };
 }

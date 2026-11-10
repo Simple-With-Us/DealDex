@@ -3,6 +3,7 @@ import { ALL_POKEMON_QUERY } from "@/lib/marketplaces/html";
 import { scanAndScore } from "@/lib/marketplaces/scan";
 import type { ScanSource } from "@/lib/marketplaces/types";
 import { nativeScanRows } from "@/lib/native/scan-payload";
+import { withScanCacheLookup, withScanTransaction } from "@/lib/observability/sentry-server";
 import {
   readScanCache,
   SCAN_FRESH_MS,
@@ -69,49 +70,54 @@ export const Route = createFileRoute("/api/native/scan")({
         // time someone edits a native client: the phones run their paid desks
         // on-device, and this endpoint only ever serves the free-desk book.
         const cacheKey = scanCacheKey(query, sources);
-        const cached = await readScanCache(cacheKey);
-        if (cached && Date.now() - cached.at < SCAN_FRESH_MS) {
-          return Response.json({
-            query,
-            ebay: cached.ebay,
-            mercari: cached.mercari,
-            notes: cached.notes,
-            rows: nativeScanRows(cached.rows),
-            fromCache: true,
-          });
-        }
-        try {
-          const result = await scanAndScore(query, sources);
-          if (result.rows.length) {
-            await writeScanCache(cacheKey, query, sources, {
-              ebay: result.ebay,
-              mercari: result.mercari,
-              notes: result.notes,
-              rows: result.rows,
-            });
-          }
-          return Response.json({
-            query,
-            ebay: result.ebay,
-            mercari: result.mercari,
-            notes: result.notes,
-            rows: nativeScanRows(result.rows),
-            fromCache: false,
-          });
-        } catch (err) {
-          if (cached) {
+        return withScanTransaction("native", async () => {
+          const cache = await withScanCacheLookup(
+            () => readScanCache(cacheKey),
+            (row) => Date.now() - row.at < SCAN_FRESH_MS,
+          );
+          if (cache.fresh) {
             return Response.json({
               query,
-              ebay: cached.ebay,
-              mercari: cached.mercari,
-              notes: cached.notes,
-              rows: nativeScanRows(cached.rows),
+              ebay: cache.fresh.ebay,
+              mercari: cache.fresh.mercari,
+              notes: cache.fresh.notes,
+              rows: nativeScanRows(cache.fresh.rows),
               fromCache: true,
             });
           }
-          const message = err instanceof Error ? err.message : "Scan failed";
-          return Response.json({ error: message }, { status: 502 });
-        }
+          try {
+            const result = await scanAndScore(query, sources);
+            if (result.rows.length) {
+              await writeScanCache(cacheKey, query, sources, {
+                ebay: result.ebay,
+                mercari: result.mercari,
+                notes: result.notes,
+                rows: result.rows,
+              });
+            }
+            return Response.json({
+              query,
+              ebay: result.ebay,
+              mercari: result.mercari,
+              notes: result.notes,
+              rows: nativeScanRows(result.rows),
+              fromCache: false,
+            });
+          } catch (err) {
+            if (cache.stored) {
+              return Response.json({
+                query,
+                ebay: cache.stored.ebay,
+                mercari: cache.stored.mercari,
+                notes: cache.stored.notes,
+                rows: nativeScanRows(cache.stored.rows),
+                fromCache: true,
+              });
+            }
+            const message = err instanceof Error ? err.message : "Scan failed";
+            return Response.json({ error: message }, { status: 502 });
+          }
+        });
       },
     },
   },

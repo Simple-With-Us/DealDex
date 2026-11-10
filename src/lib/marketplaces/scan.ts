@@ -1,3 +1,5 @@
+import { SCAN_SPAN, withScanSpan } from "@/lib/observability/sentry-server";
+import { defaultServerEnv } from "@/lib/server/app-settings";
 import { appraise } from "@/lib/tcg/appraise";
 import { eurUsd, fetchEbaySoldMedian } from "@/lib/tcg/comps";
 import { matchListing } from "@/lib/tcg/match";
@@ -117,18 +119,51 @@ async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise
   return out;
 }
 
+const MATCH_POOL = 6;
+
 export async function scanAndScore(
   query: string,
   sources: ScanSource[],
   keys: DeskKeys = {},
-): Promise<{ rows: ScoredListing[]; ebay: number; mercari: number; notes: string[] }> {
+  options: { userProxyUrl?: string | null } = {},
+): Promise<{ rows: ScoredListing[]; ebay: number; mercari: number; notes: string[]; errors?: string[] }> {
   const notes: string[] = [];
+  const errors: string[] = [];
   const listings: LiveListing[] = [];
+  // When the user has set a per-user proxy override, fold it into a synthetic
+  // env so fetchWithPool picks the override ahead of the server default.
+  const env = options.userProxyUrl
+    ? { ...defaultServerEnv(), PROXY_URL_LIST: options.userProxyUrl }
+    : defaultServerEnv();
   if (sources.includes("ebay")) {
-    listings.push(...(await searchEbay(query).catch(() => [])));
+    listings.push(
+      ...(await withScanSpan(SCAN_SPAN.ebay, async (span) => {
+        try {
+          const rows = await searchEbay(query, { userProxyUrl: options.userProxyUrl });
+          span?.setAttribute("scan.marketplace", "ebay");
+          span?.setAttribute("listing.count", rows.length);
+          return rows;
+        } catch (err) {
+          errors.push(`ebay: ${err instanceof Error ? err.message : String(err)}`);
+          return [];
+        }
+      })),
+    );
   }
   if (sources.includes("mercari")) {
-    listings.push(...(await searchMercari(query).catch(() => [])));
+    listings.push(
+      ...(await withScanSpan(SCAN_SPAN.mercari, async (span) => {
+        try {
+          const rows = await searchMercari(query);
+          span?.setAttribute("scan.marketplace", "mercari");
+          span?.setAttribute("listing.count", rows.length);
+          return rows;
+        } catch (err) {
+          errors.push(`mercari: ${err instanceof Error ? err.message : String(err)}`);
+          return [];
+        }
+      })),
+    );
   }
 
   const ebay = listings.filter((l) => l.marketplace === "ebay").length;
@@ -144,34 +179,39 @@ export async function scanAndScore(
   const cache = new Map<string, TcgCard[]>();
   const fx = await eurUsd().catch(() => null);
 
-  const scored = await mapPool(listings, 3, async (listing) => {
-    const blob = `${listing.marketplace} ${listing.title} ${listing.price != null ? `$${listing.price}` : ""}`;
-    const parsed = parseListingBlob(blob);
-    parsed.url = listing.url;
-    parsed.marketplace = listing.marketplace;
-    if (listing.price != null) parsed.price = listing.price;
-    parsed.shipping = listing.shipping;
-    // The search term is a FALLBACK, not an override. Replacing every row's
-    // parsed name with the query's first three tokens meant a targeted scan
-    // matched every listing against the same name regardless of its own title.
-    if (hint && !parsed.nameQuery.trim()) parsed.nameQuery = hint;
-    const cards = await matchCached(parsed, cache);
-    const card = pickScanCard(cards, listing, parsed);
-    let appraisal = null;
-    if (card && listing.price != null) {
-      const input: ListingInput = {
-        title: listing.title,
-        url: listing.url,
-        marketplace: listing.marketplace,
-        price: listing.price,
-        shipping: listing.shipping,
-        condition: parsed.condition,
-        grade: parsed.grade,
-        finish: parsed.finishHint,
-      };
-      appraisal = applyVerification(appraise(card, input), card, { fx });
-    }
-    return { listing, parsed, card, appraisal } satisfies ScoredListing;
+  const scored = await withScanSpan(SCAN_SPAN.match, async (span) => {
+    const rows = await mapPool(listings, MATCH_POOL, async (listing) => {
+      const blob = `${listing.marketplace} ${listing.title} ${listing.price != null ? `$${listing.price}` : ""}`;
+      const parsed = parseListingBlob(blob);
+      parsed.url = listing.url;
+      parsed.marketplace = listing.marketplace;
+      if (listing.price != null) parsed.price = listing.price;
+      parsed.shipping = listing.shipping;
+      // The search term is a FALLBACK, not an override. Replacing every row's
+      // parsed name with the query's first three tokens meant a targeted scan
+      // matched every listing against the same name regardless of its own title.
+      if (hint && !parsed.nameQuery.trim()) parsed.nameQuery = hint;
+      const cards = await matchCached(parsed, cache);
+      const card = pickScanCard(cards, listing, parsed);
+      let appraisal = null;
+      if (card && listing.price != null) {
+        const input: ListingInput = {
+          title: listing.title,
+          url: listing.url,
+          marketplace: listing.marketplace,
+          price: listing.price,
+          shipping: listing.shipping,
+          condition: parsed.condition,
+          grade: parsed.grade,
+          finish: parsed.finishHint,
+        };
+        appraisal = applyVerification(appraise(card, input), card, { fx });
+      }
+      return { listing, parsed, card, appraisal } satisfies ScoredListing;
+    });
+    span?.setAttribute("listing.count", listings.length);
+    span?.setAttribute("matched.count", rows.filter((row) => row.card).length);
+    return rows;
   });
 
   // Cross-desk verification is expensive, so only the strongest candidates get
@@ -188,24 +228,27 @@ export async function scanAndScore(
     .sort((a, b) => (b.appraisal?.spread ?? -99) - (a.appraisal?.spread ?? -99))
     .slice(0, 5);
   const keyedCache = new Map<string, Awaited<ReturnType<typeof fetchKeyedQuotes>>>();
-  await mapPool(toConfirm, 3, async (row) => {
-    if (!row.card || !row.appraisal) return row;
-    const sold = await fetchEbaySoldMedian(
-      row.card,
-      row.parsed.grade,
-      row.appraisal.finish,
-    ).catch(() => null);
-    let extraQuotes = keyedCache.get(row.card.id);
-    if (!extraQuotes && (keys.justtcg || keys.pricecharting || keys.pokemontcg)) {
-      extraQuotes = await fetchKeyedQuotes(row.card, keys).catch(() => []);
-      keyedCache.set(row.card.id, extraQuotes);
-    }
-    row.appraisal = applyVerification(row.appraisal, row.card, {
-      fx,
-      sold,
-      extraQuotes,
+  await withScanSpan(SCAN_SPAN.enrich, async (span) => {
+    span?.setAttribute("candidate.count", toConfirm.length);
+    await mapPool(toConfirm, 3, async (row) => {
+      if (!row.card || !row.appraisal) return row;
+      const sold = await fetchEbaySoldMedian(
+        row.card,
+        row.parsed.grade,
+        row.appraisal.finish,
+      ).catch(() => null);
+      let extraQuotes = keyedCache.get(row.card.id);
+      if (!extraQuotes && (keys.justtcg || keys.pricecharting || keys.pokemontcg)) {
+        extraQuotes = await fetchKeyedQuotes(row.card, keys).catch(() => []);
+        keyedCache.set(row.card.id, extraQuotes);
+      }
+      row.appraisal = applyVerification(row.appraisal, row.card, {
+        fx,
+        sold,
+        extraQuotes,
+      });
+      return row;
     });
-    return row;
   });
 
   scored.sort((a, b) => {
@@ -213,5 +256,5 @@ export async function scanAndScore(
     const bs = b.appraisal?.spread ?? -99;
     return bs - as;
   });
-  return { rows: scored, ebay, mercari, notes };
+  return { rows: scored, ebay, mercari, notes, errors: errors.length ? errors : undefined };
 }

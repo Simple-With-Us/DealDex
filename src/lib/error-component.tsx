@@ -1,5 +1,6 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { TriangleAlert } from "lucide-react";
+import { openSentryFeedback } from "@/lib/observability/sentry";
 
 export function AppErrorComponent({ error }: ErrorComponentProps) {
   return (
@@ -9,8 +10,16 @@ export function AppErrorComponent({ error }: ErrorComponentProps) {
       </span>
       <h1 className="font-display text-xl tracking-tight">Something went wrong</h1>
       <p className="max-w-md text-sm break-words text-muted">
-        {error.message || "An unexpected error occurred. Try reloading the page."}
+        {(error instanceof Error && error.message) ||
+          "An unexpected error occurred. Try reloading the page."}
       </p>
+      <button
+        type="button"
+        onClick={() => openSentryFeedback()}
+        className="mt-2 text-xs text-subtle underline decoration-border underline-offset-2 hover:text-fg"
+      >
+        Report a Problem
+      </button>
     </main>
   );
 }

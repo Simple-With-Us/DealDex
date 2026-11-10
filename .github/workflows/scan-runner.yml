@@ -1,0 +1,51 @@
+name: DealDex Scan Runner
+
+# Background scan-runner for the auto-buy initiative (PR #5 of MM comprehensive
+# review).  Cadence: once per minute.  The handler POSTs into the server-side
+# `/api/alerts/run` endpoint which:
+#   1. Reads `alert_rules` (server-side table) where `enabled = true`.
+#   2. Runs Market.scan per rule, in dry-run mode by default.
+#   3. Persists a `scan_runs` row + emits Sentry span scan.runner.rule.
+#
+# When dry-run is flipped off, the runner will place Buy It Now orders via the
+# eBay Order API (next PR once an order-write scope is granted to the Browse
+# app).  Until then the workflow is a pure no-op read that proves the wiring.
+#
+# Concurrency: cancel-in-progress means a slow tick (a hung eBay Browse call,
+# for example) doesn't pile up the next minute.  Permissions: minimal — only
+# `contents: read` + `id-token: write` for OIDC if a deploy is added later.
+
+on:
+  schedule:
+    - cron: "*/1 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: scan-runner
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Trigger scan runner
+        env:
+          RUNNER_URL: ${{ secrets.SCAN_RUNNER_URL }}
+          RUNNER_TOKEN: ${{ secrets.SCAN_RUNNER_TOKEN }}
+        run: |
+          if [ -z "${RUNNER_URL:-}" ] || [ -z "${RUNNER_TOKEN:-}" ]; then
+            echo "scan-runner: SCAN_RUNNER_URL / SCAN_RUNNER_TOKEN are not configured; skipping."
+            exit 0
+          fi
+          curl --silent --show-error --max-time 60 \
+            -X POST "${RUNNER_URL}/api/alerts/run" \
+            -H "Authorization: Bearer ${RUNNER_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"source":"cron","data":{}}' \
+            -w "\nscan-runner status: %{http_code}\n"
+        continue-on-error: true

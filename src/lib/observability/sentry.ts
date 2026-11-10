@@ -8,11 +8,25 @@
  * public congress.trade surface; reserved Replay quota is org-level.
  * User Feedback is the consumer widget (auto-injected).  Privacy: mask
  * all text and block all media on Replay.
+ *
+ * Logs: Sentry v11 removed the top-level `enableLogs` option from
+ * BrowserOptions (the flush pipeline is unconditional).  Console lines
+ * still become breadcrumbs unless `consoleLoggingIntegration` is added;
+ * without that integration, the dealdex project recorded 0 logs.
+ * Release is the Vercel git SHA so deploy markers and source maps line up.
  */
 
 import * as Sentry from "@sentry/react";
 
 let initialized = false;
+
+/** Vite inlines `VITE_SENTRY_RELEASE` from `VERCEL_GIT_COMMIT_SHA` at build. */
+export function sentryBrowserRelease(): string | undefined {
+  const release =
+    (import.meta.env.VITE_SENTRY_RELEASE as string | undefined)?.trim() ||
+    (import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA as string | undefined)?.trim();
+  return release || undefined;
+}
 
 export function initSentry(): void {
   if (initialized || typeof window === "undefined") return;
@@ -20,6 +34,7 @@ export function initSentry(): void {
   const dsn = (import.meta.env.VITE_SENTRY_DSN as string | undefined)?.trim();
   if (!dsn) return;
 
+  const release = sentryBrowserRelease();
   const env = (import.meta.env.VITE_SENTRY_ENV as string | undefined)?.trim() ||
     (import.meta.env.MODE as string | undefined) ||
     "production";
@@ -38,20 +53,21 @@ export function initSentry(): void {
 
   Sentry.init({
     dsn,
+    release,
     environment: env,
     tracesSampleRate: Number.isFinite(tracesSampleRate) ? Math.min(Math.max(tracesSampleRate, 0), 1) : 0.2,
-    enableLogs: true,
     replaysSessionSampleRate: !replayDisabled && Number.isFinite(replaysSessionSampleRate) ? replaysSessionSampleRate : 0,
     replaysOnErrorSampleRate: !replayDisabled && Number.isFinite(replaysOnErrorSampleRate) ? replaysOnErrorSampleRate : 0,
     integrations: [
       Sentry.browserTracingIntegration(),
+      Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] }),
       Sentry.feedbackIntegration({
         colorScheme: "light",
-        autoInject: true,
+        autoInject: false,
         showBranding: false,
-        buttonLabel: "Report a problem",
+        buttonLabel: "Report a Problem",
         submitButtonLabel: "Send",
-        formTitle: "Report a problem",
+        formTitle: "Report a Problem",
       }),
       ...(!replayDisabled
         ? [
@@ -64,9 +80,45 @@ export function initSentry(): void {
     ],
   });
 
+  try {
+    Sentry.logger.info("dealdex.web.sentry_ready");
+  } catch {
+    /* a log emit must never break boot */
+  }
+
   initialized = true;
 }
 
 export const SentryErrorBoundary = Sentry.ErrorBoundary;
 export const captureException = Sentry.captureException;
 export const captureMessage = Sentry.captureMessage;
+
+/** Open the Sentry user feedback dialog programmatically. */
+export function openSentryFeedback(): void {
+  try {
+    const feedback = Sentry.getFeedback?.();
+    if (feedback?.createForm) {
+      void feedback.createForm().then((form) => {
+        form.appendToDom();
+        form.open();
+      }).catch(() => {});
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      const windowFeedback = (window as unknown as { Sentry?: { getFeedback?: () => { createForm?: () => Promise<{ appendToDom: () => void; open: () => void }> } } }).Sentry?.getFeedback?.();
+      if (windowFeedback?.createForm) {
+        void windowFeedback.createForm().then((form) => {
+          form.appendToDom();
+          form.open();
+        }).catch(() => {});
+      }
+    }
+  } catch {
+    // Safe no-op if feedback is not initialized or fails
+  }
+}
+
+if (typeof window !== "undefined") {
+  (window as unknown as { openSentryFeedback?: typeof openSentryFeedback }).openSentryFeedback = openSentryFeedback;
+}

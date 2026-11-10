@@ -273,11 +273,175 @@ function RuleCard({
           </>
         )}
       </div>
+      <AutoBuyBlock rule={rule} onChange={onChange} />
       <button type="button" onClick={onRemove} className="h-11 text-sm text-muted hover:text-fg">
         Remove
       </button>
     </article>
   );
+}
+
+/**
+ * Auto-buy config + dry-run preview button.
+ *
+ * The actual Buy It Now call lives in `previewAutoBuyServer`.  This UI
+ * surfaces the same fields the server validates so the user can tune
+ * caps before they ever hit "Preview".
+ */
+function AutoBuyBlock({
+  rule,
+  onChange,
+}: {
+  rule: AlertRule;
+  onChange: (patch: Partial<AlertRule>) => void;
+}) {
+  const cfg = rule.autoBuy;
+  const updateCfg = (patch: Partial<typeof cfg>) => onChange({ autoBuy: { ...cfg, ...patch } });
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ accepted: number; rejected: number; samples: string[] } | null>(null);
+
+  async function previewNow() {
+    setBusy(true);
+    try {
+      const { previewAutoBuyServer } = await import("@/lib/server/auto-buy-preview");
+      const out = await previewAutoBuyServer({
+        data: { rule, rows: windowRows() as never },
+      });
+      setResult({
+        accepted: out.totals.accepted,
+        rejected: out.totals.rejected,
+        samples: out.accepted.slice(0, 3).map((r) => r.title),
+      });
+    } catch (e) {
+      toast(`Preview failed: ${e instanceof Error ? e.message : "unknown"}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="space-y-3 border-t border-border pt-4">
+      <header className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-xs uppercase tracking-[0.16em] text-subtle">Auto-buy</p>
+          <h3 className="font-display text-lg">Buy It Now within your caps</h3>
+        </div>
+        <label className="inline-flex h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={cfg.enabled}
+            onChange={(e) => updateCfg({ enabled: e.target.checked })}
+          />
+          On
+        </label>
+      </header>
+      <p className="text-sm text-muted">
+        Dry-run is on by default — Preview returns the rows that would be purchased, never
+        places an order. Flipping dry-run off requires explicit confirmation and is gated
+        server-side.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm">
+          <span className="mb-1 block text-xs uppercase tracking-[0.14em] text-subtle">
+            Max all-in (cents)
+          </span>
+          <Input
+            type="number"
+            value={cfg.maxPriceCents}
+            onChange={(e) => updateCfg({ maxPriceCents: Math.max(0, Number(e.target.value) | 0) })}
+          />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block text-xs uppercase tracking-[0.14em] text-subtle">
+            Min spread (0..1)
+          </span>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            max="1"
+            value={cfg.minSpread}
+            onChange={(e) => updateCfg({ minSpread: Math.max(0, Math.min(1, Number(e.target.value))) })}
+          />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block text-xs uppercase tracking-[0.14em] text-subtle">
+            Max daily (cents)
+          </span>
+          <Input
+            type="number"
+            value={cfg.maxDailyCents}
+            onChange={(e) => updateCfg({ maxDailyCents: Math.max(0, Number(e.target.value) | 0) })}
+          />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block text-xs uppercase tracking-[0.14em] text-subtle">
+            Max monthly (cents)
+          </span>
+          <Input
+            type="number"
+            value={cfg.maxMonthlyCents}
+            onChange={(e) => updateCfg({ maxMonthlyCents: Math.max(0, Number(e.target.value) | 0) })}
+          />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block text-xs uppercase tracking-[0.14em] text-subtle">
+            Cooldown (hours)
+          </span>
+          <Input
+            type="number"
+            value={cfg.coolHours}
+            onChange={(e) => updateCfg({ coolHours: Math.max(0, Number(e.target.value) | 0) })}
+          />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block text-xs uppercase tracking-[0.14em] text-subtle">Marketplace</span>
+          <select
+            value={cfg.marketplace}
+            onChange={(e) => updateCfg({ marketplace: e.target.value as typeof cfg.marketplace })}
+            className="h-11 w-full rounded-md border border-border bg-surface px-3 text-sm"
+          >
+            <option value="ebay">eBay Buy It Now</option>
+          </select>
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="inline-flex h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={cfg.dryRun}
+            onChange={(e) => updateCfg({ dryRun: e.target.checked })}
+          />
+          Dry-run (recommended)
+        </label>
+        <Button onClick={() => void previewNow()} disabled={busy}>
+          {busy ? "Previewing…" : "Preview auto-buy"}
+        </Button>
+      </div>
+      {result && (
+        <p className="text-sm text-muted">
+          {result.accepted} would be purchased · {result.rejected} rejected.
+          {result.samples.length > 0 ? ` Sample buys: ${result.samples.join(", ")}.` : ""}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Reuse the scan rows already on the page for the preview endpoint.  If
+ * the user hasn't scanned yet, fall back to an empty list — preview is a
+ * no-op in that case, which is the honest answer.
+ */
+function windowRows(): Array<{ listing: unknown; appraisal: unknown; parsed: unknown }> {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem("dealdex:last-scan-rows");
+    if (!raw) return [];
+    return JSON.parse(raw) as Array<{ listing: unknown; appraisal: unknown; parsed: unknown }>;
+  } catch {
+    return [];
+  }
 }
 
 function Channel({

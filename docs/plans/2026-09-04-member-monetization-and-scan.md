@@ -128,3 +128,25 @@ Owner feels some real singles may be missing, and is **happy with how few false 
 - DealDex already ships Datadog logs + one APM span per HTTP request.  That shows total scan request duration, not per-hop (eBay / Mercari / enrichment).
 - Next observability step: child spans (or structured duration logs) for marketplace fetch vs card match vs paid-desk quotes so Datadog can answer what is longest.
 
+## Coverage vs precision (owner 2026-09-04)
+
+Owner feels some real singles may be missing, and is happy with how few false positives appear.
+
+- Do not loosen title match / filters in a way that floods junk listings.
+- Coverage audit should find wider-but-still-specific nets that recover missed cards without raising false positives.
+- Prefer measuring missed inventory against a known card sample over blindly raising result caps.
+- **Manual browser check:** periodically open the same query on eBay and Mercari in a real browser, count relevant singles, and compare to DealDex results to measure miss rate.
+- **Prioritize higher-value cards** in that sample and in any ranking / alert path.
+
+
+## Scan hop timing — prefer Sentry (owner 2026-09-04)
+
+DealDex already has Datadog one-span-per-request and client Sentry (browser tracing + Replay).  Scan latency is mostly **server-side** marketplace fetch + match/enrich.
+
+**Prefer Sentry Performance** for hop breakdown (org has ample Sentry credit; Datadog free APM is the tighter limit):
+
+- Server spans on the Nitro/API scan path: `scan.ebay`, `scan.mercari`, `scan.match`, `scan.enrich`, `scan.cache.hit`, `scan.cache.miss`.
+- Datadog parent stays `web.request` only; do not spend free APM on deep child spans unless Sentry is insufficient.
+- Server still does not download listing images (URLs only) — thumbnail time is client RUM, not scan.
+
+Implemented on `grok/sentry-scan-hop-spans` (Nitro middleware init/flush + `@sentry/node` `startSpan` around web and native scan handlers).  Extra-ship no.

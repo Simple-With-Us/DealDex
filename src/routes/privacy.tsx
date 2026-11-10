@@ -16,7 +16,7 @@ function PrivacyPage() {
 
       <div className="mt-8 max-w-2xl space-y-6 text-sm leading-relaxed text-muted">
         <section className="space-y-2">
-          <h2 className="font-display text-xl tracking-tight text-fg">What stays on the phone</h2>
+          <h2 className="font-display text-xl tracking-tight text-fg">What Stays on the Phone</h2>
           <p>
             API keys you paste into the Android or iPhone app are stored in the device keystore
             (Android EncryptedSharedPreferences, iOS Keychain).  Those apps scan eBay, Mercari and
@@ -36,7 +36,7 @@ function PrivacyPage() {
           </p>
         </section>
         <section className="space-y-2">
-          <h2 className="font-display text-xl tracking-tight text-fg">Optional account</h2>
+          <h2 className="font-display text-xl tracking-tight text-fg">Optional Account</h2>
           <p>
             If you sign in, DealDex stores your email and any keys you choose to back up so you
             can restore them on another device.  Backed-up keys are encrypted at rest.  You can
@@ -44,14 +44,17 @@ function PrivacyPage() {
           </p>
         </section>
         <section className="space-y-2">
-          <h2 className="font-display text-xl tracking-tight text-fg">Website analytics</h2>
+          <h2 className="font-display text-xl tracking-tight text-fg">Website Analytics</h2>
           <p>
             The DealDex website uses Vercel Web Analytics to count visits and page views, and
             Vercel Speed Insights to measure Core Web Vitals (paint, layout, and interaction
             timing).  Those products do not use cookies and do not identify you.  The website
             also sends logs, traces, and Real User Monitoring to Datadog on the existing fleet
             account so errors and slow requests stay visible.  Datadog Session Replay is off.
-            Native apps do not send those web events.
+            Scan hops (eBay, Mercari, match, enrich, and cache hit or miss) are timed with
+            Sentry Performance so a slow marketplace step is visible without extra Datadog APM
+            child spans.  Those traces do not include listing titles, search queries, or desk
+            keys.  Native apps do not send those web events.
           </p>
         </section>
         <section className="space-y-2">

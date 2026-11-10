@@ -2,7 +2,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -130,10 +129,7 @@ const MarkCtx = createContext<{
 }>({ mark: "delta", setMark: () => undefined });
 
 export function MarkProvider({ children }: { children: ReactNode }) {
-  const [mark, setMarkState] = useState<AppMarkId>("delta");
-  useEffect(() => {
-    setMarkState(readAppMark());
-  }, []);
+  const [mark, setMarkState] = useState<AppMarkId>(() => readAppMark());
   const setMark = useCallback((id: AppMarkId) => {
     setMarkState(id);
     writeAppMark(id);

@@ -1,0 +1,30 @@
+{
+  "repository": "Simple-With-Us/DealDex",
+  "teamId": "team_l3mWAejl1E08y8ijku5DpBE6",
+  "projectId": "prj_xcIQb423JxSHHMY0lHmDqvSh95QF",
+  "repoId": 1332557936,
+  "rootDirectory": "",
+  "ciWorkflows": ["CI", "E2E (Playwright)"],
+  "watch": [
+    ".",
+    ":(exclude)docs",
+    ":(exclude)apps/ios",
+    ":(exclude)apps/android",
+    ":(exclude)assets/brand",
+    ":(exclude)ios",
+    ":(exclude)android",
+    ":(exclude).github",
+    ":(exclude)Apps",
+    ":(exclude)*.xcodeproj/**",
+    ":(exclude)STATUS.md",
+    ":(exclude)PLAN.md",
+    ":(exclude)scripts/ios-*",
+    ":(exclude)scripts/test-ios-*",
+    ":(exclude)scripts/android-*",
+    ":(exclude)scripts/app-icon.test.mjs",
+    ":(exclude)scripts/generate-app-icons.py",
+    ":(exclude)scripts/generate-icon-options.py",
+    ":(exclude)scripts/svg-path-to-swift.py",
+    ":(exclude)scripts/native-scan.test.mjs"
+  ]
+}

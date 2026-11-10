@@ -38,8 +38,8 @@ import { PriceRangeBar } from "@/components/price-range";
 import { MarketplaceLogo } from "@/components/market-logo";
 import { describeVsBook } from "@/lib/tcg/vs-book";
 
-const LOCAL_KEY = "spreaddex:saved";
-const LEGACY_KEY = "trueask:saved";
+const LOCAL_KEY = "dealdex:saved";
+const LEGACY_KEYS = ["spreaddex:saved", "trueask:saved"];
 
 function verdictVariant(v: Verdict) {
   if (v === "steal" || v === "good") return "good" as const;
@@ -49,7 +49,18 @@ function verdictVariant(v: Verdict) {
 
 function persistLocal(row: Record<string, unknown>) {
   try {
-    const raw = localStorage.getItem(LOCAL_KEY) ?? localStorage.getItem(LEGACY_KEY);
+    let raw = localStorage.getItem(LOCAL_KEY);
+    if (!raw) {
+      for (const legacy of LEGACY_KEYS) {
+        const v = localStorage.getItem(legacy);
+        if (v) {
+          raw = v;
+          localStorage.setItem(LOCAL_KEY, v);
+          localStorage.removeItem(legacy);
+          break;
+        }
+      }
+    }
     const list = raw ? (JSON.parse(raw) as unknown[]) : [];
     localStorage.setItem(LOCAL_KEY, JSON.stringify([row, ...list].slice(0, 40)));
   } catch {
@@ -81,13 +92,16 @@ export function Evaluator({
 
   const parsedPreview = useMemo(() => parseListingBlob(blob), [blob]);
   const active = cards.find((c) => c.id === activeId) ?? cards[0] ?? null;
-
-  useEffect(() => {
+  const activeKey = active?.id ?? null;
+  const [prevActiveKey, setPrevActiveKey] = useState<string | null>(activeKey);
+  if (prevActiveKey !== activeKey) {
+    setPrevActiveKey(activeKey);
+    setBook(null);
     if (active?.finishes.length) {
       const preferred = active.finishes.find((f) => f.key === finish) ?? active.finishes[0];
       if (preferred && preferred.key !== finish) setFinish(preferred.key);
     }
-  }, [active?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   useEffect(() => {
     if (initialQuery) void runSearch(initialQuery);
@@ -114,10 +128,7 @@ export function Evaluator({
   const result = raw && active ? applyVerification(raw, active, { book }) : raw;
 
   useEffect(() => {
-    if (!active?.id) {
-      setBook(null);
-      return;
-    }
+    if (!active?.id) return;
     let live = true;
     getValuationBook({ data: { id: active.id, grade, keys: loadDeskKeys() } })
       .then((row) => {

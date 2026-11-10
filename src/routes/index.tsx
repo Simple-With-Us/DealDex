@@ -16,8 +16,9 @@ function Home() {
           {APP_SUBTITLE}
         </h1>
         <p className="mt-4 text-left text-muted">
-          DealDex hunts live Buy It Now singles on eBay and Mercari, then scores each ask against a
-          book of desks — TCGPlayer, Cardmarket, eBay solds, PriceCharting, and any keys you add.
+          Search supported Buy It Now singles on eBay and Mercari, then compare asking prices
+          with available market references. {"  "}Coverage depends on the listing, source access,
+          and any paid data services you configure.
         </p>
       </section>
       <Scanner />

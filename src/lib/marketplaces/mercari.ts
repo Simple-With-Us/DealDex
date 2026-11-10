@@ -10,6 +10,10 @@ import {
 } from "./html";
 import { fetchJina, parseJinaMercari } from "./jina";
 import type { LiveListing } from "./types";
+import { parseMercariSellerFromText } from "./seller";
+import { MERCARI_SCAN_CAP } from "./caps";
+
+export { MERCARI_SCAN_CAP };
 
 function searchPhrase(query: string) {
   const q = query.trim();
@@ -54,7 +58,7 @@ export function parseDdgMercari(html: string, query = ""): LiveListing[] {
     ids.push(id);
   }
 
-  for (let i = 0; i < ids.length && out.length < 16; i++) {
+  for (let i = 0; i < ids.length && out.length < MERCARI_SCAN_CAP; i++) {
     const title = (titles[i] || `Mercari listing ${ids[i]}`)
       .replace(/\s*[|\-–]\s*Mercari.*$/i, "")
       .trim();
@@ -72,6 +76,7 @@ export function parseDdgMercari(html: string, query = ""): LiveListing[] {
       shippingEstimated: true,
       image: null,
       listedAt: parseListedAt(snippet),
+      seller: parseMercariSellerFromText(snippet),
     });
   }
   return out;

@@ -17,10 +17,14 @@ export const Route = createFileRoute("/card/$cardId")({ component: CardPage });
 function CardPage() {
   const { cardId } = Route.useParams();
   const [card, setCard] = useState<TcgCard | null | undefined>(undefined);
+  const [prevCardId, setPrevCardId] = useState(cardId);
+  if (prevCardId !== cardId) {
+    setPrevCardId(cardId);
+    setCard(undefined);
+  }
 
   useEffect(() => {
     let live = true;
-    setCard(undefined);
     getCard({ data: { id: cardId } })
       .then((row) => {
         if (live) setCard(row);
@@ -123,7 +127,7 @@ function CardPage() {
 
       {card && (
         <div className="mt-12">
-          <ValuationBookPanel cardId={card.id} />
+          <ValuationBookPanel key={card.id} cardId={card.id} />
         </div>
       )}
 

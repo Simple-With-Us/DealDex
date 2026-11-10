@@ -30,7 +30,7 @@ export const Route = createRootRoute({
       { title: APP_NAME },
       {
         name: "description",
-        content: `${APP_SUBTITLE}.  Scan eBay and Mercari Pokémon listings and score each ask against TCGPlayer, Cardmarket, sold comps, and PriceCharting.`,
+        content: `${APP_SUBTITLE}.  Search supported eBay and Mercari listings and compare asking prices with available market references.`,
       },
       { name: "apple-mobile-web-app-title", content: APP_NAME },
       { name: "apple-mobile-web-app-capable", content: "yes" },

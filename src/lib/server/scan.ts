@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { ALL_POKEMON_QUERY } from "@/lib/marketplaces/html";
 import { scanAndScore } from "@/lib/marketplaces/scan";
 import type { ScanSource } from "@/lib/marketplaces/types";
+import { withScanCacheLookup, withScanTransaction } from "@/lib/observability/sentry-server";
 import type { DeskKeys } from "@/lib/settings/keys";
 import {
   isCacheable,
@@ -42,39 +43,46 @@ export const scanMarketplaces = createServerFn({ method: "POST" })
     );
     const shareable = isCacheable(paidDesks);
     const key = scanCacheKey(query, data.sources);
-    const cached = shareable ? await readScanCache(key) : null;
-    if (cached && Date.now() - cached.at < SCAN_FRESH_MS) {
-      return {
-        query,
-        ebay: cached.ebay,
-        mercari: cached.mercari,
-        notes: cached.notes,
-        rows: cached.rows,
-        fromCache: true,
-      };
-    }
-    try {
-      const result = await scanAndScore(query, data.sources, data.keys);
-      if (result.rows.length && shareable) {
-        await writeScanCache(key, query, data.sources, {
-          ebay: result.ebay,
-          mercari: result.mercari,
-          notes: result.notes,
-          rows: result.rows,
-        });
-      }
-      return { query, ...result, fromCache: false };
-    } catch (err) {
-      if (cached) {
+    return withScanTransaction("web", async () => {
+      const cache = shareable
+        ? await withScanCacheLookup(
+            () => readScanCache(key),
+            (row) => Date.now() - row.at < SCAN_FRESH_MS,
+          )
+        : { fresh: null, stored: null };
+      if (cache.fresh) {
         return {
           query,
-          ebay: cached.ebay,
-          mercari: cached.mercari,
-          notes: cached.notes,
-          rows: cached.rows,
+          ebay: cache.fresh.ebay,
+          mercari: cache.fresh.mercari,
+          notes: cache.fresh.notes,
+          rows: cache.fresh.rows,
           fromCache: true,
         };
       }
-      throw err;
-    }
+      try {
+        const result = await scanAndScore(query, data.sources, data.keys);
+        if (result.rows.length && shareable) {
+          await writeScanCache(key, query, data.sources, {
+            ebay: result.ebay,
+            mercari: result.mercari,
+            notes: result.notes,
+            rows: result.rows,
+          });
+        }
+        return { query, ...result, fromCache: false };
+      } catch (err) {
+        if (cache.stored) {
+          return {
+            query,
+            ebay: cache.stored.ebay,
+            mercari: cache.stored.mercari,
+            notes: cache.stored.notes,
+            rows: cache.stored.rows,
+            fromCache: true,
+          };
+        }
+        throw err;
+      }
+    });
   });

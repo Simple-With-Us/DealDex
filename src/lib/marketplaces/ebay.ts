@@ -10,7 +10,18 @@ import {
   titleMatchesQuery,
 } from "./html";
 import { fetchJina, parseJinaEbay } from "./jina";
+import { defaultServerEnv } from "@/lib/server/app-settings";
 import type { LiveListing } from "./types";
+import { parseEbaySellerFromText } from "./seller";
+import {
+  filterBrowseByQuery,
+  searchEbayBrowse,
+  searchEbayBrowseEnabled,
+} from "./ebay-browse";
+import { EBAY_SCAN_CAP } from "./caps";
+import { fetchWithPool } from "@/lib/server/proxy-pool";
+
+export { EBAY_SCAN_CAP };
 
 function pokemonQuery(query: string) {
   const q = query.trim();
@@ -18,7 +29,27 @@ function pokemonQuery(query: string) {
   return /pokemon|pokémon|tcg/i.test(q) ? q : `${q} pokemon`;
 }
 
-export async function searchEbay(query: string): Promise<LiveListing[]> {
+export async function searchEbay(
+  query: string,
+  options: { userProxyUrl?: string | null } = {},
+): Promise<LiveListing[]> {
+  // Per-user proxy override takes precedence over the server default.
+  const env = options.userProxyUrl
+    ? { ...defaultServerEnv(), PROXY_URL_LIST: options.userProxyUrl }
+    : defaultServerEnv();
+  // Try the official Browse API first when both keys are configured.  This
+  // avoids the Vercel datacenter IP getting 403'd on the raw HTML scrape,
+  // and gives paging up to ~50 listings per call across multiple pages.
+  if (searchEbayBrowseEnabled()) {
+    const browse = await searchEbayBrowse(query, EBAY_SCAN_CAP);
+    const filtered = filterBrowseByQuery(browse, query);
+    if (filtered.length >= Math.min(10, EBAY_SCAN_CAP / 2)) return filtered.slice(0, EBAY_SCAN_CAP);
+    if (filtered.length) {
+      // Browse returned a few good rows but the query filter is too narrow
+      // for the official search syntax — fall through to Jina to widen.
+    }
+  }
+
   const nkw = pokemonQuery(query);
   const broad = isBroadQuery(query);
   const jinaUrl =
@@ -34,7 +65,7 @@ export async function searchEbay(query: string): Promise<LiveListing[]> {
   const fromBrave = parseBraveListings(brave, query, "ebay");
   if (fromBrave.length) return fromBrave;
 
-  const res = await fetch(jinaUrl, { headers: BROWSER_HEADERS });
+  const res = await fetchWithPool(jinaUrl, { headers: BROWSER_HEADERS }, env);
   if (res.ok) {
     const html = await res.text();
     const rows = parseEbayHtml(html, query);
@@ -79,8 +110,9 @@ export function parseEbayHtml(html: string, query = ""): LiveListing[] {
       shippingEstimated: ship.estimated,
       image: img,
       listedAt: parseListedAt(chunk),
+      seller: parseEbaySellerFromText(chunk),
     });
-    if (out.length >= 16) break;
+    if (out.length >= EBAY_SCAN_CAP) break;
   }
 
   return out;

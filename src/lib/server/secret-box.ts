@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:crypto";
+import { getSetting } from "./app-settings";
 
 /**
  * Authenticated encryption for third-party desk API keys at rest (server-only).
@@ -19,7 +20,7 @@ const PREFIX = "v1.";
 const globalRef = globalThis as typeof globalThis & { __deskKeySecret__?: string };
 
 function rootSecret(): string {
-  const configured = process.env.BETTER_AUTH_SECRET?.trim();
+  const configured = getSetting("BETTER_AUTH_SECRET");
   if (configured) return configured;
   // Preview / local with no configured secret: a process-stable random key.
   // PGLite is in-memory and dies with the process too, so the two stay in step.
