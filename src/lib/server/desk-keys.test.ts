@@ -32,7 +32,10 @@ test("native key payload rejects a partial or mistyped body", () => {
   assert.equal(ok.success, true);
   if (ok.success) assert.equal(ok.data.justtcg, "tcg_1");
   assert.equal(NativeDeskKeysSchema.safeParse({ justtcg: "only-one" }).success, false);
-  assert.equal(NativeDeskKeysSchema.safeParse({ justtcg: 1, pricecharting: "", pokemontcg: "" }).success, false);
+  assert.equal(
+    NativeDeskKeysSchema.safeParse({ justtcg: 1, pricecharting: "", pokemontcg: "" }).success,
+    false,
+  );
   assert.equal(
     NativeDeskKeysSchema.safeParse({
       justtcg: "",

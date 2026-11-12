@@ -15,7 +15,10 @@ function checkRunnerToken(req: Request): boolean {
   // Infisical sole source of truth — SCAN_RUNNER_TOKEN lives there (see INFISICAL.md).
   const expected = getSetting("SCAN_RUNNER_TOKEN");
   if (!expected) return false;
-  const header = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "").trim();
+  const header = req.headers
+    .get("Authorization")
+    ?.replace(/^Bearer\s+/i, "")
+    .trim();
   return Boolean(header && header === expected);
 }
 
@@ -37,9 +40,7 @@ export const Route = createFileRoute("/api/alerts/run")({
         }
         const body = await json(request);
         const source =
-          typeof body.source === "string" && body.source.trim()
-            ? body.source.trim()
-            : "cron";
+          typeof body.source === "string" && body.source.trim() ? body.source.trim() : "cron";
         const result = await runScanRunnerTick({
           forceScan: Boolean(body.forceScan),
           cursorMs: typeof body.cursorMs === "number" ? body.cursorMs : 0,
