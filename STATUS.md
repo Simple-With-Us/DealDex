@@ -1,6 +1,6 @@
 ## 2026-11-12 — DD-414 — Vercel catch-up CI race + Sentry Crons (F9 / F4)
 
-E2E completion could trigger catch-up while CI was still queued on the same SHA, hard-failing the deploy gate.  Gate now no-ops (`deploy=false`, exit 0); scheduled runs emit Sentry `in_progress` + `ok`/`error` for `ci-dealdex-vercel-production-catch-up`.  Rollout: `docs/rollouts/2026-11-12-dd-414-vercel-catch-up-sentry.md`.  Branch: `cursor/dd-414-vercel-catch-up-sentry-4eef`.
+E2E completion could trigger catch-up while CI was still queued on the same SHA, hard-failing the deploy gate. Gate now no-ops (`deploy=false`, exit 0); scheduled runs emit Sentry `in_progress` + `ok`/`error` for `ci-dealdex-vercel-production-catch-up`. Rollout: `docs/rollouts/2026-11-12-dd-414-vercel-catch-up-sentry.md`. Branch: `cursor/dd-414-vercel-catch-up-sentry-4eef`.
 
 ## 2026-11-12 — DD-412 — GitHub org live URLs (OPS-734 slice)
 

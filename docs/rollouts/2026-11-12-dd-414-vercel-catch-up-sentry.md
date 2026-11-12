@@ -4,7 +4,7 @@ Sentry FLEET-INFRA-F9 grouped CI failures for **Vercel production catch-up** and
 
 ## Root cause
 
-`workflow_run` can fire when **E2E (Playwright)** completes before **CI** is `completed`/`success` on the same main SHA.  The gate classified the commit as deploy-eligible, then `assertCi` hard-failed with `Exact-main CI not successful: CI`, red-Xing the deploy job (and paging F9).  Scheduled ticks also lacked an `in_progress` check-in at the cron slot, so F4 missed-check-in noise continued when runs failed early.
+`workflow_run` can fire when **E2E (Playwright)** completes before **CI** is `completed`/`success` on the same main SHA. The gate classified the commit as deploy-eligible, then `assertCi` hard-failed with `Exact-main CI not successful: CI`, red-Xing the deploy job (and paging F9). Scheduled ticks also lacked an `in_progress` check-in at the cron slot, so F4 missed-check-in noise continued when runs failed early.
 
 ## Fix
 
