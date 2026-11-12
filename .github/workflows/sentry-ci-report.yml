@@ -18,7 +18,7 @@ name: Sentry CI Report
 #      across repos, and this repo shares workflow names ("CI", "Security",
 #      "Effort Issues Sync") with peer apps, so without `app` a "CI" failure
 #      here would dedup into the same Sentry issue as a "CI" failure there.
-#      See AGENT-SYNC.md "Observability".
+#      See FLEET-PROTOCOL.md "Observability".
 #   2. On event == schedule (i.e. the completed run was a cron-triggered
 #      run of a workflow that defines `schedule:`): a Sentry Crons check-in
 #      (ok on success, error on failure) with an upsert monitor_config whose
@@ -45,7 +45,7 @@ name: Sentry CI Report
 # run and raises a Sentry issue on drift, so a rename cannot silently kill a
 # monitor:
 #   Effort Issues Sync                      -> "18 6 * * *"  (effort-issues-sync.yml, daily)
-#   iOS TestFlight ship (GitHub-hosted macOS)-> "22,52 * * * *"  (ios-ship.yml)
+#   iOS TestFlight ship (GitHub-hosted macOS)-> "22 * * * *"  (ios-ship.yml)
 #
 # Secret: repo (or org) Actions secret `SENTRY_FLEET_DSN` must be set to the
 # fleet-infra project DSN.  Name only — never commit or print the value.
@@ -58,6 +58,7 @@ name: Sentry CI Report
 on:
   workflow_run:
     workflows:
+      - Vercel production catch-up
       # Names must match the `name:` field of workflow files exactly —
       # a stale entry here silently disables alerting for that pipeline.
       - CI
@@ -96,7 +97,7 @@ jobs:
         # script rather than whatever version lives on an arbitrary (possibly fork/PR) branch that
         # triggered the observed workflow.  Do not add `ref: ${{ github.event.workflow_run.head_sha }}`
         # without re-reviewing the security implications.
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Report failure + cron check-in to Sentry fleet-infra
         shell: bash

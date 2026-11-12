@@ -63,7 +63,7 @@ async function getUserId(request: Request): Promise<string | null> {
   return fromContext || null;
 }
 
-export const Route = createFileRoute("/api/settings")({
+export const Route = createFileRoute("/api/settings/")({
   server: {
     handlers: {
       GET: async ({ request }) => {

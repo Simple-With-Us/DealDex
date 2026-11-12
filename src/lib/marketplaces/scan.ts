@@ -1,4 +1,5 @@
 import { SCAN_SPAN, withScanSpan } from "@/lib/observability/sentry-server";
+import { defaultServerEnv } from "@/lib/server/app-settings";
 import { appraise } from "@/lib/tcg/appraise";
 import { eurUsd, fetchEbaySoldMedian } from "@/lib/tcg/comps";
 import { matchListing } from "@/lib/tcg/match";
@@ -132,8 +133,8 @@ export async function scanAndScore(
   // When the user has set a per-user proxy override, fold it into a synthetic
   // env so fetchWithPool picks the override ahead of the server default.
   const env = options.userProxyUrl
-    ? { ...process.env, PROXY_URL_LIST: options.userProxyUrl }
-    : process.env;
+    ? { ...defaultServerEnv(), PROXY_URL_LIST: options.userProxyUrl }
+    : defaultServerEnv();
   if (sources.includes("ebay")) {
     listings.push(
       ...(await withScanSpan(SCAN_SPAN.ebay, async (span) => {

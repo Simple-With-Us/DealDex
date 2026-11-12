@@ -24,9 +24,15 @@
  * `redactProxyUrl`.
  */
 import { SCAN_SPAN, withScanSpan } from "@/lib/observability/sentry-server";
+import { defaultServerEnv, getNumberSetting } from "./app-settings";
 
 const PROXY_URL_LIST_KEY = "PROXY_URL_LIST";
-const MAX_CONCURRENCY_PER_PROXY = 4;
+/** Default when the PROXY_MAX_CONCURRENCY knob is unset. */
+const DEFAULT_MAX_CONCURRENCY_PER_PROXY = 4;
+
+function maxConcurrencyPerProxy(): number {
+  return getNumberSetting("PROXY_MAX_CONCURRENCY", DEFAULT_MAX_CONCURRENCY_PER_PROXY);
+}
 
 export type ProxyEntry = {
   /** Pretty-printed URL with the user:pass stripped. */
@@ -39,7 +45,7 @@ export type ProxyEntry = {
   inFlight: number;
 };
 
-export function readProxyPool(env: Record<string, string | undefined> = process.env): ProxyEntry[] {
+export function readProxyPool(env: Record<string, string | undefined> = defaultServerEnv()): ProxyEntry[] {
   const raw = env[PROXY_URL_LIST_KEY]?.trim();
   if (!raw) return [];
   return raw
@@ -54,7 +60,7 @@ export function readProxyPool(env: Record<string, string | undefined> = process.
     }));
 }
 
-export function proxyPoolEnabled(env: Record<string, string | undefined> = process.env): boolean {
+export function proxyPoolEnabled(env: Record<string, string | undefined> = defaultServerEnv()): boolean {
   return readProxyPool(env).length > 0;
 }
 
@@ -68,7 +74,7 @@ function nextProxy(pool: ProxyEntry[]): ProxyEntry | null {
   let bestCursor = Infinity;
   for (let i = 0; i < pool.length; i++) {
     const p = pool[i]!;
-    if (p.inFlight >= MAX_CONCURRENCY_PER_PROXY) continue;
+    if (p.inFlight >= maxConcurrencyPerProxy()) continue;
     if (p.cursor < bestCursor) {
       bestCursor = p.cursor;
       bestIdx = i;
@@ -97,7 +103,7 @@ export type FetchWithPoolOptions = RequestInit & {
 export async function fetchWithPool(
   url: string,
   init: FetchWithPoolOptions = {},
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = defaultServerEnv(),
   fetchImpl: typeof fetch = fetch,
 ): Promise<Response> {
   const pool = readProxyPool(env);

@@ -33,7 +33,7 @@ event), which is where unbounded-cardinality data belongs.
 The `app` tag + fingerprint component are required: fleet-infra is shared
 across repos, and this repo may share workflow names ("CI", "Security",
 "Effort Issues Sync") with peer apps, so without `app` a "CI" failure here
-would dedup into the same Sentry issue as one there.  Per AGENT-SYNC.md
+would dedup into the same Sentry issue as one there.  Per FLEET-PROTOCOL.md
 "Observability", every event is tagged with `app:<repo>`.
 
 Secrets: SENTRY_FLEET_DSN is read only from the environment (set by the
@@ -66,8 +66,9 @@ APP = "dealdex"
 # listed here have no `schedule:` trigger and will simply be skipped for the
 # check-in step (they can still send a failure event on other trigger types).
 CRON_SCHEDULES = {
+    "Vercel production catch-up": "41 * * * *",
     "Effort Issues Sync": "18 6 * * *",
-    "iOS TestFlight ship (GitHub-hosted macOS)": "22,52 * * * *",
+    "iOS TestFlight ship (GitHub-hosted macOS)": "22 * * * *",
 }
 
 # This reporter only ever sends ONE check-in per scheduled run, after the
@@ -87,9 +88,10 @@ CRON_SCHEDULES = {
 # slack for workflow_run dispatch + this reporter's own queue/run time.
 DEFAULT_CHECKIN_MARGIN_MINUTES = 15
 CRON_CHECKIN_MARGIN_MINUTES = {
+    "Vercel production catch-up": 75,
     # ios-ship.yml's "ship" job has timeout-minutes: 90; add ~10 min slack.
     # Do not raise this to 600: FLEET-INFRA-CC is a dropped-tick class, not
-    # a late-start class.  600 would hide missing 30-min macos ticks.
+    # a late-start class.  600 would hide missing hourly macos ticks.
     "iOS TestFlight ship (GitHub-hosted macOS)": 100,
     # FLEET-INFRA-CG (2026-09-18): daily Effort Issues Sync (`18 6 * * *`)
     # misses every day at 06:33Z because GitHub starts the ubuntu-latest
@@ -119,6 +121,9 @@ _CRON_CHECKIN_MARGINS_FOLDED = {
 #      the workflow files in this repo, and main() reports a mismatch to Sentry
 #      (a real issue in fleet-infra), not just to the job log.
 _CRON_SCHEDULES_FOLDED = {name.casefold(): expr for name, expr in CRON_SCHEDULES.items()}
+# These workflows emit in_progress + ok/error from their own YAML; the reporter
+# only sends failure events for them (no duplicate terminal Crons check-in).
+_SELF_CRON_CHECKIN_WORKFLOWS = frozenset({"Vercel production catch-up".casefold()})
 
 # Where the observed workflows live, resolved from this file rather than the
 # process CWD so the guard works regardless of how the script is invoked.
@@ -246,6 +251,113 @@ def send_config_drift_event(
     send_envelope(envelope_url, auth_header, "event", payload)
 
 
+def build_cron_checkin_payload(
+    workflow_name: str,
+    status: str,
+    check_in_id: str | None = None,
+) -> tuple[str, dict] | None:
+    """Return (monitor_slug, payload) for a Crons check-in, or None when unmapped."""
+    cron_expr = _CRON_SCHEDULES_FOLDED.get(workflow_name.casefold())
+    if not cron_expr:
+        return None
+    monitor_slug = f"ci-{APP}-{slugify(workflow_name)}"
+    checkin_margin = _CRON_CHECKIN_MARGINS_FOLDED.get(workflow_name.casefold(), DEFAULT_CHECKIN_MARGIN_MINUTES)
+    payload = {
+        "check_in_id": (check_in_id or uuid.uuid4().hex),
+        "monitor_slug": monitor_slug,
+        "status": status,
+        "monitor_config": {
+            "schedule": {"type": "crontab", "value": cron_expr},
+            "checkin_margin": checkin_margin,
+            "max_runtime": 120,
+            "timezone": "UTC",
+        },
+    }
+    return monitor_slug, payload
+
+
+def send_workflow_cron_checkin(workflow_name: str, status: str, check_in_id: str | None = None) -> int:
+    """Send one Sentry Crons check-in for a workflow this repo owns (in_progress | ok | error)."""
+    dsn = os.environ.get("SENTRY_FLEET_DSN", "").strip()
+    if not dsn:
+        print("::warning::SENTRY_FLEET_DSN secret is not set; skipping cron check-in.")
+        return 0
+    if status not in {"in_progress", "ok", "error"}:
+        print(f"::error::Invalid cron check-in status '{status}'")
+        return 0
+    try:
+        public_key, host, project_id = parse_dsn(dsn)
+    except ValueError as exc:
+        print(f"::error::{exc}")
+        return 0
+
+    built = build_cron_checkin_payload(workflow_name, status, check_in_id)
+    if not built:
+        print(
+            f"::warning::No CRON_SCHEDULES entry for workflow '{workflow_name}'; skipping cron check-in."
+        )
+        return 0
+    monitor_slug, checkin_payload = built
+    envelope_url = f"https://{host}/api/{project_id}/envelope/"
+    auth_header = (
+        f"Sentry sentry_version=7, sentry_client=sentry-ci-report/1.0, sentry_key={public_key}"
+    )
+    send_envelope(envelope_url, auth_header, "check_in", checkin_payload)
+    print(
+        f"Sent Sentry Crons check-in '{status}' for monitor '{monitor_slug}' (workflow '{workflow_name}')."
+    )
+    check_in_id_out = checkin_payload["check_in_id"]
+    print(f"::notice::Sentry check_in_id={check_in_id_out}")
+    github_output = os.environ.get("GITHUB_OUTPUT")
+    if github_output and status == "in_progress":
+        with open(github_output, "a", encoding="utf-8") as handle:
+            handle.write(f"check_in_id={check_in_id_out}\n")
+    return 0
+
+
+def send_parked_ios_ship_checkin() -> int:
+    """Heartbeat the ios-ship Crons monitor while that workflow is disabled.
+
+    FLEET-INFRA-CC pages missed check-ins for
+    `ci-dealdex-ios-testflight-ship-github-hosted-macos`.  The TestFlight
+    workflow is `disabled_manually` (credential hold, last run 2026-09-27),
+    so no `workflow_run` ever reaches this reporter.  A cheap ubuntu tick
+    upserts the same slug + hourly schedule until ios-ship is re-enabled.
+    """
+    dsn = os.environ.get("SENTRY_FLEET_DSN", "").strip()
+    if not dsn:
+        print("::warning::SENTRY_FLEET_DSN secret is not set; skipping ios-ship park check-in.")
+        return 0
+    try:
+        public_key, host, project_id = parse_dsn(dsn)
+    except ValueError as exc:
+        print(f"::error::{exc}")
+        return 0
+
+    envelope_url = f"https://{host}/api/{project_id}/envelope/"
+    auth_header = (
+        f"Sentry sentry_version=7, sentry_client=sentry-ci-report/1.0, sentry_key={public_key}"
+    )
+    workflow_name = "iOS TestFlight ship (GitHub-hosted macOS)"
+    cron_expr = CRON_SCHEDULES[workflow_name]
+    checkin_margin = CRON_CHECKIN_MARGIN_MINUTES[workflow_name]
+    monitor_slug = f"ci-{APP}-{slugify(workflow_name)}"
+    checkin_payload = {
+        "check_in_id": uuid.uuid4().hex,
+        "monitor_slug": monitor_slug,
+        "status": "ok",
+        "monitor_config": {
+            "schedule": {"type": "crontab", "value": cron_expr},
+            "checkin_margin": checkin_margin,
+            "max_runtime": 120,
+            "timezone": "UTC",
+        },
+    }
+    send_envelope(envelope_url, auth_header, "check_in", checkin_payload)
+    print(f"Sent parked ios-ship Crons check-in for monitor '{monitor_slug}'.")
+    return 0
+
+
 def main() -> int:
     dsn = os.environ.get("SENTRY_FLEET_DSN", "").strip()
     workflow_name = os.environ.get("WORKFLOW_NAME", "unknown")
@@ -316,47 +428,84 @@ def main() -> int:
 
     # ── 2. Cron check-in (only for schedule-triggered runs) ─────────────────
     if event == "schedule":
-        # Case-folded lookup: a workflow rename that only changes capitalisation
-        # must never again silently detach a job from its Crons monitor.
-        cron_expr = _CRON_SCHEDULES_FOLDED.get(workflow_name.casefold())
-        if not cron_expr:
+        if workflow_name.casefold() in _SELF_CRON_CHECKIN_WORKFLOWS:
             print(
-                f"::warning::Schedule-triggered run for '{workflow_name}' has no known cron "
-                "expression mapped in CRON_SCHEDULES; skipping check-in."
-            )
-            send_config_drift_event(
-                envelope_url,
-                auth_header,
-                "unmapped-schedule",
-                f"sentry-ci-report has no CRON_SCHEDULES entry for scheduled workflow "
-                f"'{workflow_name}' [{APP}]",
-                ["ci-report-config-drift", APP, "unmapped-schedule", workflow_name],
-                {"workflow": workflow_name, "run_url": run_url, "run_id": run_id},
+                f"Workflow '{workflow_name}' emits its own Sentry Crons pair; "
+                "skipping reporter terminal check-in."
             )
         else:
-            checkin_status = "ok" if conclusion == "success" else "error"
-            monitor_slug = f"ci-{APP}-{slugify(workflow_name)}"
-            checkin_margin = _CRON_CHECKIN_MARGINS_FOLDED.get(
-                workflow_name.casefold(), DEFAULT_CHECKIN_MARGIN_MINUTES
+            _send_schedule_cron_checkin(
+                workflow_name, conclusion, envelope_url, auth_header, run_url, run_id
             )
-            checkin_payload = {
-                "check_in_id": uuid.uuid4().hex,
-                "monitor_slug": monitor_slug,
-                "status": checkin_status,
-                "monitor_config": {
-                    "schedule": {"type": "crontab", "value": cron_expr},
-                    "checkin_margin": checkin_margin,
-                    "max_runtime": 60,
-                    "timezone": "UTC",
-                },
-            }
-            send_envelope(envelope_url, auth_header, "check_in", checkin_payload)
-            print(f"Sent Sentry Crons check-in '{checkin_status}' for monitor '{monitor_slug}' (workflow '{workflow_name}').")
     else:
         print(f"Workflow '{workflow_name}' was triggered by '{event}' (not schedule); no cron check-in sent.")
 
     return 0
 
 
+def _send_schedule_cron_checkin(
+    workflow_name: str,
+    conclusion: str,
+    envelope_url: str,
+    auth_header: str,
+    run_url: str,
+    run_id: str,
+) -> None:
+    # Case-folded lookup: a workflow rename that only changes capitalisation
+    # must never again silently detach a job from its Crons monitor.
+    cron_expr = _CRON_SCHEDULES_FOLDED.get(workflow_name.casefold())
+    if not cron_expr:
+        print(
+            f"::warning::Schedule-triggered run for '{workflow_name}' has no known cron "
+            "expression mapped in CRON_SCHEDULES; skipping check-in."
+        )
+        send_config_drift_event(
+            envelope_url,
+            auth_header,
+            "unmapped-schedule",
+            f"sentry-ci-report has no CRON_SCHEDULES entry for scheduled workflow "
+            f"'{workflow_name}' [{APP}]",
+            ["ci-report-config-drift", APP, "unmapped-schedule", workflow_name],
+            {"workflow": workflow_name, "run_url": run_url, "run_id": run_id},
+        )
+        return
+    checkin_status = "ok" if conclusion == "success" else "error"
+    built = build_cron_checkin_payload(workflow_name, checkin_status)
+    if not built:
+        print(
+            f"::warning::Schedule-triggered run for '{workflow_name}' has no known cron "
+            "expression mapped in CRON_SCHEDULES; skipping check-in."
+        )
+        return
+    monitor_slug, checkin_payload = built
+    send_envelope(envelope_url, auth_header, "check_in", checkin_payload)
+    print(
+        f"Sent Sentry Crons check-in '{checkin_status}' for monitor '{monitor_slug}' "
+        f"(workflow '{workflow_name}')."
+    )
+
+
+def _parse_cron_checkin_argv(argv: list[str]) -> int | None:
+    if "--cron-checkin" not in argv:
+        return None
+    idx = argv.index("--cron-checkin")
+    if idx + 2 >= len(argv):
+        print("::error::Usage: --cron-checkin <workflow-name> <in_progress|ok|error> [--check-in-id ID]")
+        return 2
+    workflow_name = argv[idx + 1]
+    status = argv[idx + 2]
+    check_in_id = None
+    if "--check-in-id" in argv:
+        id_idx = argv.index("--check-in-id")
+        if id_idx + 1 < len(argv):
+            check_in_id = argv[id_idx + 1]
+    return send_workflow_cron_checkin(workflow_name, status, check_in_id)
+
+
 if __name__ == "__main__":
+    if "--park-ios-ship" in sys.argv:
+        sys.exit(send_parked_ios_ship_checkin())
+    cron_exit = _parse_cron_checkin_argv(sys.argv)
+    if cron_exit is not None:
+        sys.exit(cron_exit)
     sys.exit(main())

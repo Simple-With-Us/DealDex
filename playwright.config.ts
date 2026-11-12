@@ -13,8 +13,28 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4173';
 export default defineConfig({
   testDir: './tests/e2e',
   timeout: 60_000,
-  reporter: 'list',
-  use: { baseURL },
+  // Single canonical baseline set: no per-project / per-platform suffixes,
+  // so baselines generated locally (stock Chrome-for-Testing) are the exact
+  // files CI compares against.
+  snapshotPathTemplate:
+    '{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}',
+  reporter: [['list'], ['html', { open: 'never' }]],
+  use: {
+    baseURL,
+    // Deterministic cross-machine text rendering.  CI's GitHub runner and the
+    // baseline machine run the same Chrome-for-Testing build, but the browser
+    // links the OS libfreetype/libfontconfig/libharfbuzz, whose defaults
+    // differ per machine (subpixel order, hintstyle, fractional advances).
+    // These flags pin grayscale antialiasing, no hinting, and integer glyph
+    // positioning so identical font files render identical pixels anywhere.
+    launchOptions: {
+      args: [
+        '--disable-lcd-text',
+        '--font-render-hinting=none',
+        '--disable-font-subpixel-positioning',
+      ],
+    },
+  },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: {
     command: 'npm run dev -- --port 4173 --host 127.0.0.1',

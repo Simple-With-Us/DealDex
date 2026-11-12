@@ -41,28 +41,28 @@ function MenuBody({
         <Link
           to="/"
           onClick={onClose}
-          className="flex h-10 items-center gap-2 rounded-md px-2 text-sm text-muted hover:bg-elevated hover:text-fg"
+          className="flex h-11 items-center gap-2 rounded-md px-2 text-sm text-muted hover:bg-elevated hover:text-fg"
         >
           <ScanSearch className="size-4" /> Scan
         </Link>
         <Link
           to="/saved"
           onClick={onClose}
-          className="flex h-10 items-center gap-2 rounded-md px-2 text-sm text-muted hover:bg-elevated hover:text-fg"
+          className="flex h-11 items-center gap-2 rounded-md px-2 text-sm text-muted hover:bg-elevated hover:text-fg"
         >
           <Bookmark className="size-4" /> Saved
         </Link>
         <Link
           to="/alerts"
           onClick={onClose}
-          className="flex h-10 items-center gap-2 rounded-md px-2 text-sm text-muted hover:bg-elevated hover:text-fg"
+          className="flex h-11 items-center gap-2 rounded-md px-2 text-sm text-muted hover:bg-elevated hover:text-fg"
         >
           <Bell className="size-4" /> Alerts
         </Link>
         <Link
           to="/settings"
           onClick={onClose}
-          className="flex h-10 items-center gap-2 rounded-md px-2 text-sm text-muted hover:bg-elevated hover:text-fg"
+          className="flex h-11 items-center gap-2 rounded-md px-2 text-sm text-muted hover:bg-elevated hover:text-fg"
         >
           <KeyRound className="size-4" /> Settings
         </Link>
@@ -72,7 +72,7 @@ function MenuBody({
           <button
             type="button"
             onClick={() => void signOut()}
-            className="flex h-10 w-full items-center rounded-md px-2 text-sm text-muted hover:bg-elevated hover:text-fg"
+            className="flex h-11 w-full items-center rounded-md px-2 text-sm text-muted hover:bg-elevated hover:text-fg"
           >
             Sign out
           </button>
@@ -80,7 +80,7 @@ function MenuBody({
           <Link
             to="/login"
             onClick={onClose}
-            className="flex h-10 items-center rounded-md px-2 text-sm text-muted hover:bg-elevated hover:text-fg"
+            className="flex h-11 items-center rounded-md px-2 text-sm text-muted hover:bg-elevated hover:text-fg"
           >
             Sign in
           </Link>

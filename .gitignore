@@ -11,15 +11,21 @@ dist/
 .node_modules.lock
 *.log
 /tmp/
-screenshots/
+# Anchored to the repo root.  A bare "screenshots/" also matched
+# docs/screenshots/, which made that documentation folder impossible to
+# track.  Playwright baselines live in tests/e2e/*-snapshots/ and its
+# failure output lands in test-results/, both ignored below.
+/screenshots/
 attachments/
 artifacts/
-native/android/.gradle/
-native/android/app/build/
-native/android/build/
-native/android/local.properties
-native/ios/**/xcuserdata/
-native/ios/**/*.xcuserstate
+test-results/
+playwright-report/
+apps/android/.gradle/
+apps/android/app/build/
+apps/android/build/
+apps/android/local.properties
+apps/ios/**/xcuserdata/
+apps/ios/**/*.xcuserstate
 public/spreaddex-android-debug.apk
 public/spreaddex-native-src.zip
 public/dealdex-android-debug.apk
@@ -31,7 +37,7 @@ public/DealDex-source.zip
 !.env.example
 .DS_Store
 # Apple private keys and signing credentials. Per secrets policy, authoritative
-# credentials live in Infisical and ~/.secrets/ is used for local handoff only.
+# credentials live in Infisical (read with fleet-secrets).
 # Exclude key and keystore files so accidental drops in the repo are never staged.
 *.p8
 *.keystore

@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export type DeskKeyId = "justtcg" | "pricecharting" | "pokemontcg";
 
 export type DeskKeys = Partial<Record<DeskKeyId, string>>;
@@ -13,7 +15,8 @@ export const DESK_KEY_META: {
   {
     id: "justtcg",
     label: "JustTCG",
-    blurb: "Blended listed + in-store Pokémon prices by printing. Free tier at justtcg.com.",
+    blurb:
+      "Listed and in-store Pokémon prices for each printing. A free key is available at justtcg.com.",
     href: "https://justtcg.com/dashboard",
     hrefLabel: "Get a JustTCG key",
     placeholder: "tcg_…",
@@ -21,15 +24,16 @@ export const DESK_KEY_META: {
   {
     id: "pricecharting",
     label: "PriceCharting",
-    blurb: "Official sold-comp API (raw, PSA 9, PSA 10). Token from your PriceCharting subscription.",
+    blurb:
+      "Sold prices for raw cards, PSA 9, and PSA 10. Use the token from your PriceCharting subscription.",
     href: "https://www.pricecharting.com/api-documentation",
-    hrefLabel: "PriceCharting API docs",
+    hrefLabel: "PriceCharting docs",
     placeholder: "40-character token",
   },
   {
     id: "pokemontcg",
     label: "Pokémon TCG API",
-    blurb: "pokemontcg.io / Scrydex. A key raises the rate limit and unlocks TCGPlayer + Cardmarket snapshots.",
+    blurb: "pokemontcg.io. A key lets DealDex load TCGPlayer and Cardmarket prices more often.",
     href: "https://dev.pokemontcg.io",
     hrefLabel: "Get a Pokémon TCG API key",
     placeholder: "X-Api-Key",
@@ -67,6 +71,33 @@ export function saveDeskKeys(keys: DeskKeys) {
 
 export function countDeskKeys(keys: DeskKeys) {
   return Object.values(keys).filter((v) => v && v.trim()).length;
+}
+
+/**
+ * Native key backup. All three fields are required strings, and unknown
+ * fields are rejected, so a partial or mistyped body cannot wipe the rest.
+ */
+export const NativeDeskKeysSchema = z
+  .object({
+    justtcg: z.string().trim().max(200),
+    pricecharting: z.string().trim().max(200),
+    pokemontcg: z.string().trim().max(200),
+  })
+  .strict();
+
+/** Drop unknown fields and blank values. Safe to run in the browser. */
+export function cleanDeskKeys(input: unknown): DeskKeys {
+  if (!input || typeof input !== "object") return {};
+  const raw = input as Record<string, unknown>;
+  const out: DeskKeys = {};
+  for (const id of ["justtcg", "pricecharting", "pokemontcg"] as const) {
+    const v = raw[id];
+    if (typeof v === "string") {
+      const trimmed = v.trim().slice(0, 200);
+      if (trimmed) out[id] = trimmed;
+    }
+  }
+  return out;
 }
 
 export function publicKeys(keys: DeskKeys): DeskKeys {

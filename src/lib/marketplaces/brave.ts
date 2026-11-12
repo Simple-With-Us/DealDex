@@ -1,4 +1,6 @@
 import type { LiveListing, ScanSource } from "./types";
+import { scanCapFor } from "./caps";
+import { parseEbaySellerFromText, parseMercariSellerFromText } from "./seller";
 import {
   BROWSER_HEADERS,
   SKIP_LISTING,
@@ -35,6 +37,7 @@ export function parseBraveListings(
   if (!html || html.length < 4000) return [];
   const out: LiveListing[] = [];
   const seen = new Set<string>();
+  const cap = scanCapFor(marketplace);
   const idRe = ID_RE[marketplace];
   const blocks = html.includes("search-snippet-title")
     ? html.split(/<div class="snippet[\s"]/)
@@ -75,8 +78,12 @@ export function parseBraveListings(
       shippingEstimated: ship.estimated,
       image,
       listedAt: parseListedAt(block),
+      seller:
+        marketplace === "ebay"
+          ? parseEbaySellerFromText(block)
+          : parseMercariSellerFromText(block),
     });
-    if (out.length >= 12) break;
+    if (out.length >= cap) break;
   }
   return out;
 }

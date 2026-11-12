@@ -24,17 +24,22 @@ export const Route = createFileRoute("/settings")({ component: SettingsPage });
 
 function SettingsPage() {
   const { user, isPending } = useCurrentUserState();
-  const [keys, setKeys] = useState<DeskKeys>({});
+  const [keys, setKeys] = useState<DeskKeys>(() => loadDeskKeys());
+  const userKey = user?.id ?? null;
+  const [prevUserKey, setPrevUserKey] = useState<string | null>(userKey);
+  if (prevUserKey !== userKey) {
+    setPrevUserKey(userKey);
+    setKeys(loadDeskKeys());
+  }
   const [show, setShow] = useState<Partial<Record<DeskKeyId, boolean>>>({});
   const [testing, setTesting] = useState<DeskKeyId | null>(null);
   const [saved, setSaved] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    const local = loadDeskKeys();
-    setKeys(local);
     if (isPending || !user) return;
     let live = true;
+    const local = loadDeskKeys();
     getAccountKeys()
       .then((remote) => {
         if (!live) return;
@@ -87,7 +92,7 @@ function SettingsPage() {
       const res = await testDeskKey({ data: { id, key } });
       toast(res.message);
     } catch {
-      toast("Could not reach that desk.");
+      toast("Could not reach that price source.");
     } finally {
       setTesting(null);
     }
@@ -97,8 +102,7 @@ function SettingsPage() {
 
   return (
     <Shell>
-      <p className="text-xs uppercase tracking-[0.16em] text-subtle">Settings</p>
-      <h1 className="mt-1 font-display text-4xl tracking-tight">Settings</h1>
+      <h1 className="font-display text-4xl tracking-tight">Settings</h1>
       <ConnectedAccountsSection />
       <section className="mt-8">
         <h2 className="font-display text-xl tracking-tight">Appearance</h2>
@@ -107,27 +111,32 @@ function SettingsPage() {
           <AppearanceToggle />
         </div>
       </section>
-      <h2 className="mt-10 font-display text-2xl tracking-tight">API desks</h2>
+      <h2 className="mt-10 font-display text-2xl tracking-tight">Price sources</h2>
       <Lead>
         {user
-          ? "Free desks run without a key.  Paid desks stay off until you paste one.  Keys are held in this browser, sent with each scan so the server can query those desks, and copied to your account (encrypted) when you save."
-          : "Free desks run without a key.  Paid desks stay off until you paste one.  Keys are held in this browser and sent with each scan so the server can query those desks — sign in only if you want them on another browser or phone."}
+          ? "Free prices run without a key.\u00A0 Paid sources stay off until you paste one.\u00A0 Keys stay in this browser, are sent with each website scan so those sources can be checked, and are copied to your account (encrypted) when you save."
+          : "Free prices run without a key.\u00A0 Paid sources stay off until you paste one.\u00A0 Keys stay in this browser and are sent with each website scan so those sources can be checked.\u00A0 Sign in only if you want them on another browser or phone."}
       </Lead>
       <p className="mt-3 text-sm text-muted">
-        {n} extra desk{n === 1 ? "" : "s"} enabled — {user ? "SIGNED IN" : "GUEST"}
+        {n === 0 ? "No paid price sources yet." : `${n} paid price source${n === 1 ? "" : "s"} on.`}
+        {"\u00A0 "}
+        {user ? "Signed in." : "Browsing as a guest."}
       </p>
       {!user && !isPending && (
         <p className="mt-2 text-sm text-muted">
           <Link to="/login" className="text-fg underline-offset-4 hover:underline">
             Sign in
           </Link>{" "}
-          to keep a backup in your account. The phone apps do not need this site to scan.
+          to keep a backup in your account.{"\u00A0 "}The phone apps do not need this site to scan.
         </p>
       )}
 
       <div className="mt-8 space-y-4">
         {DESK_KEY_META.map((desk) => (
-          <article key={desk.id} className="rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
+          <article
+            key={desk.id}
+            className="rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]"
+          >
             <div>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <h2 className="text-xl font-medium tracking-tight">{desk.label}</h2>
@@ -157,7 +166,7 @@ function SettingsPage() {
                   />
                   <button
                     type="button"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-muted hover:text-fg"
+                    className="absolute right-1 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted hover:text-fg"
                     onClick={() => setShow((s) => ({ ...s, [desk.id]: !s[desk.id] }))}
                     aria-label={show[desk.id] ? "Hide key" : "Show key"}
                   >
@@ -182,20 +191,20 @@ function SettingsPage() {
           {saved ? <Check /> : <KeyRound />}
           {saved ? "Saved" : user ? "Save to this device and account" : "Save on this device"}
         </Button>
-        <Link to="/" className="text-sm text-muted hover:text-fg">
-          Back to scan
+        <Link to="/" className="inline-flex h-11 items-center text-sm text-muted hover:text-fg">
+          Back to Scan
         </Link>
       </div>
 
       <aside className="mt-10 rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
         <h2 className="font-display text-xl tracking-tight">Website vs phone apps</h2>
         <p className="mt-2 text-sm text-muted">
-          Android and iPhone scan eBay, Mercari, TCGDex, and any paid desks you keyed — on the
-          device.  A scan never sends a key; the only time one leaves the phone is if you tap
-          Push Phone Keys to Account yourself.  This website is different: a
-          scan here runs on our server, so the keys saved in this browser are sent with each scan
-          request to query those desks.  Sign in on the phone only to copy keys from your
-          account; after that the keys live on the phone.
+          Android and iPhone scan eBay, Mercari, TCGDex, and any paid price sources you added, on
+          the phone.{"\u00A0 "}A scan never sends a key.{"\u00A0 "}The only time one leaves the
+          phone is if you tap Push Phone Keys to Account yourself.{"\u00A0 "}This website is
+          different: a scan here runs on our server, so the keys saved in this browser are sent with
+          each scan so those sources can be checked.{"\u00A0 "}Sign in on the phone only to copy
+          keys from your account.{"\u00A0 "}After that, the keys live on the phone.
         </p>
       </aside>
     </Shell>
@@ -230,7 +239,7 @@ function ConnectedAccountsSection() {
     if (params.get("ebay") === "connected") {
       toast("eBay connected. Auto-buy can now place Buy It Now orders.");
     } else if (params.get("ebay") === "error") {
-      toast("eBay connection failed. Try again or check the server logs.");
+      toast("eBay connection failed. Try again.");
     }
     if (params.has("ebay")) {
       const url = new URL(window.location.href);
@@ -258,7 +267,7 @@ function ConnectedAccountsSection() {
       if (typeof window !== "undefined") window.open(url, "_blank", "noopener,noreferrer");
       toast("Opening eBay in a new tab. Approve to connect your account.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not start eBay OAuth.");
+      setError(e instanceof Error ? e.message : "Could not start the eBay connection.");
     } finally {
       setBusy(false);
     }
@@ -284,7 +293,7 @@ function ConnectedAccountsSection() {
     try {
       const next = await updateSettings({ proxy_url_override: proxyOverride.trim() });
       setSettings(next);
-      toast(proxyOverride.trim() ? "Per-user proxy saved." : "Per-user proxy cleared.");
+      toast(proxyOverride.trim() ? "Proxy saved." : "Proxy cleared.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save the proxy URL.");
     } finally {
@@ -294,14 +303,16 @@ function ConnectedAccountsSection() {
 
   const ebayConnected = Boolean(settings?.ebay_connected);
   const ebayExpired = settings
-    ? settings.ebay_oauth_expiry != null && new Date(settings.ebay_oauth_expiry).getTime() < Date.now()
+    ? settings.ebay_oauth_expiry != null &&
+      new Date(settings.ebay_oauth_expiry).getTime() < Date.now()
     : false;
 
   return (
     <section className="mt-10">
       <h2 className="font-display text-2xl tracking-tight">Connected accounts</h2>
       <p className="mt-1 text-sm text-muted">
-        Sign in once with each provider — DealDex handles the rest.  No copy-pasting keys.
+        Sign in once with each provider.{"\u00A0 "}DealDex handles the rest.{"\u00A0 "}No
+        copy-pasting keys.
       </p>
       <div className="mt-4 space-y-4">
         <article className="rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
@@ -309,11 +320,14 @@ function ConnectedAccountsSection() {
             <div>
               <h3 className="text-xl font-medium tracking-tight">eBay</h3>
               <p className="mt-1 text-sm text-muted">
-                Required for auto-buy.  DealDex can place Buy It Now orders on your behalf when a
+                Required for auto-buy. DealDex can place Buy It Now orders on your behalf when a
                 saved filter matches within your caps.
               </p>
             </div>
-            <Button onClick={() => void (ebayConnected ? disconnectEbay() : connectEbay())} disabled={busy}>
+            <Button
+              onClick={() => void (ebayConnected ? disconnectEbay() : connectEbay())}
+              disabled={busy}
+            >
               {ebayConnected ? "Disconnect" : "Connect eBay"}
             </Button>
           </div>
@@ -341,10 +355,9 @@ function ConnectedAccountsSection() {
         <article className="rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="text-xl font-medium tracking-tight">Per-user proxy</h3>
+              <h3 className="text-xl font-medium tracking-tight">Proxy</h3>
               <p className="mt-1 text-sm text-muted">
-                Override the server's shared proxy pool for your own scan calls.  Optional; the
-                server default applies when this is blank.
+                Optional.{"\u00A0 "}Leave this blank to use DealDex’s connection for your scans.
               </p>
             </div>
             <Button variant="secondary" onClick={() => void saveProxyOverride()} disabled={busy}>
@@ -381,7 +394,7 @@ async function fetchSettings(): Promise<SettingsView | null> {
   if (typeof window === "undefined") return null;
   const res = await fetch("/api/settings", { credentials: "include" });
   if (res.status === 401) return null;
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new Error("Connected accounts did not load.");
   return (await res.json()) as SettingsView;
 }
 
@@ -392,7 +405,7 @@ async function updateSettings(patch: Partial<SettingsView>): Promise<SettingsVie
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new Error("Could not save that change.");
   return (await res.json()) as SettingsView;
 }
 
@@ -405,7 +418,7 @@ async function disconnectSettings(): Promise<void> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ proxy_url_override: "" }),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new Error("Could not disconnect eBay.");
   // The eBay disconnect path lands in a follow-up PR — until then the
   // button is a no-op aside from clearing the proxy override.
   void res;
@@ -419,6 +432,6 @@ async function startEbayOAuth(): Promise<{ url: string }> {
     method: "POST",
     credentials: "include",
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new Error("Could not start the eBay connection.");
   return (await res.json()) as { url: string };
 }

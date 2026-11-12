@@ -6,7 +6,7 @@ import test from "node:test";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-test("scheduled ship gate skips web-only commits and ships native/ios", () => {
+test("scheduled ship gate skips web-only commits and ships apps/ios", () => {
   const result = spawnSync(
     "bash",
     [join(ROOT, "scripts/test-ios-scheduled-ship-gate.sh")],

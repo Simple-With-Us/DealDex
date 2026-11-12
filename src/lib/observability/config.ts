@@ -4,10 +4,12 @@
  * Reuses the fleet / Datadog-Vercel names already in use on the existing
  * US5 org.  Do not invent new secret names.  Values never belong in git.
  *
- * Production (`VERCEL_ENV=production`) is fail-closed only for the server
- * API key (`DD_API_KEY` / `DATADOG_API_KEY`).  Missing RUM tokens stay
- * dark — they must not 503 the site or throw from root `beforeLoad`.
- * Preview, CI, and local continue without instrumentation so verify can run.
+ * Datadog is opt-in everywhere:  a deploy with no DD_* keys runs dark.
+ * Set DD_REQUIRE=1 to restore the fail-closed guard for the server API key
+ * (`DD_API_KEY` / `DATADOG_API_KEY`) - the fleet precedent is ContactLogo's
+ * DD_REQUIRE.  Missing RUM tokens stay dark - they must not 503 the site or
+ * throw from root `beforeLoad`.  Preview, CI, and local continue without
+ * instrumentation so verify can run.
  */
 
 export const DEFAULT_DD_SITE = "us5.datadoghq.com";
@@ -49,6 +51,11 @@ export function firstEnv(env: EnvMap, keys: readonly string[]): string | undefin
 
 export function isProductionObservability(env: EnvMap): boolean {
   return readEnv(env, "VERCEL_ENV") === "production";
+}
+
+/** Explicit opt-in to the fail-closed Datadog guard (DD_REQUIRE=1). */
+export function isDatadogRequired(env: EnvMap): boolean {
+  return readEnv(env, "DD_REQUIRE") === "1";
 }
 
 export function resolveSite(env: EnvMap): string {
@@ -118,7 +125,7 @@ export function failClosedMessage(missing: string[]): string {
 export function requireServerObservability(env: EnvMap): ServerObservabilityConfig | null {
   const apiKey = resolveApiKey(env);
   if (!apiKey) {
-    if (isProductionObservability(env)) {
+    if (isDatadogRequired(env)) {
       throw new Error(failClosedMessage(missingServerKeys(env)));
     }
     return null;
