@@ -139,7 +139,11 @@ function PhoneChrome({ platform, children }: { platform: Platform; children: Rea
       >
         <div className="flex h-8 items-center justify-between px-4 text-xs text-muted">
           <span>9:41</span>
-          {ios ? <span className="h-4 w-20 rounded-full bg-fg/80" /> : <span className="font-mono">DealDex</span>}
+          {ios ? (
+            <span className="h-4 w-20 rounded-full bg-fg/80" />
+          ) : (
+            <span className="font-mono">DealDex</span>
+          )}
           <span>{ios ? "5G" : "LTE"}</span>
         </div>
         {children}
@@ -195,7 +199,9 @@ function ScanPane({
         ))}
       </div>
       <div className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto">
-        {loading && <p className="py-8 text-center text-xs text-muted">Reading eBay and Mercari…</p>}
+        {loading && (
+          <p className="py-8 text-center text-xs text-muted">Reading eBay and Mercari…</p>
+        )}
         {!loading &&
           rows.slice(0, 8).map((row) => {
             const v = row.appraisal?.verdict;
@@ -263,7 +269,9 @@ function SettingsPane({ platform }: { platform: Platform }) {
       <p className="text-xs uppercase tracking-[0.16em] text-subtle">Settings</p>
       <h2 className="font-display text-xl tracking-tight">This Phone</h2>
       <p className="mt-1 text-xs text-muted">Sign in to back up keys. Keys stay on the device.</p>
-      <div className={cn("mt-3 space-y-2 bg-surface p-3 text-xs shadow-[var(--shadow-border)]", box)}>
+      <div
+        className={cn("mt-3 space-y-2 bg-surface p-3 text-xs shadow-[var(--shadow-border)]", box)}
+      >
         {/*
           Email and password sign-in is gone from both apps — the endpoint it
           used answers 410. A marketing mock that still shows it advertises a
@@ -279,8 +287,10 @@ function SettingsPane({ platform }: { platform: Platform }) {
           </span>
         ))}
       </div>
-      <div className={cn("mt-3 space-y-2 bg-surface p-3 text-xs shadow-[var(--shadow-border)]", box)}>
-        <p className="text-xs uppercase tracking-[0.12em] text-subtle">API Desks</p>
+      <div
+        className={cn("mt-3 space-y-2 bg-surface p-3 text-xs shadow-[var(--shadow-border)]", box)}
+      >
+        <p className="text-xs uppercase tracking-[0.12em] text-subtle">Price Sources</p>
         <p>
           JustTCG
           <span className="mt-1 block rounded-sm bg-elevated px-2 py-1.5 text-muted">tcg_…</span>

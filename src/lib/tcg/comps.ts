@@ -523,15 +523,15 @@ export function scoreBook(
       : null;
 
   let note: string;
-  if (sourcesUsed === 0) note = "No desk returned a usable price for this printing.";
+  if (sourcesUsed === 0) note = "No price source returned a usable price for this printing.";
   else if (sourcesUsed === 1)
-    note = `Only ${desks[0]!.label} priced this — treat any steal as unverified.`;
+    note = `Only ${desks[0]!.label} priced this. Treat a low price as unverified.`;
   else if (conflict && conflictDetail) {
-    note = `Desks differ: ${conflictDetail}. Common on vintage US vs EU. We score against the lower cluster, not the highest ask.`;
+    note = `Price sources differ: ${conflictDetail}. Common on vintage US vs EU. We score against the lower cluster, not the highest ask.`;
   } else if (confidence === "high") {
-    note = `${sourcesUsed} desks agree within ~${Math.round((relSpread ?? 0) * 100)}%.`;
+    note = `${sourcesUsed} price sources agree within about ${Math.round((relSpread ?? 0) * 100)}%.`;
   } else {
-    note = `${sourcesUsed} desks in the book. Spread across desks is ${relSpread != null ? `${Math.round(relSpread * 100)}%` : "wide"}.`;
+    note = `${sourcesUsed} price sources. The spread between them is ${relSpread != null ? `${Math.round(relSpread * 100)}%` : "wide"}.`;
   }
 
   return {

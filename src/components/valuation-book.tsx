@@ -42,7 +42,7 @@ export function ValuationBookPanel({ cardId }: { cardId: string }) {
     );
   }
   if (!book) {
-    return <p className="text-sm text-muted">Valuation book could not load.</p>;
+    return <p className="text-sm text-muted">The price guide did not load.</p>;
   }
 
   const tone = book.confidence === "high" ? "good" : book.confidence === "medium" ? "fair" : "bad";
@@ -51,20 +51,20 @@ export function ValuationBookPanel({ cardId }: { cardId: string }) {
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="font-display text-2xl tracking-tight">Valuation book</h2>
+          <h2 className="font-display text-2xl tracking-tight">Price guide</h2>
           <p className="text-sm text-muted">{book.note}</p>
         </div>
         <div className="text-right">
           <p className="font-mono text-2xl tabular-nums">{formatUsd(book.blend)}</p>
           <p className="text-xs text-subtle">
-            Middle of the book · conservative {formatUsd(book.conservative)}
+            Middle price · cautious {formatUsd(book.conservative)}
           </p>
           <p className="text-xs text-subtle">
-            Desk range {formatUsd(book.rangeLow)}–{formatUsd(book.rangeHigh)}
+            Price range {formatUsd(book.rangeLow)}–{formatUsd(book.rangeHigh)}
           </p>
           <div className="mt-1 flex justify-end gap-2">
             <Badge variant={tone}>{book.confidence} confidence</Badge>
-            {book.conflict && <Badge variant="bad">Desks Differ</Badge>}
+            {book.conflict && <Badge variant="bad">Sources Disagree</Badge>}
           </div>
           {book.conflictDetail && (
             <p className="mt-1 max-w-xs text-xs text-deal-bad">{book.conflictDetail}</p>
@@ -73,12 +73,7 @@ export function ValuationBookPanel({ cardId }: { cardId: string }) {
       </div>
 
       <div className="mb-6 rounded-lg bg-surface p-4 shadow-[var(--shadow-border)]">
-        <PriceRangeBar
-          ask={null}
-          book={book.blend}
-          low={book.rangeLow}
-          high={book.rangeHigh}
-        />
+        <PriceRangeBar ask={null} book={book.blend} low={book.rangeLow} high={book.rangeHigh} />
       </div>
 
       {(["sold", "listed", "retail", "model"] as const).map((family) => {
@@ -89,7 +84,10 @@ export function ValuationBookPanel({ cardId }: { cardId: string }) {
             <p className="mb-2 text-xs uppercase tracking-[0.14em] text-subtle">{FAMILY[family]}</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {rows.map((q) => (
-                <div key={q.source} className="rounded-lg bg-surface p-3 shadow-[var(--shadow-border)]">
+                <div
+                  key={q.source}
+                  className="rounded-lg bg-surface p-3 shadow-[var(--shadow-border)]"
+                >
                   <div className="flex items-baseline justify-between gap-2">
                     <p className="text-sm font-medium">{q.label}</p>
                     <p className="font-mono text-sm tabular-nums">{formatUsd(q.usd)}</p>
@@ -113,25 +111,25 @@ export function ValuationBookPanel({ cardId }: { cardId: string }) {
       })}
 
       <aside className="mt-6 rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
-        <h3 className="font-display text-xl tracking-tight">How the desk prices</h3>
+        <h3 className="font-display text-xl tracking-tight">How prices are compared</h3>
         <ul className="mt-3 space-y-2 text-sm text-muted">
           <li>
-            <span className="text-fg">Shop buyer.</span> Completed eBay sales beat listed asks.
-            TCGPlayer market can sit high for weeks. Steal requires the conservative blend, not
-            one snapshot.
+            <span className="text-fg">Sold listings first.</span> Completed eBay sales count more
+            than current asks.{"\u00A0 "}TCGPlayer can sit high for weeks.{"\u00A0 "}A Steal needs
+            the cautious price, not one snapshot.
           </li>
           <li>
-            <span className="text-fg">EU desk.</span> Cardmarket 7-day is the check on US prints.
-            If TCGPlayer is 35%+ above Cardmarket, we use the lower number.
+            <span className="text-fg">Europe.</span> Cardmarket’s 7-day price checks US prints.
+            {"\u00A0 "}If TCGPlayer is 35% or more above Cardmarket, we use the lower number.
           </li>
           <li>
-            <span className="text-fg">Sold-comp desk.</span> PriceCharting and IQR-trimmed eBay
-            solds. Outliers (one $9,999 BIN) get dropped before the median.
+            <span className="text-fg">Sold prices.</span> PriceCharting and trimmed eBay solds.
+            {"\u00A0 "}One extreme listing is dropped before the middle is taken.
           </li>
           <li>
-            <span className="text-fg">Quant.</span> Weighted blend: solds heaviest, then TCGPlayer
-            market, Cardmarket 7-day, PriceCharting, TCGCSV dump. High confidence needs four desks
-            inside ~22%.
+            <span className="text-fg">The blend.</span> Sold prices weigh the most, then TCGPlayer,
+            Cardmarket’s 7-day price, and PriceCharting.{"\u00A0 "}High confidence needs several
+            sources within about 22%.
           </li>
         </ul>
       </aside>

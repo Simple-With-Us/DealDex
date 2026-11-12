@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { DeskKeys } from "@/lib/settings/keys";
-import { FEATURED_CARD_IDS, fetchCard, fetchCards } from "@/lib/tcg/tcgdex";
+import { FEATURED_CARD_IDS, fetchCard, fetchCardStrict, fetchCards } from "@/lib/tcg/tcgdex";
 import { matchListing } from "@/lib/tcg/match";
 import { parseListingBlob } from "@/lib/tcg/parse-listing";
 import { pingDeskKey } from "@/lib/tcg/paid-sources";
@@ -28,7 +28,12 @@ export const getCard = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => ({ id: String(input.id ?? "") }))
   .handler(async ({ data }) => {
     if (!data.id) return null;
-    return fetchCard(data.id);
+    try {
+      return await fetchCardStrict(data.id);
+    } catch (err) {
+      if (err instanceof Error && /TCGDex 40[04]\b/.test(err.message)) return null;
+      throw err;
+    }
   });
 
 export const getMarketBoard = createServerFn({ method: "GET" }).handler(async () => {
@@ -54,12 +59,14 @@ export const getValuationBook = createServerFn({ method: "POST" })
 export const testDeskKey = createServerFn({ method: "POST" })
   .validator((input: { id: string; key: string }) => ({
     id: String(input.id ?? ""),
-    key: String(input.key ?? "").trim().slice(0, 200),
+    key: String(input.key ?? "")
+      .trim()
+      .slice(0, 200),
   }))
   .handler(async ({ data }) => {
     if (!data.key) return { ok: false, message: "Paste a key first." };
     if (data.id !== "justtcg" && data.id !== "pricecharting" && data.id !== "pokemontcg") {
-      return { ok: false, message: "Unknown desk." };
+      return { ok: false, message: "Unknown price source." };
     }
     return pingDeskKey(data.id, data.key);
   });

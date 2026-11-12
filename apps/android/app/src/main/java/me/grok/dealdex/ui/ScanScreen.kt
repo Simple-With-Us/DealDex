@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -100,15 +101,15 @@ fun ScanScreen(
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterMenu("Verdict", state.verdictFilter, listOf("any" to "Any", "steal" to "Steal", "good" to "Good", "fair" to "Fair", "high" to "High"), vm::setVerdictFilter, Modifier.weight(1f))
-            FilterMenu("Price", state.priceCap, listOf("any" to "Any $", "10" to "≤ $10", "25" to "≤ $25", "50" to "≤ $50", "100" to "≤ $100"), vm::setPriceCap, Modifier.weight(1f))
-            FilterMenu("Cond.", state.condition, listOf("any" to "Any", "raw" to "Raw", "graded" to "Graded"), vm::setCondition, Modifier.weight(1f))
+            FilterMenu("Price", state.priceCap, listOf("any" to "Any", "10" to "Under $10", "25" to "Under $25", "50" to "Under $50", "100" to "Under $100"), vm::setPriceCap, Modifier.weight(1f))
+            FilterMenu("Condition", state.condition, listOf("any" to "Any", "raw" to "Raw", "graded" to "Graded"), vm::setCondition, Modifier.weight(1f))
         }
         Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterMenu("Spread", state.spreadMin, listOf("any" to "Any %", "10" to "≥ 10%", "20" to "≥ 20%", "30" to "≥ 30%"), vm::setSpreadMin, Modifier.weight(1f))
+            FilterMenu("Discount", state.spreadMin, listOf("any" to "Any", "10" to "10%+ off", "20" to "20%+ off", "30" to "30%+ off"), vm::setSpreadMin, Modifier.weight(1f))
             FilterMenu("Finish", state.finish, listOf("any" to "Any", "holo" to "Holo", "reverse" to "Reverse", "full art" to "Full art"), vm::setFinish, Modifier.weight(1f))
             Row(
-                Modifier.weight(1f),
+                Modifier.weight(1f).heightIn(min = 48.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Checkbox(checked = state.hideProxies, onCheckedChange = vm::setHideProxies)
@@ -127,7 +128,11 @@ fun ScanScreen(
                 contentColor = Color(0xFFF6F3EA),
             ),
         ) {
-            Text("SCAN", fontSize = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+            Text(
+                if (state.loading) "Scanning…" else "Scan Market",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
         Row(
             Modifier
@@ -272,7 +277,7 @@ private fun ListingCard(
         Column(Modifier.padding(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 MarketplaceMark(row.listing.marketplace)
-                if (a != null) Text(a.verdict.uppercase(), color = color, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                if (a != null) Text(verdictLabel(a.verdict), color = color, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = {
                     val card = row.card
@@ -291,10 +296,10 @@ private fun ListingCard(
                             grade = row.grade,
                         )
                         onSave(item)
-                        android.widget.Toast.makeText(ctx, "Saved to Ledger", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(ctx, "Saved", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }) {
-                    Icon(androidx.compose.material.icons.Icons.Default.BookmarkBorder, contentDescription = "Save", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(androidx.compose.material.icons.Icons.Default.BookmarkBorder, contentDescription = "Save listing", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Text(row.listing.title, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
@@ -303,13 +308,13 @@ private fun ListingCard(
             }
             Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Mono("${row.listing.price?.let { "$%.2f".format(it) } ?: "—"} ask")
-                Mono("${a?.adjusted?.let { "$%.2f".format(it) } ?: "—"} TCGP")
+                Mono("${a?.adjusted?.let { "$%.2f".format(it) } ?: "—"} market")
                 if (a?.spread != null) Text("%+.1f%%".format(a.spread * 100), color = color, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
             }
             Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (row.card != null) {
                     TextButton(onClick = { onOpenDossier(row.card) }) {
-                        Text("Card Dossier")
+                        Text("Card Details")
                     }
                 }
                 TextButton(onClick = {
@@ -318,6 +323,15 @@ private fun ListingCard(
             }
         }
     }
+}
+
+private fun verdictLabel(verdict: String): String = when (verdict) {
+    "steal" -> "Steal"
+    "good" -> "Good Deal"
+    "fair" -> "Fair"
+    "high" -> "High Ask"
+    "avoid" -> "Overpriced"
+    else -> verdict.replaceFirstChar { it.uppercase() }
 }
 
 @Composable

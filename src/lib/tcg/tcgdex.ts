@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { FinishPrices, TcgCard } from "./types";
 import { finishLabel } from "./appraise";
 
@@ -159,10 +160,114 @@ export async function searchCardIndex(
   }
 }
 
+/** A price is a finite number. A plain decimal string is converted. Anything else is null. */
+const priceField = z
+  .union([z.number(), z.string(), z.null()])
+  .optional()
+  .transform((value): number | null | undefined => {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+    if (typeof value === "number") return Number.isFinite(value) ? value : null;
+    const trimmed = value.trim();
+    if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(trimmed)) return null;
+    const n = Number(trimmed);
+    return Number.isFinite(n) ? n : null;
+  });
+
+const TcgdexFinishPricesSchema = z.looseObject({
+  productId: priceField,
+  lowPrice: priceField,
+  midPrice: priceField,
+  highPrice: priceField,
+  marketPrice: priceField,
+  directLowPrice: priceField,
+});
+
+const TcgdexCardmarketSchema = z.looseObject({
+  trend: priceField,
+  avg: priceField,
+  unit: z.string().nullish(),
+  low: priceField,
+  avg1: priceField,
+  avg7: priceField,
+  avg30: priceField,
+  "trend-holo": priceField,
+});
+
+/** Runtime shape for a TCGdex card. Extra fields are kept. A bad body throws. */
+const TcgdexCardSchema = z.looseObject({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  localId: z.union([z.string(), z.number()]).nullish(),
+  rarity: z.string().nullish(),
+  illustrator: z.string().nullish(),
+  image: z.string().nullish(),
+  category: z.string().nullish(),
+  hp: priceField,
+  types: z.array(z.string()).nullish(),
+  stage: z.string().nullish(),
+  updated: z.string().nullish(),
+  set: z
+    .looseObject({
+      id: z.string().nullish(),
+      name: z.string().nullish(),
+      logo: z.string().nullish(),
+    })
+    .nullish(),
+  pricing: z
+    .looseObject({
+      cardmarket: TcgdexCardmarketSchema.nullish(),
+      tcgplayer: z
+        .record(z.string(), z.union([TcgdexFinishPricesSchema, z.string(), z.null()]))
+        .nullish(),
+    })
+    .nullish(),
+});
+
+export function parseTcgdexCard(raw: unknown): TcgdexCard {
+  const parsed = TcgdexCardSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new Error("TCGDex card payload did not match");
+  }
+  const card = parsed.data;
+  return {
+    id: card.id,
+    name: card.name,
+    localId: String(card.localId ?? ""),
+    rarity: card.rarity ?? undefined,
+    illustrator: card.illustrator ?? undefined,
+    image: card.image ?? undefined,
+    category: card.category ?? undefined,
+    hp: typeof card.hp === "number" ? card.hp : undefined,
+    types: card.types ?? undefined,
+    stage: card.stage ?? undefined,
+    updated: card.updated ?? undefined,
+    set: card.set
+      ? {
+          id: card.set.id ?? undefined,
+          name: card.set.name ?? undefined,
+          logo: card.set.logo ?? undefined,
+        }
+      : undefined,
+    pricing: card.pricing
+      ? {
+          cardmarket: card.pricing.cardmarket
+            ? { ...card.pricing.cardmarket, unit: card.pricing.cardmarket.unit ?? undefined }
+            : undefined,
+          tcgplayer: card.pricing.tcgplayer ?? undefined,
+        }
+      : undefined,
+  };
+}
+
+export async function fetchCardStrict(id: string): Promise<TcgCard> {
+  const raw = await tcgFetch<unknown>(`/cards/${encodeURIComponent(id)}`);
+  return normalizeCard(parseTcgdexCard(raw));
+}
+
 export async function fetchCard(id: string): Promise<TcgCard | null> {
   try {
-    const raw = await tcgFetch<TcgdexCard>(`/cards/${encodeURIComponent(id)}`);
-    return normalizeCard(raw);
+    return await fetchCardStrict(id);
   } catch {
     return null;
   }

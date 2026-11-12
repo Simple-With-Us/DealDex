@@ -54,9 +54,9 @@ struct SettingsView: View {
                     SecureField("Pokémon TCG API Key", text: $desk.pokemonTcg)
                     Button("Save on This iPhone") { desk.saveKeys() }
                 } header: {
-                    Text("API Desks")
+                    Text("Price Sources")
                 } footer: {
-                    Text("Keys stay on this phone.  DealDex talks to eBay, Mercari, TCGDex, and these desks directly.")
+                    Text("Keys stay on this phone.\u{00A0} DealDex talks to eBay, Mercari, TCGDex, and these price sources directly.")
                 }
 
                 if let note = desk.accountNote {

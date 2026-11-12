@@ -160,9 +160,9 @@ fun SettingsScreen(vm: DeskViewModel, state: DeskState) {
         }
 
         Spacer(Modifier.height(24.dp))
-        Text("API Desks", style = MaterialTheme.typography.titleMedium)
+        Text("Price Sources", style = MaterialTheme.typography.titleMedium)
         Text(
-            "Paid desks stay off until you paste a key. DealDex talks to them from this phone.",
+            "Paid price sources stay off until you paste a key. DealDex talks to them from this phone.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
