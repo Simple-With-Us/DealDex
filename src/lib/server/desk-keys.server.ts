@@ -6,7 +6,9 @@ import { decryptSecret, encryptSecret } from "./secret-box";
 /**
  * Fetch and decrypt saved price-source keys for a user.
  * Shared by the settings server function and the native keys route.
- * This file is server-only: importing it from the browser pulls in node:crypto.
+ * This file is server-only. The `.server.ts` name matches TanStack Start's
+ * import-protection rule for files named *.server.*, so a client import is
+ * rejected at build time. Importing it from the browser would pull in node:crypto.
  */
 export async function fetchUserDeskKeys(userId: string): Promise<DeskKeys> {
   const sql = await getSql();

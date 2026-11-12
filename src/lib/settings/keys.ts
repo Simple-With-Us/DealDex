@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export type DeskKeyId = "justtcg" | "pricecharting" | "pokemontcg";
 
 export type DeskKeys = Partial<Record<DeskKeyId, string>>;
@@ -70,6 +72,18 @@ export function saveDeskKeys(keys: DeskKeys) {
 export function countDeskKeys(keys: DeskKeys) {
   return Object.values(keys).filter((v) => v && v.trim()).length;
 }
+
+/**
+ * Native key backup. All three fields are required strings, and unknown
+ * fields are rejected, so a partial or mistyped body cannot wipe the rest.
+ */
+export const NativeDeskKeysSchema = z
+  .object({
+    justtcg: z.string().trim().max(200),
+    pricecharting: z.string().trim().max(200),
+    pokemontcg: z.string().trim().max(200),
+  })
+  .strict();
 
 /** Drop unknown fields and blank values. Safe to run in the browser. */
 export function cleanDeskKeys(input: unknown): DeskKeys {

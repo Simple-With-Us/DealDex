@@ -8,7 +8,7 @@
  * var (rotated via Infisical).  The token is never logged.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { runScanRunnerTick } from "@/lib/server/scan-runner";
+import { runScanRunnerTick } from "@/lib/server/scan-runner.server";
 import { getSetting, initAppSettings } from "@/lib/server/app-settings";
 
 function checkRunnerToken(req: Request): boolean {

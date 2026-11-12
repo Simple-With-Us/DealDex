@@ -12,12 +12,17 @@
  * dry-run off requires an explicit user confirmation AND an eBay
  * order-write scope to be granted to the Browse app.
  *
+ * The `.server.ts` name is the client boundary TanStack Start already
+ * enforces for files named *.server.*. A browser import of this module is
+ * rejected at build time.
+ *
  * Cadence: the .github/workflows/scan-runner.yml workflow hits the
  * endpoint once per minute; the endpoint itself decides which rules to
  * run this tick based on the rule's `coolHours` and the last scan_run
  * row.
  */
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { scanAndScore } from "@/lib/marketplaces/scan";
 import { type AlertRule, type AutoBuyConfig } from "@/lib/alerts/types";
@@ -57,6 +62,27 @@ export type RunnerInput = {
   /** Audit label stored on `alert_runs.source` (cron workflow vs manual dispatch). */
   source?: string;
 };
+
+const RunnerInputSchema = z
+  .object({
+    forceScan: z.boolean().optional(),
+    cursorMs: z.number().int().nonnegative().finite().optional(),
+    source: z.string().trim().min(1).optional(),
+  })
+  .strict();
+
+/** Runtime check for the server function. Invalid bodies throw HTTP 400. */
+export function parseRunnerInput(input: unknown): RunnerInput {
+  const parsed = RunnerInputSchema.safeParse(input === undefined ? {} : input);
+  if (!parsed.success) {
+    throw new Response("Invalid payload", { status: 400 });
+  }
+  return {
+    forceScan: parsed.data.forceScan ?? false,
+    cursorMs: parsed.data.cursorMs ?? 0,
+    source: parsed.data.source ?? "cron",
+  };
+}
 
 function normalizeRunnerInput(input: RunnerInput = {}): RunnerInput {
   return {
@@ -319,5 +345,5 @@ export async function runScanRunnerTick(data: RunnerInput = {}): Promise<ScanRun
 
 export const runScanRunner = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: RunnerInput = {}) => normalizeRunnerInput(input))
+  .validator((input: unknown) => parseRunnerInput(input))
   .handler(async ({ data }): Promise<ScanRunnerOutput> => runScanRunnerTick(data));
