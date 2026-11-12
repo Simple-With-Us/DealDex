@@ -34,7 +34,7 @@ Update the official domain to `DealDex.net`, configure GitHub repo metadata, swi
 
 ---
 
-## 5. Fleet Protocol Standards (`AGENT-SYNC.md`)
+## 5. Fleet Protocol Standards (`AG***-S**C.md`)
 - Codified standard Apple Notes formatting rules:
   - 1.5x line spacing (`line-height: 1.5;`) within paragraphs and list items.
   - 2.0x section spacing breaks between major topics.

@@ -36,7 +36,7 @@
 ## Next action
 
 - PR #341 to merge when CI is green (auto-merge armed).
-- Then: rollout doc post-Slack (`#agent-sync` `[MM]` post per merge).
+- Then: rollout doc post-Slack (`#ag***-s**c` `[MM]` post per merge).
 - Then: book the owner-only knobs on Infisical:
   - `EBAY_APP_ID` + `EBAY_CERT_ID` (production, scope: `buy.browse.readonly` + `buy.item.feed`)
   - `SCAN_RUNNER_URL` (deployed origin) + `SCAN_RUNNER_TOKEN` (32+ char)

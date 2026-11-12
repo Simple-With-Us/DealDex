@@ -65,7 +65,7 @@ Owner direction 2026-09-20: "do a comprehensive top to bottom review/inspection 
 
 ## Owners / boards
 
-- @MM (MiniMax), [MM] in Slack #agent-sync.
+- @MM (MiniMax), [MM] in Slack #ag***-s**c.
 - Boards claimed (In Progress): `b4146f75`, `6c800b9c`, `d362b287`, `f808a67c`, `476c1efa`, `e88a8c69`, `3cf2abcd`, `111ab67c`.
 - Issues: #335, #336, #337, #338.
 - PRs: #339 (merged), #340 (merged), #341 (open at writing, CI green).

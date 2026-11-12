@@ -33,7 +33,7 @@ Cache keys are immutable on GitHub Actions — a save can never overwrite an exi
 - `python3 -c "import yaml; yaml.safe_load(...)"` — YAML parses.
 - `actionlint .github/workflows/ios-ship.yml` — exit 0, no findings.
 - Did not run the workflow live (would ship a real build); the next scheduled tick after merge is the real-world check.  If `native/ios/` hasn't changed and less than an hour has passed since the last ship, the gate log should now say `ship-gate: skip` instead of `no prior ship`.
-- Seer Code Review on #291: P2 (cache keys must include `run_attempt`) is fixed here.  P1 (two-space sentence separators) was a separate findings comment about this doc itself — also fixed by this rewrite, per `AGENTS.md` L180-L185 and `/Users/jay/apps/AGENT-SYNC.md` § Two spaces.  Note that the canonical chat-rendering form is `&nbsp; ` (HTML entity + space), NOT two literal ASCII spaces — GitHub-flavored markdown collapses two literal spaces.  In a markdown file like this one, the literal two-space form renders correctly because it's read as source.
+- Seer Code Review on #291: P2 (cache keys must include `run_attempt`) is fixed here.  P1 (two-space sentence separators) was a separate findings comment about this doc itself — also fixed by this rewrite, per `AGENTS.md` L180-L185 and `/Users/jay/apps/AG***-S**C.md` § Two spaces.  Note that the canonical chat-rendering form is `&nbsp; ` (HTML entity + space), NOT two literal ASCII spaces — GitHub-flavored markdown collapses two literal spaces.  In a markdown file like this one, the literal two-space form renders correctly because it's read as source.
 
 ## Not touched
 

@@ -413,7 +413,7 @@ Production on `dealdex.net` collects FCP/LCP/INP/CLS.  Branch
 - **Icons & Brand**: Updated master brand assets from owner uploads.  iOS AppIcon uses the subtle tiled silver grid DD; website favicon, Android launcher mipmaps/adaptive icons, and PWA icon use the isolated transparent DD; 3D DealDex title wordmark updated across web, iOS, and Android.
 - **iOS Xcode & Bundle**: Switched bundle identifier to `net.dealdex` (`PRODUCT_BUNDLE_IDENTIFIER`, `bundleId`, `CFBundleIdentifier`).  Deployment target set to **iOS 17.0** (Xcode document format 26.3 / objectVersion 100).  Display name `DealDex`, team `CC8UTF7ATG`, category `public.app-category.shopping`.
 - **Native Builds**: iOS Simulator build (**BUILD SUCCEEDED**), Android debug APK built (**BUILD SUCCESSFUL**) and copied to `public/DealDex.apk`.
-- **Fleet Protocols**: Updated `AGENT-SYNC.md` with typography, line spacing (1.5x body, 2.0x section breaks), and table/diagram aesthetics standards for Apple Notes.
+- **Fleet Protocols**: Updated `AG***-S**C.md` with typography, line spacing (1.5x body, 2.0x section breaks), and table/diagram aesthetics standards for Apple Notes.
 
 ## 2026-08-22 GROK — Public host dealdex.net
 
