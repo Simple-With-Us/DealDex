@@ -33,8 +33,8 @@ test("reuses existing Datadog env names and the US5 site", () => {
   assert.equal(firstEnv({ VITE_DD_APPLICATION_ID: "app" }, ["DD_APPLICATION_ID", "VITE_DD_APPLICATION_ID"]), "app");
 });
 
-test("production is fail-closed when the server API key is missing", () => {
-  const env = { VERCEL_ENV: "production" };
+test("explicit Datadog requirement is fail-closed when the server API key is missing", () => {
+  const env = { VERCEL_ENV: "production", DD_REQUIRE: "1" };
   assert.equal(isProductionObservability(env), true);
   assert.deepEqual(missingServerKeys(env), ["DD_API_KEY"]);
   assert.deepEqual(missingProductionKeys(env), ["DD_API_KEY"]);
@@ -118,7 +118,7 @@ test("no invented secrets and no iOS Datadog SDK", () => {
   assert.match(config, /DD_API_KEY/);
   assert.match(config, /DATADOG_API_KEY/);
   assert.doesNotMatch(config, /pubb[a-f0-9]{20,}/i);
-  const ios = read("native/ios/project.yml");
+  const ios = read("apps/ios/project.yml");
   assert.doesNotMatch(ios, /Datadog/);
   const middleware = read("server/middleware/datadog.ts");
   assert.match(middleware, /throw err/);

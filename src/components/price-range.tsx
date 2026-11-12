@@ -51,21 +51,21 @@ export function PriceRangeBar({ ask, book, low, high, compact }: Props) {
     <div className={cn("min-w-0", compact ? "mt-2 space-y-1.5" : "space-y-2")}>
       {!compact && (
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="text-sm text-fg">{hasAsk ? vs.headline : "What the desks print"}</p>
+          <p className="text-sm text-fg">{hasAsk ? vs.headline : "Published prices"}</p>
           <p className="text-xs text-subtle">
-            {hasAsk ? vs.detail : `${formatUsd(low)}–${formatUsd(high)} across independent desks.`}
+            {hasAsk ? vs.detail : `${formatUsd(low)}–${formatUsd(high)} across price sources.`}
           </p>
         </div>
       )}
       <div className="flex items-baseline justify-between gap-2 text-xs tabular-nums text-subtle">
         <span>{formatUsd(low ?? book)}</span>
-        <span className="truncate text-center text-muted">Desk Range</span>
+        <span className="truncate text-center text-muted">Price range</span>
         <span>{formatUsd(high ?? book)}</span>
       </div>
       <div
         className="relative h-3 rounded-full bg-elevated"
         role="img"
-        aria-label={`Ask ${formatUsd(ask)} against desks ${formatUsd(low)} to ${formatUsd(high)}`}
+        aria-label={`Ask ${formatUsd(ask)} against the price range ${formatUsd(low)} to ${formatUsd(high)}`}
       >
         <div
           className="absolute inset-y-0 rounded-full bg-accent/30"
@@ -90,7 +90,7 @@ export function PriceRangeBar({ ask, book, low, high, compact }: Props) {
             style={{ left: `${askLeft}%` }}
             title={
               askOutside
-                ? `Ask ${formatUsd(ask)} — outside the desk range`
+                ? `Ask ${formatUsd(ask)} — outside the price range`
                 : `Ask ${formatUsd(ask)}`
             }
           />
@@ -122,7 +122,7 @@ export function PriceRangeBar({ ask, book, low, high, compact }: Props) {
       ) : !compact ? (
         <p className="text-xs text-subtle">
           {hasAsk
-            ? `Dot is this listing’s all-in ask${askOutside ? ", pinned at the edge because it falls outside the desk range" : ""}. Shaded band is what the desks currently print. Tick is the middle of the book.`
+            ? `Dot is this listing’s all-in ask${askOutside ? ", pinned at the edge because it falls outside the price range" : ""}. Shaded band is the published price range. Tick is the middle price.`
             : "Shaded band is the spread across TCGPlayer, Cardmarket, sold comps, and any keys you added. Tick is the middle."}
         </p>
       ) : null}

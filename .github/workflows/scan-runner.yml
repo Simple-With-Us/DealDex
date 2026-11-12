@@ -46,6 +46,6 @@ jobs:
             -X POST "${RUNNER_URL}/api/alerts/run" \
             -H "Authorization: Bearer ${RUNNER_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d '{"data":{}}' \
+            -d '{"source":"cron","data":{}}' \
             -w "\nscan-runner status: %{http_code}\n"
         continue-on-error: true

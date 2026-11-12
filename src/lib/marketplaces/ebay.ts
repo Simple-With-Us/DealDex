@@ -10,15 +10,18 @@ import {
   titleMatchesQuery,
 } from "./html";
 import { fetchJina, parseJinaEbay } from "./jina";
+import { defaultServerEnv } from "@/lib/server/app-settings";
 import type { LiveListing } from "./types";
+import { parseEbaySellerFromText } from "./seller";
 import {
   filterBrowseByQuery,
   searchEbayBrowse,
   searchEbayBrowseEnabled,
 } from "./ebay-browse";
+import { EBAY_SCAN_CAP } from "./caps";
 import { fetchWithPool } from "@/lib/server/proxy-pool";
 
-export const EBAY_SCAN_CAP = 50;
+export { EBAY_SCAN_CAP };
 
 function pokemonQuery(query: string) {
   const q = query.trim();
@@ -32,8 +35,8 @@ export async function searchEbay(
 ): Promise<LiveListing[]> {
   // Per-user proxy override takes precedence over the server default.
   const env = options.userProxyUrl
-    ? { ...process.env, PROXY_URL_LIST: options.userProxyUrl }
-    : process.env;
+    ? { ...defaultServerEnv(), PROXY_URL_LIST: options.userProxyUrl }
+    : defaultServerEnv();
   // Try the official Browse API first when both keys are configured.  This
   // avoids the Vercel datacenter IP getting 403'd on the raw HTML scrape,
   // and gives paging up to ~50 listings per call across multiple pages.
@@ -107,6 +110,7 @@ export function parseEbayHtml(html: string, query = ""): LiveListing[] {
       shippingEstimated: ship.estimated,
       image: img,
       listedAt: parseListedAt(chunk),
+      seller: parseEbaySellerFromText(chunk),
     });
     if (out.length >= EBAY_SCAN_CAP) break;
   }

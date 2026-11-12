@@ -10,14 +10,26 @@ import {
 
 export type ThemePref = "light" | "dark" | "system";
 
-export const THEME_KEY = "spreaddex:theme";
+export const THEME_KEY = "dealdex:theme";
+const LEGACY_THEME_KEYS = ["spreaddex:theme"];
 
-export const THEME_BOOT = `(function(){try{var p=localStorage.getItem("${THEME_KEY}")||"light";var d=p==="dark"||(p==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);document.documentElement.style.colorScheme=d?"dark":"light";}catch(e){}})();`;
+export const THEME_BOOT = `(function(){try{var p=localStorage.getItem("${THEME_KEY}");if(!p){for(var i=0;i<${LEGACY_THEME_KEYS.length};i++){var v=localStorage.getItem(${JSON.stringify(LEGACY_THEME_KEYS)}[i]);if(v){p=v;localStorage.setItem("${THEME_KEY}",v);localStorage.removeItem(${JSON.stringify(LEGACY_THEME_KEYS)}[i]);break;}}}if(!p)p="light";var d=p==="dark"||(p==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);document.documentElement.style.colorScheme=d?"dark":"light";}catch(e){}})();`;
 
 export function readThemePref(): ThemePref {
   if (typeof window === "undefined") return "light";
   try {
-    const v = window.localStorage.getItem(THEME_KEY);
+    let v = window.localStorage.getItem(THEME_KEY);
+    if (!v) {
+      for (const legacy of LEGACY_THEME_KEYS) {
+        const raw = window.localStorage.getItem(legacy);
+        if (raw) {
+          v = raw;
+          window.localStorage.setItem(THEME_KEY, raw);
+          window.localStorage.removeItem(legacy);
+          break;
+        }
+      }
+    }
     if (v === "dark" || v === "light" || v === "system") return v;
   } catch {
     /* ignore */
@@ -54,14 +66,13 @@ const Ctx = createContext<ThemeCtx>({
 });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [pref, setPrefState] = useState<ThemePref>("light");
-  const [resolved, setResolved] = useState<"light" | "dark">("light");
+  const [pref, setPrefState] = useState<ThemePref>(() => readThemePref());
+  const [resolved, setResolved] = useState<"light" | "dark">(() =>
+    resolvedTheme(readThemePref()),
+  );
 
   useEffect(() => {
-    const initial = readThemePref();
-    setPrefState(initial);
-    setResolved(resolvedTheme(initial));
-    applyTheme(initial);
+    applyTheme(readThemePref());
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => {
       const current = readThemePref();

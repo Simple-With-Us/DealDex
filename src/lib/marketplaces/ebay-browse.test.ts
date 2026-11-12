@@ -125,6 +125,28 @@ describe("parseEbayBrowseItem", () => {
     assert.equal(row!.listedAt, "2026-09-19T12:00:00Z");
   });
 
+  test("parses seller information and maps reputation", () => {
+    const row = parseEbayBrowseItem({
+      itemId: "v1|456|0",
+      title: "Pikachu Illustrator Holo",
+      price: { value: "1000.00", currency: "USD" },
+      itemWebUrl: "https://www.ebay.com/itm/456",
+      seller: {
+        username: "pro_tcg",
+        feedbackPercentage: "99.8",
+        feedbackScore: 3200,
+      },
+      topRatedBuyingExperience: true,
+    });
+    assert.ok(row);
+    assert.ok(row!.seller);
+    assert.equal(row!.seller!.username, "pro_tcg");
+    assert.equal(row!.seller!.feedbackScore, 3200);
+    assert.equal(row!.seller!.feedbackPercent, 99.8);
+    assert.equal(row!.seller!.reputation, "top_rated");
+    assert.equal(row!.seller!.label, "Top Rated (99.8% · 3.2k)");
+  });
+
   it("rejects SKIP_LISTING titles", () => {
     assert.equal(
       parseEbayBrowseItem({ itemId: "1", title: "Choose Your Own Booster Box", price: { value: "10" } }),
@@ -134,6 +156,11 @@ describe("parseEbayBrowseItem", () => {
 
   it("rejects missing price", () => {
     assert.equal(parseEbayBrowseItem({ itemId: "1", title: "Real Card" }), null);
+  });
+
+  it("rejects a non-object summary", () => {
+    assert.equal(parseEbayBrowseItem(null), null);
+    assert.equal(parseEbayBrowseItem("card"), null);
   });
 
   it("rejects price outside the safe band", () => {
@@ -193,7 +220,7 @@ describe("broadQuery", () => {
 describe("searchEbayBrowsePage", () => {
   it("returns empty listings when keys are absent", async () => {
     const r = await searchEbayBrowsePage("charizard", {}, {});
-    assert.deepEqual(r, { listings: [], offset: 0, hadResponse: false });
+    assert.deepEqual(r, { listings: [], offset: 0, hadResponse: false, returned: 0 });
   });
 
   it("calls eBay with buyingOptions:FIXED + condition filter + Bearer token", async () => {
@@ -266,6 +293,101 @@ describe("searchEbayBrowsePage", () => {
     assert.ok(
       filters.some((f) => /price:\[5\.\.\],price:\[\.\.250\]/.test(f)),
       `expected combined price-range filter in ${JSON.stringify(filters)}`,
+    );
+  });
+
+  it("accepts extra eBay fields and skips a bad summary without dropping the page", async () => {
+    const env = { EBAY_APP_ID: "id", EBAY_CERT_ID: "secret" };
+    const fetchImpl: FetchLike = async (input) => {
+      const url = input instanceof URL ? input.toString() : String(input);
+      const u = new URL(url);
+      if (u.pathname.endsWith("/oauth2/token")) {
+        return jsonResponse({ access_token: "tok", expires_in: 7200 });
+      }
+      return jsonResponse({
+        total: 2,
+        prev: "https://api.ebay.com/prev",
+        itemSummaries: [
+          { itemId: "1", title: "not an object" },
+          "junk",
+          {
+            itemId: "222",
+            title: "Charizard PSA 10",
+            price: { value: "40", currency: "USD" },
+            itemHref: "https://api.ebay.com/buy/browse/v1/item/222",
+          },
+        ],
+      });
+    };
+    const r = await searchEbayBrowsePage("charizard", {}, env, fetchImpl);
+    assert.equal(r.hadResponse, true);
+    assert.equal(r.returned, 3);
+    assert.equal(r.listings.length, 1);
+    assert.equal(r.listings[0]!.id, "222");
+    assert.equal(r.total, 2);
+  });
+
+  it("keeps the page when unused Browse fields and total are null", async () => {
+    const env = { EBAY_APP_ID: "id", EBAY_CERT_ID: "secret" };
+    const fetchImpl: FetchLike = async (input) => {
+      const url = input instanceof URL ? input.toString() : String(input);
+      const u = new URL(url);
+      if (u.pathname.endsWith("/oauth2/token")) {
+        return jsonResponse({ access_token: "tok", expires_in: 7200 });
+      }
+      return jsonResponse({
+        total: null,
+        offset: null,
+        limit: null,
+        next: null,
+        href: null,
+        warnings: [{ message: null, errorId: null }],
+        itemSummaries: [
+          {
+            itemId: "333",
+            title: "Charizard PSA 10",
+            price: { value: "40", currency: "USD" },
+          },
+        ],
+      });
+    };
+    const r = await searchEbayBrowsePage("charizard", {}, env, fetchImpl);
+    assert.equal(r.hadResponse, true);
+    assert.equal(r.total, undefined);
+    assert.equal(r.returned, 1);
+    assert.equal(r.listings.length, 1);
+    assert.equal(r.listings[0]!.id, "333");
+  });
+
+  it("treats a null itemSummaries list as an empty page", async () => {
+    const env = { EBAY_APP_ID: "id", EBAY_CERT_ID: "secret" };
+    const fetchImpl: FetchLike = async (input) => {
+      const url = input instanceof URL ? input.toString() : String(input);
+      const u = new URL(url);
+      if (u.pathname.endsWith("/oauth2/token")) {
+        return jsonResponse({ access_token: "tok", expires_in: 7200 });
+      }
+      return jsonResponse({ itemSummaries: null, next: null, total: null });
+    };
+    const r = await searchEbayBrowsePage("charizard", {}, env, fetchImpl);
+    assert.equal(r.hadResponse, true);
+    assert.equal(r.returned, 0);
+    assert.deepEqual(r.listings, []);
+  });
+
+  it("rejects a payload whose itemSummaries is not an array", async () => {
+    const env = { EBAY_APP_ID: "id", EBAY_CERT_ID: "secret" };
+    const fetchImpl: FetchLike = async (input) => {
+      const url = input instanceof URL ? input.toString() : String(input);
+      const u = new URL(url);
+      if (u.pathname.endsWith("/oauth2/token")) {
+        return jsonResponse({ access_token: "tok", expires_in: 7200 });
+      }
+      return jsonResponse({ itemSummaries: "nope" });
+    };
+    await assert.rejects(
+      searchEbayBrowsePage("charizard", {}, env, fetchImpl),
+      /unexpected payload/,
     );
   });
 });

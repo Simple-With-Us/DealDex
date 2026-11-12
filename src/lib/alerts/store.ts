@@ -1,12 +1,22 @@
 import { DEFAULT_AUTO_BUY, type AlertHit, type AlertRule, type AutoBuyConfig } from "./types";
 
-const RULES_KEY = "spreaddex:alerts";
-const HITS_KEY = "spreaddex:alert-hits";
+const RULES_KEY = "dealdex:alerts";
+const HITS_KEY = "dealdex:alert-hits";
+const LEGACY_RULES_KEY = "spreaddex:alerts";
+const LEGACY_HITS_KEY = "spreaddex:alert-hits";
 
-function readJson<T>(key: string, fallback: T): T {
+function readJson<T>(key: string, fallback: T, legacyKey?: string): T {
   if (typeof window === "undefined") return fallback;
   try {
-    const raw = window.localStorage.getItem(key);
+    let raw = window.localStorage.getItem(key);
+    if (!raw && legacyKey) {
+      const v = window.localStorage.getItem(legacyKey);
+      if (v) {
+        raw = v;
+        window.localStorage.setItem(key, v);
+        window.localStorage.removeItem(legacyKey);
+      }
+    }
     if (!raw) return fallback;
     return JSON.parse(raw) as T;
   } catch {
@@ -30,7 +40,7 @@ function normalizeAutoBuy(value: unknown): AutoBuyConfig {
 }
 
 export function loadRules(): AlertRule[] {
-  const raw = readJson<AlertRule[]>(RULES_KEY, []);
+  const raw = readJson<AlertRule[]>(RULES_KEY, [], LEGACY_RULES_KEY);
   if (!Array.isArray(raw)) return [];
   return raw.map((r) => ({ ...r, autoBuy: normalizeAutoBuy((r as { autoBuy?: unknown }).autoBuy) }));
 }
@@ -41,7 +51,7 @@ export function saveRules(rules: AlertRule[]) {
 }
 
 export function loadHits(): AlertHit[] {
-  return readJson<AlertHit[]>(HITS_KEY, []).slice(0, 80);
+  return readJson<AlertHit[]>(HITS_KEY, [], LEGACY_HITS_KEY).slice(0, 80);
 }
 
 export function pushHits(hits: AlertHit[]) {
