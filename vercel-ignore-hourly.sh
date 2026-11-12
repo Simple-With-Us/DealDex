@@ -24,7 +24,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 git_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 
 # Nested scripts (site/, web/, apps/site) watch their own folder.
-# A repo-root script (DealDex) watches the tree minus native/docs/CI.
+# A repo-root script (DealDex) excludes native app builds, brand sources, docs and CI.
 watch_args=()
 if [[ -n "${VERCEL_IGNORE_WATCH:-}" ]]; then
   # shellcheck disable=SC2206
@@ -33,18 +33,30 @@ elif [[ -n "$git_root" && "$script_dir" != "$git_root" ]]; then
   rel="${script_dir#"$git_root"/}"
   watch_args=(":(top)${rel}" "${rel}")
 else
+  # Keep this list identical to "watch" in scripts/deploy/vercel-config.json.
+  # scripts/vercel-ignore-paths.test.mjs asserts the two lists match and that the
+  # ignore step and the catch-up watch agree on every sampled path.
   watch_args=(
-    .
+    "."
     ":(exclude)docs"
-    ":(exclude)native"
+    ":(exclude)apps/ios"
+    ":(exclude)apps/android"
+    ":(exclude)assets/brand"
     ":(exclude)ios"
     ":(exclude)android"
     ":(exclude).github"
     ":(exclude)Apps"
-    ":(exclude)*.xcodeproj"
+    ":(exclude)*.xcodeproj/**"
     ":(exclude)STATUS.md"
-    ":(exclude)docs/EFFORT-LOG.md"
     ":(exclude)PLAN.md"
+    ":(exclude)scripts/ios-*"
+    ":(exclude)scripts/test-ios-*"
+    ":(exclude)scripts/android-*"
+    ":(exclude)scripts/app-icon.test.mjs"
+    ":(exclude)scripts/generate-app-icons.py"
+    ":(exclude)scripts/generate-icon-options.py"
+    ":(exclude)scripts/svg-path-to-swift.py"
+    ":(exclude)scripts/native-scan.test.mjs"
   )
 fi
 

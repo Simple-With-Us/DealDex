@@ -1,5 +1,5 @@
 /**
- * Server-side store for `alert_rules` + `scan_runs`.
+ * Server-side store for `alert_rules`, `scan_runs`, and `alert_runs`.
  *
  * Today alerts live in localStorage / DeskStore on iOS / Android, so the
  * scan-runner cannot read them.  The first opt-in user journey:
@@ -31,6 +31,18 @@ export type AlertRuleRow = {
   pushover_user: string;
   pushover_token: string;
   auto_buy: Record<string, unknown> | null;
+};
+
+export type AlertRunRow = {
+  id: string;
+  source: string;
+  rules_ran: number;
+  rules_skipped: number;
+  dry_run_only: boolean;
+  per_rule: unknown;
+  started_at: string;
+  finished_at: string;
+  error: string | null;
 };
 
 export type ScanRunRow = {
@@ -145,6 +157,36 @@ export async function listRecentScanRuns(userId: string, limit = 20): Promise<Sc
   const sql = await getSql();
   return sql<ScanRunRow>`
     select * from scan_runs where user_id = ${userId}
+    order by started_at desc
+    limit ${limit}
+  `;
+}
+
+export async function persistAlertRun(row: AlertRunRow): Promise<void> {
+  const sql = await getSql();
+  await sql`
+    insert into alert_runs (
+      id, source, rules_ran, rules_skipped, dry_run_only,
+      per_rule, started_at, finished_at, error
+    ) values (
+      ${row.id}, ${row.source}, ${row.rules_ran}, ${row.rules_skipped},
+      ${row.dry_run_only}, ${JSON.stringify(row.per_rule)}, ${row.started_at},
+      ${row.finished_at}, ${row.error}
+    )
+    on conflict (id) do update set
+      rules_ran = excluded.rules_ran,
+      rules_skipped = excluded.rules_skipped,
+      dry_run_only = excluded.dry_run_only,
+      per_rule = excluded.per_rule,
+      finished_at = excluded.finished_at,
+      error = excluded.error
+  `;
+}
+
+export async function listRecentAlertRuns(limit = 20): Promise<AlertRunRow[]> {
+  const sql = await getSql();
+  return sql<AlertRunRow>`
+    select * from alert_runs
     order by started_at desc
     limit ${limit}
   `;

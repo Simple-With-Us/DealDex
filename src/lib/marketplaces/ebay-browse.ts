@@ -21,6 +21,7 @@
  *   - https://developer.ebay.com/api-docs/buy/browse/resources/item_summary/methods/searchItemSummary
  *   - https://developer.ebay.com/api-docs/buy/static/oauth-client-credentials-grant.html
  */
+import { z } from "zod";
 import {
   ASSUMED_SHIPPING,
   SKIP_LISTING,
@@ -28,7 +29,9 @@ import {
   parseMoney,
   titleMatchesQuery,
 } from "./html";
-import type { LiveListing } from "./types";
+import type { LiveListing, SellerInfo } from "./types";
+import { deriveSellerReputation } from "./seller";
+import { SCAN_SPAN, withScanSpan, type ScanSpanHandle } from "@/lib/observability/sentry-server";
 import { defaultServerEnv } from "@/lib/server/app-settings";
 
 export const EBAY_BROWSE_SCOPE = "https://api.ebay.com/oauth/api_scope/buy.item.feed";
@@ -149,6 +152,8 @@ export type EbayBrowseSearchResult = {
   total?: number;
   /** True if eBay returned at least one page, even if `listings` is empty after filters. */
   hadResponse: boolean;
+  /** Raw `itemSummaries` length.  The next offset advances by this, not by parsed rows. */
+  returned: number;
 };
 
 /**
@@ -164,7 +169,7 @@ export async function searchEbayBrowsePage(
   fetchImpl: typeof fetch = fetch,
 ): Promise<EbayBrowseSearchResult> {
   const cfg = readEbayBrowseConfig(env);
-  if (!cfg) return { listings: [], offset: options.offset ?? 0, hadResponse: false };
+  if (!cfg) return { listings: [], offset: options.offset ?? 0, hadResponse: false, returned: 0 };
 
   const limit = Math.min(200, Math.max(1, options.limit ?? 50));
   const offset = options.offset ?? 0;
@@ -197,22 +202,33 @@ export async function searchEbayBrowsePage(
   if (!res.ok) {
     throw new Error(`eBay browse search failed: HTTP ${res.status}`);
   }
-  const json = (await res.json()) as EbayBrowseResponse;
-  const listings = (json.itemSummaries ?? [])
+  const json = await readEbayBrowseResponse(res);
+  const summaries = json.itemSummaries ?? [];
+  const listings = summaries
     .map(parseEbayBrowseItem)
     .filter((row): row is LiveListing => row !== null);
   const result: EbayBrowseSearchResult = {
     listings,
     offset,
     hadResponse: true,
+    returned: summaries.length,
   };
   if (typeof json.total === "number") result.total = json.total;
   return result;
 }
 
+const BROWSE_MAX_PAGES = 5;
+
+function missedBrowsePage(offset: number): EbayBrowseSearchResult {
+  return { listings: [], offset, hadResponse: false, returned: 0 };
+}
+
 /**
- * High-level: fetch up to `cap` listings across as many pages as needed.
- * Stops early on empty pages, on total exhaustion, or when the cap is met.
+ * High-level: fetch up to `cap` query-matching listings across as many
+ * pages as needed.  The skip list runs inside `parseEbayBrowseItem`, and
+ * the query check runs here, both before a row counts toward `cap`.
+ * Offset advances by the raw `itemSummaries` length so a page of junk
+ * does not rewind into rows we already saw.
  */
 export async function searchEbayBrowse(
   query: string,
@@ -221,21 +237,52 @@ export async function searchEbayBrowse(
   fetchImpl: typeof fetch = fetch,
 ): Promise<LiveListing[]> {
   if (cap <= 0) return [];
-  const out: LiveListing[] = [];
-  let offset = 0;
-  let total: number | undefined;
-  for (let page = 0; page < 5 && out.length < cap; page++) {
-    const result = await searchEbayBrowsePage(query, { limit: Math.min(200, cap - out.length), offset }, env, fetchImpl).catch(
-      () => ({ listings: [], offset, hadResponse: false as const }),
-    );
-    if (!result.hadResponse) break;
-    total = result.total;
-    if (!result.listings.length) break;
-    out.push(...result.listings);
-    offset += result.listings.length;
-    if (total !== undefined && offset >= total) break;
-  }
-  return out;
+  return withScanSpan(SCAN_SPAN.ebayApi, async (span) => {
+    const out: LiveListing[] = [];
+    const seen = new Set<string>();
+    let offset = 0;
+    let pages = 0;
+    const pageLimit = Math.min(200, Math.max(1, cap));
+    for (let page = 0; page < BROWSE_MAX_PAGES && out.length < cap; page++) {
+      const pull = async (pageSpan: ScanSpanHandle | null) => {
+        const result = await searchEbayBrowsePage(
+          query,
+          { limit: pageLimit, offset },
+          env,
+          fetchImpl,
+        ).catch(() => missedBrowsePage(offset));
+        pages += 1;
+        pageSpan?.setAttribute("scan.page", page + 1);
+        if (!result.hadResponse || result.returned <= 0) {
+          pageSpan?.setAttribute("listing.count", 0);
+          return true;
+        }
+        let kept = 0;
+        for (const row of result.listings) {
+          if (out.length >= cap) break;
+          if (!titleMatchesQuery(row.title, query) || seen.has(row.id)) continue;
+          seen.add(row.id);
+          out.push(row);
+          kept += 1;
+        }
+        pageSpan?.setAttribute("listing.count", kept);
+        const next = offset + result.returned;
+        const exhausted =
+          (result.total !== undefined && next >= result.total) || result.returned < pageLimit;
+        offset = next;
+        return exhausted;
+      };
+
+      const stop =
+        page === 0
+          ? await pull(null)
+          : await withScanSpan(SCAN_SPAN.ebayPage2, async (pageSpan) => pull(pageSpan));
+      if (stop) break;
+    }
+    span?.setAttribute("listing.count", out.length);
+    span?.setAttribute("scan.pages", pages);
+    return out;
+  });
 }
 
 /** Visible for tests — broadens "pokemon" / "tcg" / blank into a workable q. */
@@ -245,52 +292,96 @@ export function broadQuery(query: string): string {
   return /pokemon|pokémon|tcg/i.test(q) ? q : `${q} pokemon`;
 }
 
-type EbayBrowseItem = {
-  itemId?: unknown;
-  title?: unknown;
-  price?: { value?: unknown; currency?: unknown };
-  shippingOptions?: Array<{ shippingCost?: { value?: unknown }; type?: unknown }>;
-  image?: { imageUrl?: unknown };
-  itemWebUrl?: unknown;
-  itemCreationDate?: unknown;
-  condition?: unknown;
-  conditionId?: unknown;
-  buyingOptions?: unknown;
-  seller?: { username?: unknown; feedbackPercentage?: unknown };
-};
+/**
+ * Browse search JSON.  Only the fields this scan reads are checked.
+ * `next`, `href`, `offset`, `limit`, and `warnings` stay unchecked, so a
+ * null on one of them cannot drop a page of real listings.  `total` and
+ * `itemSummaries` accept null: a null total is ignored, and a null summary
+ * list is an empty page.  Each summary stays `unknown` so one bad row
+ * cannot fail the page; `parseEbayBrowseItem` drops that row.
+ */
+const EbayBrowseResponseSchema = z.looseObject({
+  itemSummaries: z.array(z.unknown()).nullish(),
+  total: z.number().nullish(),
+});
 
-type EbayBrowseResponse = {
-  itemSummaries?: EbayBrowseItem[];
-  total?: number;
-  offset?: number;
-  limit?: number;
-  next?: string;
-  href?: string;
-  warnings?: Array<{ message?: string }>;
-};
+type EbayBrowseResponse = z.infer<typeof EbayBrowseResponseSchema>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function readEbayBrowseResponse(res: Response): Promise<EbayBrowseResponse> {
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    throw new Error("eBay browse search returned an unexpected payload");
+  }
+  const parsed = EbayBrowseResponseSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new Error("eBay browse search returned an unexpected payload");
+  }
+  return parsed.data;
+}
 
 /** Visible for tests. Maps a single Browse `itemSummary` into our LiveListing shape. */
-export function parseEbayBrowseItem(item: EbayBrowseItem): LiveListing | null {
+export function parseEbayBrowseItem(item: unknown): LiveListing | null {
+  if (!isRecord(item)) return null;
   const id = typeof item.itemId === "string" ? item.itemId : "";
   const titleRaw = typeof item.title === "string" ? item.title : "";
   if (!id || !titleRaw) return null;
   const title = titleRaw.trim();
   if (!title || SKIP_LISTING.test(title)) return null;
+  const priceRecord = isRecord(item.price) ? item.price : null;
+  const priceValue = priceRecord?.value;
   const price = parseMoney(
-    typeof item.price?.value === "string" || typeof item.price?.value === "number"
-      ? String(item.price.value)
-      : undefined,
+    typeof priceValue === "string" || typeof priceValue === "number" ? String(priceValue) : undefined,
   );
   if (price == null || price < 2.5 || price >= 1_000_000) return null;
   const shipping = firstShipping(item.shippingOptions) ?? ASSUMED_SHIPPING.ebay;
-  const image = typeof item.image?.imageUrl === "string" ? item.image.imageUrl : null;
+  const imageRecord = isRecord(item.image) ? item.image : null;
+  const image = typeof imageRecord?.imageUrl === "string" ? imageRecord.imageUrl : null;
   const url = typeof item.itemWebUrl === "string" ? item.itemWebUrl : `https://www.ebay.com/itm/${id}`;
   const listedAt =
     typeof item.itemCreationDate === "string" && item.itemCreationDate.length > 0
       ? item.itemCreationDate
       : null;
-  const buyingOptions = Array.isArray(item.buyingOptions) ? (item.buyingOptions as string[]) : [];
+  const buyingOptions = Array.isArray(item.buyingOptions)
+    ? item.buyingOptions.filter((option): option is string => typeof option === "string")
+    : [];
   const fixed = buyingOptions.includes("FIXED");
+
+  const sellerRaw = isRecord(item.seller) ? item.seller : null;
+  let seller: SellerInfo | null = null;
+  if (sellerRaw) {
+    const username = typeof sellerRaw.username === "string" ? sellerRaw.username : null;
+    const scoreVal = sellerRaw.feedbackScore;
+    const feedbackScore =
+      typeof scoreVal === "number" && Number.isFinite(scoreVal)
+        ? scoreVal
+        : typeof scoreVal === "string"
+          ? parseInt(scoreVal.replace(/,/g, ""), 10) || null
+          : null;
+    const pctVal = sellerRaw.feedbackPercentage;
+    const feedbackPercent =
+      typeof pctVal === "number" && Number.isFinite(pctVal)
+        ? pctVal
+        : typeof pctVal === "string"
+          ? parseFloat(pctVal) || null
+          : null;
+    const isTopRated = item.topRatedBuyingExperience === true;
+    if (username || feedbackScore != null || feedbackPercent != null || isTopRated) {
+      seller = deriveSellerReputation({
+        marketplace: "ebay",
+        username,
+        feedbackScore,
+        feedbackPercent,
+        isTopRated,
+      });
+    }
+  }
+
   return {
     id,
     marketplace: "ebay",
@@ -301,14 +392,16 @@ export function parseEbayBrowseItem(item: EbayBrowseItem): LiveListing | null {
     shippingEstimated: !firstShipping(item.shippingOptions),
     image,
     listedAt,
+    seller,
     ...(fixed ? {} : {}),
   };
 }
 
-function firstShipping(options: EbayBrowseItem["shippingOptions"]): number | null {
+function firstShipping(options: unknown): number | null {
   if (!Array.isArray(options)) return null;
   for (const opt of options) {
-    const raw = opt.shippingCost?.value;
+    if (!isRecord(opt) || !isRecord(opt.shippingCost)) continue;
+    const raw = opt.shippingCost.value;
     if (typeof raw === "number") {
       // 0 is a real, free-shipping figure; parseMoney rejects it as "no money",
       // so we accept any non-negative finite number here.

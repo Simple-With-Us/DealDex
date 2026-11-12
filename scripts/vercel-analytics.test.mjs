@@ -33,7 +33,7 @@ test("service worker does not intercept Vercel insight requests", () => {
 test("privacy page discloses website analytics and Speed Insights", () => {
   const privacy = read("src/routes/privacy.tsx");
   assert.match(privacy, /Vercel Web Analytics/);
-  assert.match(privacy, /Vercel Speed Insights/);
+  assert.match(privacy, /Vercel\s+Speed Insights/);
   assert.match(privacy, /do not use cookies/);
   assert.match(privacy, /Datadog/);
 });

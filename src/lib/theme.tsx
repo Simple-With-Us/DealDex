@@ -66,14 +66,13 @@ const Ctx = createContext<ThemeCtx>({
 });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [pref, setPrefState] = useState<ThemePref>("light");
-  const [resolved, setResolved] = useState<"light" | "dark">("light");
+  const [pref, setPrefState] = useState<ThemePref>(() => readThemePref());
+  const [resolved, setResolved] = useState<"light" | "dark">(() =>
+    resolvedTheme(readThemePref()),
+  );
 
   useEffect(() => {
-    const initial = readThemePref();
-    setPrefState(initial);
-    setResolved(resolvedTheme(initial));
-    applyTheme(initial);
+    applyTheme(readThemePref());
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => {
       const current = readThemePref();

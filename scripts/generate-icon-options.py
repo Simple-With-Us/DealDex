@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Preview AppIcon options — does NOT replace the live catalog.
 
-The live mark is native/brand/dealdex-dd-icon-1024.png (DD on the ST tiled field).
-This writes native/brand/icon-options/ as leftover scale previews:
+The live mark is assets/brand/dealdex-dd-icon-1024.png (DD on the ST tiled field).
+This writes assets/brand/icon-options/ as leftover scale previews:
 
   ct-gray-90 / ct-gray-80  — Congress.Trade light gray + oval ground shadow
   st-grid-90 / st-grid-80  — Socratic.Trade light grid + oval ground shadow
@@ -19,8 +19,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "native/brand/dealdex-dd-isolated.png"
-OUT = ROOT / "native/brand/icon-options"
+SOURCE = ROOT / "assets/brand/dealdex-dd-isolated.png"
+OUT = ROOT / "assets/brand/icon-options"
 SIZE = 1024
 
 
@@ -175,7 +175,7 @@ def main() -> None:
     save_png(contact_sheet(options), OUT / "sheet.png")
     (OUT / "README.md").write_text(
         "# DealDex AppIcon options (not live)\n\n"
-        "Live launcher is `native/brand/dealdex-dd-icon-1024.png` (DD on the ST tiled "
+        "Live launcher is `assets/brand/dealdex-dd-icon-1024.png` (DD on the ST tiled "
         "field).  Rebuild it with `python3 scripts/generate-app-icons.py`.\n\n"
         "These files are leftover scale/background previews from before the owner "
         "picked the ST grid.\n\n"

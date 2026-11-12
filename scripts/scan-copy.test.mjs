@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SUBTITLE = "Compare Pokémon card listing prices";
-const LEGACY_NATIVE_SUBTITLE = "Find the best-priced Pokémon card listings";
+const NATIVE_SUBTITLE = "Compare Pokémon card listing prices";
 
 function read(rel) {
   return readFileSync(join(ROOT, rel), "utf8");
@@ -17,13 +17,14 @@ test("shared subtitle describes listing-price comparisons", () => {
   assert.match(copy, new RegExp(SUBTITLE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
-test("site uses shared comparison subtitle and native copy remains release-scoped", () => {
+test("site and native in-app subtitle describe listing-price comparisons", () => {
   assert.match(read("src/routes/index.tsx"), /APP_SUBTITLE/);
   assert.match(read("src/routes/__root.tsx"), /APP_SUBTITLE/);
   const og = read("scripts/og-dealdex.html");
   assert.doesNotMatch(og, new RegExp(SUBTITLE.replace("é", "é")));
   assert.match(og, /dealdex-wordmark\.png/);
-  assert.match(read("native/android/app/src/main/res/values/strings.xml"), new RegExp(LEGACY_NATIVE_SUBTITLE));
+  assert.match(read("apps/android/app/src/main/res/values/strings.xml"), new RegExp(NATIVE_SUBTITLE));
+  assert.match(read("apps/ios/DealDex/DealDexBrand.swift"), new RegExp(NATIVE_SUBTITLE));
   assert.doesNotMatch(read("src/routes/index.tsx"), /Find the best listings/);
   assert.doesNotMatch(read("src/routes/__root.tsx"), /Find the best listings/);
 });
@@ -64,7 +65,7 @@ test("OG card is logo-only and centers a large wordmark", () => {
 });
 
 test("Android scan has no suggested chips and shows counts on source toggles", () => {
-  const kt = read("native/android/app/src/main/java/me/grok/dealdex/ui/ScanScreen.kt");
+  const kt = read("apps/android/app/src/main/java/me/grok/dealdex/ui/ScanScreen.kt");
   assert.doesNotMatch(kt, /charizard/);
   assert.doesNotMatch(kt, /POKÉMON LISTING DESK/);
   assert.match(kt, /MarketplaceSourceToggle/);

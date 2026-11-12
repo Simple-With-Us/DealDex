@@ -25,6 +25,13 @@ export type NativeScanRow = {
     verdict: string;
   } | null;
   grade: string;
+  seller?: {
+    username?: string | null;
+    feedbackPercent?: number | null;
+    feedbackScore?: number | null;
+    reputation: string;
+    label?: string | null;
+  } | null;
 };
 
 /** Compact listing rows for the iPhone / Android clients.  No session required. */
@@ -58,5 +65,6 @@ export function nativeScanRows(rows: ScoredListing[]): NativeScanRow[] {
         }
       : null,
     grade: row.parsed.grade,
+    seller: row.listing.seller ?? null,
   }));
 }

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -43,7 +43,7 @@ const FLEET = {
     "net.dealdex": {
       marketingVersion: "1.0.2",
       build: "202608230250",
-      appleId: 6802474288,
+      appleId: 6804249232,
       displayName: "DealDex",
     },
   },
@@ -66,7 +66,7 @@ test("merge onto a multi-app remote keeps every sibling", () => {
     "--build",
     "202608242345",
     "--apple-id",
-    "6802474288",
+    "6804249232",
     "--display-name",
     "DealDex",
     "--base-json",
@@ -115,4 +115,41 @@ test("publish script fetches remote and refuses an empty apps map", () => {
   assert.match(src, /refusing to publish an empty apps map/);
   assert.match(src, /--skip-push/);
   assert.doesNotMatch(src, /data = \{"schemaVersion": 1, "apps": \{\}\}/);
+  // Port CC-202: the remote leg uses the dedicated org-token credential
+  // (never the ship job's contents:read GITHUB_TOKEN) and writes through a
+  // branch + pull request, never a direct PUT to main.
+  assert.match(src, /IOS_VERSIONS_PUBLISH_TOKEN/);
+  assert.match(src, /gh auth token/);
+  assert.match(src, /no IOS_VERSIONS_PUBLISH_TOKEN credential/);
+  assert.match(src, /contents:read/);
+  assert.match(src, /remote-manifest-pr-opened/);
+  assert.match(src, /ios-versions\//);
+  assert.doesNotMatch(src, /remote-manifest-updated/);
+  assert.doesNotMatch(src, /--method PUT/);
+});
+
+test("no credential names the missing publish token (stubbed, no network)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "dd-ios-versions-notoken-"));
+  const fleet = join(dir, "fleet");
+  const bin = join(dir, "bin");
+  mkdirSync(fleet);
+  mkdirSync(bin);
+  writeFileSync(join(fleet, "publish-ios-versions.sh"), readFileSync(SCRIPT, "utf8"));
+  // Stub gh so `gh auth token` cannot supply a real login; stub curl so any
+  // attempted network call leaves a marker this test can reject.
+  writeFileSync(join(bin, "gh"), "#!/bin/sh\nexit 1\n");
+  writeFileSync(join(bin, "curl"), `#!/bin/sh\ntouch "${join(dir, "curl-called")}"\nexit 99\n`);
+  chmodSync(join(bin, "gh"), 0o755);
+  chmodSync(join(bin, "curl"), 0o755);
+  const res = spawnSync(
+    "bash",
+    [join(fleet, "publish-ios-versions.sh"), "--bundle-id", "net.dealdex", "--version", "1.0.3"],
+    { encoding: "utf8", env: { PATH: `${bin}:/usr/bin:/bin`, HOME: dir } },
+  );
+  assert.notEqual(res.status, 0);
+  assert.match(res.stderr, /no IOS_VERSIONS_PUBLISH_TOKEN/);
+  assert.match(res.stderr, /contents:read/);
+  assert.match(res.stderr, /refusing to publish an empty apps map/);
+  assert.equal(existsSync(join(dir, "curl-called")), false, "no network call without a credential");
+  rmSync(dir, { recursive: true, force: true });
 });

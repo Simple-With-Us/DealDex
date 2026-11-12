@@ -13,7 +13,7 @@ Seat: GROK-BUILD
 
 ## Coordination
 
-- Slack `#agent-sync` is a no-op from this preview (no `SLACK_BOT_TOKEN`).
+- Slack `#ag***-s**c` is a no-op from this preview (no `SLACK_BOT_TOKEN`).
   Announce via this PR. Mac seats can mirror to Slack if needed.
 - Live board `~/apps/DEALDEX-EFFORT-LOG.md` should be mirrored by a Mac
   seat after merge; this checkout cannot write that path.

@@ -9,16 +9,24 @@
  * User Feedback is the consumer widget (auto-injected).  Privacy: mask
  * all text and block all media on Replay.
  *
- * Logs: Sentry v11 removed the top-level `enableLogs` option.  Logs are now
- * always on in v11 (the flush pipeline is unconditional), so no flag is set
- * here.  Console calls are still captured as breadcrumbs by the default
- * `consoleIntegration`; to send them as Sentry *logs* instead, add
- * `Sentry.consoleLoggingIntegration()` to `integrations`.
+ * Logs: Sentry v11 removed the top-level `enableLogs` option from
+ * BrowserOptions (the flush pipeline is unconditional).  Console lines
+ * still become breadcrumbs unless `consoleLoggingIntegration` is added;
+ * without that integration, the dealdex project recorded 0 logs.
+ * Release is the Vercel git SHA so deploy markers and source maps line up.
  */
 
 import * as Sentry from "@sentry/react";
 
 let initialized = false;
+
+/** Vite inlines `VITE_SENTRY_RELEASE` from `VERCEL_GIT_COMMIT_SHA` at build. */
+export function sentryBrowserRelease(): string | undefined {
+  const release =
+    (import.meta.env.VITE_SENTRY_RELEASE as string | undefined)?.trim() ||
+    (import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA as string | undefined)?.trim();
+  return release || undefined;
+}
 
 export function initSentry(): void {
   if (initialized || typeof window === "undefined") return;
@@ -26,6 +34,7 @@ export function initSentry(): void {
   const dsn = (import.meta.env.VITE_SENTRY_DSN as string | undefined)?.trim();
   if (!dsn) return;
 
+  const release = sentryBrowserRelease();
   const env = (import.meta.env.VITE_SENTRY_ENV as string | undefined)?.trim() ||
     (import.meta.env.MODE as string | undefined) ||
     "production";
@@ -44,12 +53,14 @@ export function initSentry(): void {
 
   Sentry.init({
     dsn,
+    release,
     environment: env,
     tracesSampleRate: Number.isFinite(tracesSampleRate) ? Math.min(Math.max(tracesSampleRate, 0), 1) : 0.2,
     replaysSessionSampleRate: !replayDisabled && Number.isFinite(replaysSessionSampleRate) ? replaysSessionSampleRate : 0,
     replaysOnErrorSampleRate: !replayDisabled && Number.isFinite(replaysOnErrorSampleRate) ? replaysOnErrorSampleRate : 0,
     integrations: [
       Sentry.browserTracingIntegration(),
+      Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] }),
       Sentry.feedbackIntegration({
         colorScheme: "light",
         autoInject: false,
@@ -68,6 +79,12 @@ export function initSentry(): void {
         : []),
     ],
   });
+
+  try {
+    Sentry.logger.info("dealdex.web.sentry_ready");
+  } catch {
+    /* a log emit must never break boot */
+  }
 
   initialized = true;
 }
