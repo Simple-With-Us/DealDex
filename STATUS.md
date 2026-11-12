@@ -1,3 +1,7 @@
+## 2026-11-12 — DD-411 — Renovate PR #579 verify + artifacts
+
+Renovate non-major bump (Sentry Gradle 6.26.0, Gradle 9.9.0) failed `verify` on a stale Sentry version pin in `sentry.test.ts` and failed `renovate/artifacts` because only `gradle-wrapper.properties` landed.  Fix: test assertion + full wrapper refresh.  Rollout: `docs/rollouts/2026-11-12-dd-411-renovate-579-ci.md`.  Branch: `renovate/non-major-dependencies`.
+
 ## 2026-11-09 — OPS-1052 phase 2: post-sync TestFlight readiness recheck
 
 `ios-ship.yml` re-runs `ensure-tf-ready` after standing-tester sync and writes
