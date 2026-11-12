@@ -110,9 +110,13 @@ export function Scanner() {
         if (reqId !== scanReqIdRef.current) return;
         const raw = err instanceof Error ? err.message : "";
         const message =
-          !raw || /failed to fetch|network|load failed|abort/i.test(raw)
+          !raw ||
+          /failed to fetch|fetch failed|network|load failed|abort|offline|internet connection/i.test(
+            raw,
+          )
             ? "The scan did not finish. Check your connection and try again."
             : raw;
+        setRows(null);
         setError(message);
       })
       .finally(() => {

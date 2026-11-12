@@ -1,6 +1,6 @@
 ## 2026-11-12 — UI polish for GB-Designer
 
-Settings was crashing in the browser because the page imported node:crypto.   Price-source key encryption now lives in a server-only module, and the page renders.   Scan, login, alerts, install, privacy, and the phone apps drop internal words, use title-case buttons, and give the main controls a 44px target.   Filter menus use short labels so they fit on a phone.   A failed scan or a missing card shows a plain error with Try Again.   Rollout: `docs/rollouts/2026-11-12-ui-polish.md`.   Branch: `cursor/ui-polish-4111`.
+Settings was crashing in the browser because the page imported node:crypto.   Price-source key encryption now lives in a server-only module, and the page renders.   Scan, login, alerts, install, privacy, and the phone apps drop internal words, use title-case buttons, and give the main controls a 44px target.   Filter menus use short labels so they fit on a phone.   A failed scan or a missing card shows a plain error with Try Again.   Rollout: `docs/rollouts/2026-11-12-ui-polish.md`.   Branch: `cursor/ui-polish-4111`.  Review follow-up: a failed scan clears the previous list, transport errors stay in plain language, the save control names its action, the PriceCharting link matches the docs page, and a catalog lookup that fails upstream offers Try Again.
 
 ## 2026-11-12 — DD-414 — Vercel catch-up CI race + Sentry Crons (F9 / F4)
 

@@ -159,10 +159,14 @@ export async function searchCardIndex(
   }
 }
 
+export async function fetchCardStrict(id: string): Promise<TcgCard> {
+  const raw = await tcgFetch<TcgdexCard>(`/cards/${encodeURIComponent(id)}`);
+  return normalizeCard(raw);
+}
+
 export async function fetchCard(id: string): Promise<TcgCard | null> {
   try {
-    const raw = await tcgFetch<TcgdexCard>(`/cards/${encodeURIComponent(id)}`);
-    return normalizeCard(raw);
+    return await fetchCardStrict(id);
   } catch {
     return null;
   }

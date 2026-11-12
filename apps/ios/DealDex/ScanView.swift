@@ -238,7 +238,8 @@ struct ListingRow: View {
                     }
                     .buttonStyle(.plain)
                     .frame(width: 44, height: 44)
-                    .accessibilityLabel(isSaved ? "Saved" : "Save listing")
+                    .accessibilityLabel(isSaved ? "Remove from saved" : "Save listing")
+                    .accessibilityValue(isSaved ? "Saved" : "Not saved")
                 }
 
                 Text(row.listing.title)

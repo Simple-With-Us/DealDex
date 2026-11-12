@@ -25,7 +25,7 @@ export const DESK_KEY_META: {
     blurb:
       "Sold prices for raw cards, PSA 9, and PSA 10. Use the token from your PriceCharting subscription.",
     href: "https://www.pricecharting.com/api-documentation",
-    hrefLabel: "Get a PriceCharting token",
+    hrefLabel: "PriceCharting docs",
     placeholder: "40-character token",
   },
   {

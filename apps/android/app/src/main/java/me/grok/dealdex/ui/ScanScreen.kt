@@ -299,7 +299,7 @@ private fun ListingCard(
                         android.widget.Toast.makeText(ctx, "Saved", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }) {
-                    Icon(androidx.compose.material.icons.Icons.Default.BookmarkBorder, contentDescription = "Save", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(androidx.compose.material.icons.Icons.Default.BookmarkBorder, contentDescription = "Save listing", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Text(row.listing.title, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
