@@ -8,7 +8,11 @@
  * var (rotated via Infisical).  The token is never logged.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { parseRunnerRequest, runScanRunnerTick } from "@/lib/server/scan-runner.server";
+import {
+  parseRunnerRequest,
+  runScanRunnerTick,
+  type RunnerInput,
+} from "@/lib/server/scan-runner.server";
 import { getSetting, initAppSettings } from "@/lib/server/app-settings";
 
 function checkRunnerToken(req: Request): boolean {
@@ -36,7 +40,7 @@ export const Route = createFileRoute("/api/alerts/run")({
         } catch {
           return Response.json({ error: "invalid payload" }, { status: 400 });
         }
-        let input;
+        let input: RunnerInput;
         try {
           input = parseRunnerRequest(body);
         } catch (err) {

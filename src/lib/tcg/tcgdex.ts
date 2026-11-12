@@ -206,8 +206,8 @@ const TcgdexCardSchema = z.looseObject({
   updated: z.string().nullish(),
   set: z
     .looseObject({
-      id: z.string().optional(),
-      name: z.string().optional(),
+      id: z.string().nullish(),
+      name: z.string().nullish(),
       logo: z.string().nullish(),
     })
     .nullish(),
@@ -216,7 +216,7 @@ const TcgdexCardSchema = z.looseObject({
       cardmarket: TcgdexCardmarketSchema.nullish(),
       tcgplayer: z
         .record(z.string(), z.union([TcgdexFinishPricesSchema, z.string(), z.null()]))
-        .optional(),
+        .nullish(),
     })
     .nullish(),
 });
@@ -240,14 +240,18 @@ export function parseTcgdexCard(raw: unknown): TcgdexCard {
     stage: card.stage ?? undefined,
     updated: card.updated ?? undefined,
     set: card.set
-      ? { id: card.set.id, name: card.set.name, logo: card.set.logo ?? undefined }
+      ? {
+          id: card.set.id ?? undefined,
+          name: card.set.name ?? undefined,
+          logo: card.set.logo ?? undefined,
+        }
       : undefined,
     pricing: card.pricing
       ? {
           cardmarket: card.pricing.cardmarket
             ? { ...card.pricing.cardmarket, unit: card.pricing.cardmarket.unit ?? undefined }
             : undefined,
-          tcgplayer: card.pricing.tcgplayer,
+          tcgplayer: card.pricing.tcgplayer ?? undefined,
         }
       : undefined,
   };
