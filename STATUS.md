@@ -1,3 +1,7 @@
+## 2026-11-12 — DD-414 — Vercel catch-up CI race + Sentry Crons (F9 / F4)
+
+E2E completion could trigger catch-up while CI was still queued on the same SHA, hard-failing the deploy gate. Gate now no-ops (`deploy=false`, exit 0); scheduled runs emit Sentry `in_progress` + `ok`/`error` for `ci-dealdex-vercel-production-catch-up`. Rollout: `docs/rollouts/2026-11-12-dd-414-vercel-catch-up-sentry.md`. Branch: `cursor/dd-414-vercel-catch-up-sentry-4eef`.
+
 ## 2026-11-12 — DD-412 — GitHub org live URLs (OPS-734 slice)
 
 Retarget live repo pointers from `jaywedgeworth22/DealDex` to `Simple-With-Us/DealDex` in README, CONTRIBUTING, and Copilot instructions. Dated rollouts, published `@jaywedgeworth22/*` package scope, assignee defaults, and Vercel team slugs unchanged. `jaywedgeworth22/Fleet-OPS` links in AGENTS/CLAUDE left for owner follow-up (no public Simple-With-Us target verified). Rollout: `docs/rollouts/2026-11-12-dd-412-github-org.md`. Branch: `cursor/dd-412-github-org-3d91`.
