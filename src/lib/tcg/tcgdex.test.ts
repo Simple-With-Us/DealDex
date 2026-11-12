@@ -13,7 +13,12 @@ test("parseTcgdexCard accepts a card body and rejects a malformed one", () => {
   assert.equal(card.id, "sv08-238");
   assert.equal(card.localId, "238");
   assert.equal(card.set?.name, "Surging Sparks");
-  assert.equal(card.pricing?.tcgplayer?.holofoil && typeof card.pricing.tcgplayer.holofoil === "object" ? (card.pricing.tcgplayer.holofoil as { marketPrice?: number }).marketPrice : null, 1.2);
+  assert.equal(
+    card.pricing?.tcgplayer?.holofoil && typeof card.pricing.tcgplayer.holofoil === "object"
+      ? (card.pricing.tcgplayer.holofoil as { marketPrice?: number }).marketPrice
+      : null,
+    1.2,
+  );
   assert.throws(() => parseTcgdexCard({ id: "x" }), /did not match/);
   assert.throws(() => parseTcgdexCard(null), /did not match/);
 });

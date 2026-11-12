@@ -26,11 +26,14 @@ test("parseRunnerInput accepts a runner body and rejects a mistyped one", () => 
     cursorMs: 0,
     source: "cron",
   });
-  assert.throws(() => parseRunnerRequest({ forceScan: "yes" }), (err: unknown) => {
-    assert.ok(err instanceof Response);
-    assert.equal(err.status, 400);
-    return true;
-  });
+  assert.throws(
+    () => parseRunnerRequest({ forceScan: "yes" }),
+    (err: unknown) => {
+      assert.ok(err instanceof Response);
+      assert.equal(err.status, 400);
+      return true;
+    },
+  );
   assert.throws(
     () => parseRunnerInput({ cursorMs: -1 }),
     (err: unknown) => {
