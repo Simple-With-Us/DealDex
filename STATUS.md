@@ -1,6 +1,6 @@
 ## 2026-11-12 — DD-412 — GitHub org live URLs (OPS-734 slice)
 
-Retarget live repo pointers from `jaywedgeworth22/DealDex` to `Simple-With-Us/DealDex` in README, CONTRIBUTING, and Copilot instructions.  Dated rollouts, published `@jaywedgeworth22/*` package scope, assignee defaults, and Vercel team slugs unchanged.  `jaywedgeworth22/Fleet-OPS` links in AGENTS/CLAUDE left for owner follow-up (no public Simple-With-Us target verified).  Rollout: `docs/rollouts/2026-11-12-dd-412-github-org.md`.  Branch: `cursor/dd-412-github-org-3d91`.
+Retarget live repo pointers from `jaywedgeworth22/DealDex` to `Simple-With-Us/DealDex` in README, CONTRIBUTING, and Copilot instructions. Dated rollouts, published `@jaywedgeworth22/*` package scope, assignee defaults, and Vercel team slugs unchanged. `jaywedgeworth22/Fleet-OPS` links in AGENTS/CLAUDE left for owner follow-up (no public Simple-With-Us target verified). Rollout: `docs/rollouts/2026-11-12-dd-412-github-org.md`. Branch: `cursor/dd-412-github-org-3d91`.
 
 ## 2026-11-12 — DD-411 — Renovate PR #579 verify + artifacts
 
