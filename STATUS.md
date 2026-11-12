@@ -1,3 +1,7 @@
+## 2026-11-12 — DD-412 — GitHub org live URLs (OPS-734 slice)
+
+Retarget live repo pointers from `jaywedgeworth22/DealDex` to `Simple-With-Us/DealDex` in README, CONTRIBUTING, and Copilot instructions.  Dated rollouts, published `@jaywedgeworth22/*` package scope, assignee defaults, and Vercel team slugs unchanged.  `jaywedgeworth22/Fleet-OPS` links in AGENTS/CLAUDE left for owner follow-up (no public Simple-With-Us target verified).  Rollout: `docs/rollouts/2026-11-12-dd-412-github-org.md`.  Branch: `cursor/dd-412-github-org-3d91`.
+
 ## 2026-11-12 — DD-411 — Renovate PR #579 verify + artifacts
 
 Renovate non-major bump (Sentry Gradle 6.26.0, Gradle 9.9.0) failed `verify` on a stale Sentry version pin in `sentry.test.ts` and failed `renovate/artifacts` because only `gradle-wrapper.properties` landed.  Fix: test assertion + full wrapper refresh.  Rollout: `docs/rollouts/2026-11-12-dd-411-renovate-579-ci.md`.  Branch: `renovate/non-major-dependencies`.

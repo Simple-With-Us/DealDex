@@ -1,6 +1,6 @@
 # DealDex — how work ships
 
-**GitHub `main` is the product.**  Repo: https://github.com/jaywedgeworth22/DealDex (public).
+**GitHub `main` is the product.**  Repo: https://github.com/Simple-With-Us/DealDex (public).
 
 Every agent (Grok, Grok Build, Claude, Codex, Cursor, Antigravity, Monet) and
 every human uses the same loop.  Durable rules live in [`AGENTS.md`](AGENTS.md).

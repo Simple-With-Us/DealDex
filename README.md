@@ -8,7 +8,7 @@ Website name: **DealDex**.  Android and iPhone apps scan on the device.  They 
 
 ## Source of truth
 
-GitHub **`main`** is the product: [jaywedgeworth22/DealDex](https://github.com/jaywedgeworth22/DealDex).  The repo is public.  Work lands through a pull request.  Do not push straight to `main`.
+GitHub **`main`** is the product: [Simple-With-Us/DealDex](https://github.com/Simple-With-Us/DealDex).  The repo is public.  Work lands through a pull request.  Do not push straight to `main`.
 
 Anyone working on DealDex (this preview, another Grok chat, Claude, Cursor, Copilot) must:
 
