@@ -8,7 +8,7 @@
  * var (rotated via Infisical).  The token is never logged.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { runScanRunnerTick } from "@/lib/server/scan-runner.server";
+import { parseRunnerRequest, runScanRunnerTick } from "@/lib/server/scan-runner.server";
 import { getSetting, initAppSettings } from "@/lib/server/app-settings";
 
 function checkRunnerToken(req: Request): boolean {
@@ -22,14 +22,6 @@ function checkRunnerToken(req: Request): boolean {
   return Boolean(header && header === expected);
 }
 
-async function json(request: Request) {
-  try {
-    return (await request.json()) as Record<string, unknown>;
-  } catch {
-    return {};
-  }
-}
-
 export const Route = createFileRoute("/api/alerts/run")({
   server: {
     handlers: {
@@ -38,14 +30,22 @@ export const Route = createFileRoute("/api/alerts/run")({
         if (!checkRunnerToken(request)) {
           return Response.json({ error: "unauthorized" }, { status: 401 });
         }
-        const body = await json(request);
-        const source =
-          typeof body.source === "string" && body.source.trim() ? body.source.trim() : "cron";
-        const result = await runScanRunnerTick({
-          forceScan: Boolean(body.forceScan),
-          cursorMs: typeof body.cursorMs === "number" ? body.cursorMs : 0,
-          source,
-        });
+        let body: unknown;
+        try {
+          body = await request.json();
+        } catch {
+          return Response.json({ error: "invalid payload" }, { status: 400 });
+        }
+        let input;
+        try {
+          input = parseRunnerRequest(body);
+        } catch (err) {
+          if (err instanceof Response) {
+            return Response.json({ error: "invalid payload" }, { status: err.status });
+          }
+          throw err;
+        }
+        const result = await runScanRunnerTick(input);
         return Response.json(result);
       },
     },

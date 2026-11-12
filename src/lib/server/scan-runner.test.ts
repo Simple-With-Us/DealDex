@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseRunnerInput } from "./scan-runner.server";
+import { parseRunnerInput, parseRunnerRequest } from "./scan-runner.server";
 
 test("parseRunnerInput accepts a runner body and rejects a mistyped one", () => {
   assert.deepEqual(parseRunnerInput(undefined), {
@@ -21,6 +21,16 @@ test("parseRunnerInput accepts a runner body and rejects a mistyped one", () => 
       return true;
     },
   );
+  assert.deepEqual(parseRunnerRequest({ source: "cron", data: {} }), {
+    forceScan: false,
+    cursorMs: 0,
+    source: "cron",
+  });
+  assert.throws(() => parseRunnerRequest({ forceScan: "yes" }), (err: unknown) => {
+    assert.ok(err instanceof Response);
+    assert.equal(err.status, 400);
+    return true;
+  });
   assert.throws(
     () => parseRunnerInput({ cursorMs: -1 }),
     (err: unknown) => {

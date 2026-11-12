@@ -71,6 +71,32 @@ const RunnerInputSchema = z
   })
   .strict();
 
+/**
+ * HTTP body for POST /api/alerts/run. The cron sends an empty `data` object,
+ * which is ignored. Any other unknown field is rejected.
+ */
+export const RunnerRequestSchema = z
+  .object({
+    forceScan: z.boolean().optional(),
+    cursorMs: z.number().int().nonnegative().finite().optional(),
+    source: z.string().trim().min(1).optional(),
+    data: z.looseObject({}).optional(),
+  })
+  .strict();
+
+/** Runtime check for the cron route. Invalid bodies throw HTTP 400. */
+export function parseRunnerRequest(input: unknown): RunnerInput {
+  const parsed = RunnerRequestSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new Response("Invalid payload", { status: 400 });
+  }
+  return parseRunnerInput({
+    forceScan: parsed.data.forceScan,
+    cursorMs: parsed.data.cursorMs,
+    source: parsed.data.source,
+  });
+}
+
 /** Runtime check for the server function. Invalid bodies throw HTTP 400. */
 export function parseRunnerInput(input: unknown): RunnerInput {
   const parsed = RunnerInputSchema.safeParse(input === undefined ? {} : input);

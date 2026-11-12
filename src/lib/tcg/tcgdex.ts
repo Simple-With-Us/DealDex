@@ -160,7 +160,36 @@ export async function searchCardIndex(
   }
 }
 
-const nullableNum = z.number().nullable().optional();
+/** A price is a finite number. A numeric string is converted. Anything else is null. */
+const priceField = z
+  .union([z.number(), z.string(), z.null()])
+  .optional()
+  .transform((value): number | null | undefined => {
+    if (value === undefined) return undefined;
+    if (value === null || value === "") return null;
+    const n = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(n) ? n : null;
+  });
+
+const TcgdexFinishPricesSchema = z.looseObject({
+  productId: priceField,
+  lowPrice: priceField,
+  midPrice: priceField,
+  highPrice: priceField,
+  marketPrice: priceField,
+  directLowPrice: priceField,
+});
+
+const TcgdexCardmarketSchema = z.looseObject({
+  trend: priceField,
+  avg: priceField,
+  unit: z.string().nullish(),
+  low: priceField,
+  avg1: priceField,
+  avg7: priceField,
+  avg30: priceField,
+  "trend-holo": priceField,
+});
 
 /** Runtime shape for a TCGdex card. Extra fields are kept. A bad body throws. */
 const TcgdexCardSchema = z.looseObject({
@@ -171,8 +200,8 @@ const TcgdexCardSchema = z.looseObject({
   illustrator: z.string().nullish(),
   image: z.string().nullish(),
   category: z.string().nullish(),
-  hp: z.union([z.number(), z.string()]).nullish(),
-  types: z.array(z.string()).optional(),
+  hp: priceField,
+  types: z.array(z.string()).nullish(),
   stage: z.string().nullish(),
   updated: z.string().nullish(),
   set: z
@@ -184,19 +213,10 @@ const TcgdexCardSchema = z.looseObject({
     .nullish(),
   pricing: z
     .looseObject({
-      cardmarket: z
-        .looseObject({
-          trend: nullableNum,
-          avg: nullableNum,
-          unit: z.string().optional(),
-          low: nullableNum,
-          avg1: nullableNum,
-          avg7: nullableNum,
-          avg30: nullableNum,
-          "trend-holo": nullableNum,
-        })
-        .nullish(),
-      tcgplayer: z.record(z.string(), z.unknown()).optional(),
+      cardmarket: TcgdexCardmarketSchema.nullish(),
+      tcgplayer: z
+        .record(z.string(), z.union([TcgdexFinishPricesSchema, z.string(), z.null()]))
+        .optional(),
     })
     .nullish(),
 });
@@ -216,7 +236,7 @@ export function parseTcgdexCard(raw: unknown): TcgdexCard {
     image: card.image ?? undefined,
     category: card.category ?? undefined,
     hp: typeof card.hp === "number" ? card.hp : undefined,
-    types: card.types,
+    types: card.types ?? undefined,
     stage: card.stage ?? undefined,
     updated: card.updated ?? undefined,
     set: card.set
@@ -224,7 +244,9 @@ export function parseTcgdexCard(raw: unknown): TcgdexCard {
       : undefined,
     pricing: card.pricing
       ? {
-          cardmarket: card.pricing.cardmarket ?? undefined,
+          cardmarket: card.pricing.cardmarket
+            ? { ...card.pricing.cardmarket, unit: card.pricing.cardmarket.unit ?? undefined }
+            : undefined,
           tcgplayer: card.pricing.tcgplayer,
         }
       : undefined,
