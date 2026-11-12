@@ -30,7 +30,10 @@ test("privacy discloses Sentry scan-hop traces without listing titles", () => {
   const privacy = read("src/routes/privacy.tsx");
   assert.match(privacy, /Website Analytics/);
   assert.match(privacy, /Sentry Performance/);
-  assert.match(privacy, /do not include listing titles, search queries, or desk/);
+  assert.match(
+    privacy,
+    /do not\s+include listing titles, search queries, or paid price-source keys/,
+  );
   assert.match(privacy, /Datadog Session Replay is off/);
 });
 
@@ -65,21 +68,26 @@ test("Replay stays 100% on error, 10% session, masked, with Feedback widget", ()
 });
 
 test("iOS Cocoa reads SENTRY_DSN from Info.plist only", () => {
-  const swift = read("native/ios/DealDex/SentryTelemetry.swift");
+  const swift = read("apps/ios/DealDex/SentryTelemetry.swift");
   assert.match(swift, /forInfoDictionaryKey: "SENTRY_DSN"/);
   assert.match(swift, /CFBundleShortVersionString/);
   assert.match(swift, /releaseName = build\.isEmpty \? version : "\\\(version\)\+\\\(build\)"/);
-  assert.match(swift, /profilesSampleRate = 0\.1/);
+  // sentry-cocoa 9.x removed Options.profilesSampleRate; profiling is set
+  // through SentryProfileOptions in the configureProfiling closure.
+  assert.match(swift, /configureProfiling = \{ profiling in/);
+  assert.match(swift, /profiling\.lifecycle = \.trace/);
+  assert.match(swift, /profiling\.sessionSampleRate = 0\.1/);
+  assert.doesNotMatch(swift, /options\.profilesSampleRate\s*=/);
   assert.match(swift, /sessionReplay\.onErrorSampleRate = 1\.0/);
   assert.doesNotMatch(swift, /ingest\.sentry\.io/);
   assert.doesNotMatch(swift, /\?\? "https:\/\//);
 
-  const plist = read("native/ios/DealDex/Info.plist");
+  const plist = read("apps/ios/DealDex/Info.plist");
   assert.match(plist, /<key>SENTRY_DSN<\/key>/);
   assert.match(plist, /<string>\$\(SENTRY_DSN\)<\/string>/);
   assert.doesNotMatch(plist, /<string>https:\/\//);
 
-  const yml = read("native/ios/project.yml");
+  const yml = read("apps/ios/project.yml");
   assert.match(yml, /^\s+SENTRY_DSN:\s*""\s*$/m);
   assert.match(yml, /^\s+SENTRY_DSN:\s*\$\(SENTRY_DSN\)\s*$/m);
   assert.doesNotMatch(yml, /SENTRY_DSN:\s*"https:\/\//);
@@ -134,7 +142,7 @@ test("server scan hops use named Sentry spans and keep Datadog at web.request", 
 });
 
 test("Android Sentry SDK is present, DSN-gated, and privacy-safe", () => {
-  const gradle = read("native/android/app/build.gradle.kts");
+  const gradle = read("apps/android/app/build.gradle.kts");
   assert.match(gradle, /io\.sentry:sentry-android/);
   assert.match(gradle, /io\.sentry:sentry-android-ndk/);
   assert.match(gradle, /androidx\.fragment:fragment-ktx/);
@@ -146,10 +154,10 @@ test("Android Sentry SDK is present, DSN-gated, and privacy-safe", () => {
   assert.match(gradle, /System\.getenv\("SENTRY_DSN"\)/);
   assert.doesNotMatch(gradle, /ingest\.sentry\.io/);
 
-  const rootGradle = read("native/android/build.gradle.kts");
-  assert.match(rootGradle, /id\("io\.sentry\.android\.gradle"\) version "6\.24\.0"/);
+  const rootGradle = read("apps/android/build.gradle.kts");
+  assert.match(rootGradle, /id\("io\.sentry\.android\.gradle"\) version "6\.26\.0"/);
 
-  const app = read("native/android/app/src/main/java/me/grok/dealdex/DealDexApp.kt");
+  const app = read("apps/android/app/src/main/java/me/grok/dealdex/DealDexApp.kt");
   assert.match(app, /SentryAndroid\.init/);
   assert.match(app, /VERSION_NAME\}\+\$\{BuildConfig\.VERSION_CODE\}/);
   assert.match(app, /isSendDefaultPii\s*=\s*false/);
@@ -168,16 +176,16 @@ test("Android Sentry SDK is present, DSN-gated, and privacy-safe", () => {
   assert.match(app, /setMaskAllText\(true\)/);
   assert.match(app, /setMaskAllImages\(true\)/);
 
-  const manifest = read("native/android/app/src/main/AndroidManifest.xml");
+  const manifest = read("apps/android/app/src/main/AndroidManifest.xml");
   assert.match(manifest, /io\.sentry\.auto-init/);
   assert.match(manifest, /android:value="false"/);
 
-  const native = read("native/README.md");
+  const native = read("docs/native-apps.md");
   assert.match(native, /io\.sentry:sentry-android/);
   assert.match(native, /io\.sentry\.android\.gradle/);
   assert.doesNotMatch(native, /iOS only until Android tracks ship/i);
 
-  const market = read("native/android/app/src/main/java/me/grok/dealdex/data/Market.kt");
+  const market = read("apps/android/app/src/main/java/me/grok/dealdex/data/Market.kt");
   assert.match(market, /hop\("scan", "scan\.ebay"\)/);
   assert.match(market, /hop\("scan", "scan\.mercari"\)/);
   assert.match(market, /hop\("scan", "scan\.match"\)/);
@@ -186,7 +194,7 @@ test("Android Sentry SDK is present, DSN-gated, and privacy-safe", () => {
   assert.match(market, /setData\("listing\.count"/);
   assert.doesNotMatch(market, /setData\("scan\.(query|title)/);
 
-  const http = read("native/android/app/src/main/java/me/grok/dealdex/data/SentryHttp.kt");
+  const http = read("apps/android/app/src/main/java/me/grok/dealdex/data/SentryHttp.kt");
   assert.match(http, /setData\("http\.query", null\)/);
   assert.match(http, /removeData\("http\.query"\)/);
 });

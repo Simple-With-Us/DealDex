@@ -36,22 +36,21 @@ function AlertsPage() {
       <p className="text-xs uppercase tracking-[0.16em] text-subtle">Watchlist</p>
       <h1 className="mt-1 font-display text-4xl tracking-tight">Alerts</h1>
       <Lead>
-        Tell DealDex what a deal looks like. Native phone alerts fire on this device, and Pushover
-        goes to the destination you add. Email and SMS are not wired up yet — they are listed so you
-        can see what is coming, not so you can rely on them.
+        Tell DealDex what a deal looks like.{"\u00A0 "}Phone alerts stay on this device.{"\u00A0 "}
+        Pushover goes to the destination you add.{"\u00A0 "}Email and text are not available yet.
       </Lead>
 
       <div className="mt-6 flex flex-wrap gap-2">
         <Button
           onClick={async () => {
             const perm = await ensureNativePermission();
-            if (perm === "unsupported") toast("This browser cannot show native alerts.");
+            if (perm === "unsupported") toast("This browser cannot show alerts.");
             else if (perm === "denied") toast("Notifications are blocked in system settings.");
-            else if (perm === "granted") toast("Native alerts are on for this device.");
+            else if (perm === "granted") toast("Alerts are on for this device.");
             else toast("Permission saved.");
           }}
         >
-          <Bell /> Enable Native Alerts
+          <Bell /> Turn On Alerts
         </Button>
         <Button variant="secondary" asChild>
           <Link to="/install">
@@ -61,8 +60,7 @@ function AlertsPage() {
       </div>
       {isIos() && !isStandalone() && (
         <p className="mt-3 text-sm text-muted">
-          On iPhone, add DealDex to the Home Screen first, then tap Enable Native Alerts from the
-          icon.
+          On iPhone, add DealDex to the Home Screen first, then tap Turn On Alerts from the icon.
         </p>
       )}
 
@@ -86,7 +84,7 @@ function AlertsPage() {
       </div>
 
       <section className="mt-14">
-        <h2 className="font-display text-2xl tracking-tight">Recent Hits</h2>
+        <h2 className="font-display text-2xl tracking-tight">Recent Matches</h2>
         {!hits.length && <p className="mt-3 text-sm text-muted">No matches yet. Run a scan.</p>}
         <div className="mt-4 grid gap-3">
           {hits.map((hit) => (
@@ -168,7 +166,7 @@ function RuleCard({
         </label>
         <label className="text-sm">
           <span className="mb-1 block text-xs uppercase tracking-[0.14em] text-subtle">
-            Min spread %
+            Min discount %
           </span>
           <Input
             type="number"
@@ -229,7 +227,7 @@ function RuleCard({
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <Channel
-          label="Native phone (Android / iOS)"
+          label="This phone"
           checked={rule.channels.native}
           onChange={(native) => onChange({ channels: { ...rule.channels, native } })}
         />
@@ -247,7 +245,7 @@ function RuleCard({
           note="Not available yet"
         />
         <Channel
-          label="SMS"
+          label="Text message"
           checked={false}
           onChange={() => undefined}
           disabled
@@ -298,7 +296,11 @@ function AutoBuyBlock({
   const cfg = rule.autoBuy;
   const updateCfg = (patch: Partial<typeof cfg>) => onChange({ autoBuy: { ...cfg, ...patch } });
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ accepted: number; rejected: number; samples: string[] } | null>(null);
+  const [result, setResult] = useState<{
+    accepted: number;
+    rejected: number;
+    samples: string[];
+  } | null>(null);
 
   async function previewNow() {
     setBusy(true);
@@ -336,14 +338,13 @@ function AutoBuyBlock({
         </label>
       </header>
       <p className="text-sm text-muted">
-        Dry-run is on by default — Preview returns the rows that would be purchased, never
-        places an order. Flipping dry-run off requires explicit confirmation and is gated
-        server-side.
+        Preview only lists what would be bought.{"\u00A0 "}It does not place an order.{"\u00A0 "}
+        Turning live buying on asks you to confirm, and DealDex checks that confirmation.
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm">
           <span className="mb-1 block text-xs uppercase tracking-[0.14em] text-subtle">
-            Max all-in (cents)
+            Highest total (cents)
           </span>
           <Input
             type="number"
@@ -353,7 +354,7 @@ function AutoBuyBlock({
         </label>
         <label className="text-sm">
           <span className="mb-1 block text-xs uppercase tracking-[0.14em] text-subtle">
-            Min spread (0..1)
+            Minimum discount (0 to 1)
           </span>
           <Input
             type="number"
@@ -361,12 +362,14 @@ function AutoBuyBlock({
             min="0"
             max="1"
             value={cfg.minSpread}
-            onChange={(e) => updateCfg({ minSpread: Math.max(0, Math.min(1, Number(e.target.value))) })}
+            onChange={(e) =>
+              updateCfg({ minSpread: Math.max(0, Math.min(1, Number(e.target.value))) })
+            }
           />
         </label>
         <label className="text-sm">
           <span className="mb-1 block text-xs uppercase tracking-[0.14em] text-subtle">
-            Max daily (cents)
+            Daily cap (cents)
           </span>
           <Input
             type="number"
@@ -376,12 +379,14 @@ function AutoBuyBlock({
         </label>
         <label className="text-sm">
           <span className="mb-1 block text-xs uppercase tracking-[0.14em] text-subtle">
-            Max monthly (cents)
+            Monthly cap (cents)
           </span>
           <Input
             type="number"
             value={cfg.maxMonthlyCents}
-            onChange={(e) => updateCfg({ maxMonthlyCents: Math.max(0, Number(e.target.value) | 0) })}
+            onChange={(e) =>
+              updateCfg({ maxMonthlyCents: Math.max(0, Number(e.target.value) | 0) })
+            }
           />
         </label>
         <label className="text-sm">
@@ -395,7 +400,9 @@ function AutoBuyBlock({
           />
         </label>
         <label className="text-sm">
-          <span className="mb-1 block text-xs uppercase tracking-[0.14em] text-subtle">Marketplace</span>
+          <span className="mb-1 block text-xs uppercase tracking-[0.14em] text-subtle">
+            Marketplace
+          </span>
           <select
             value={cfg.marketplace}
             onChange={(e) => updateCfg({ marketplace: e.target.value as typeof cfg.marketplace })}

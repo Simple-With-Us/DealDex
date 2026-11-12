@@ -1,11 +1,15 @@
 # 2026-08-23 — iOS version regimen (1.0.N + UTC build)
 
-> **Superseded 2026-10-18.** The UTC `YYYYMMDDHHMM` build stamp this file
-> describes is retired. The fleet now takes both numbers from the repo's
-> commit count: marketing `1.0.<commit_count>`, build `<commit_count>`, so
-> the pair always describes one commit. This file stays as the record of what
-> was done on 2026-08-23; the current regimen is AGENT-SYNC.md
-> (section "Version Numbers") and `scripts/ios-fleet/ship-testflight.sh`.
+> **Superseded 2026-10-18, superseded again 2026-10-24.** The UTC `YYYYMMDDHHMM`
+> build stamp this file describes is retired.  On 2026-10-18 both numbers came
+> from the repo's commit count (marketing `1.0.<commit_count>`, build
+> `<commit_count>`, so the pair always described one commit); since 2026-10-24
+> the two numbers are independent: the marketing version is the next patch on
+> the train (App Store Connect is the only record of which patches it holds)
+> and the build is the repo commit count, raised above the App Store Connect
+> floor.  This file stays as the record of what was done on 2026-08-23; the
+> current regimen is `scripts/ios-fleet/ship-testflight.sh` and
+> `scripts/ios-fleet/version-plan.mjs`.
 
 ## Problem
 

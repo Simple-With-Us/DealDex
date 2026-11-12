@@ -58,18 +58,18 @@ test("Play update offer is skippable and silent when current or unavailable", ()
 });
 
 test("Android on-open Play check uses flexible In-App Updates, not a force gate", () => {
-  const gradle = read("native/android/app/build.gradle.kts");
+  const gradle = read("apps/android/app/build.gradle.kts");
   assert.match(gradle, /com\.google\.android\.play:app-update/);
   assert.match(gradle, /com\.google\.android\.play:app-update-ktx/);
 
-  const prompt = read("native/android/app/src/main/java/me/grok/dealdex/PlayUpdatePrompt.kt");
+  const prompt = read("apps/android/app/src/main/java/me/grok/dealdex/PlayUpdatePrompt.kt");
   assert.match(prompt, /fun shouldOffer/);
   assert.match(prompt, /Update Available/);
   assert.match(prompt, /Not Now/);
   assert.match(prompt, /You can keep using this one/);
   assert.doesNotMatch(prompt, /IMMEDIATE|minVersion|force-update|coordinator|owner/i);
 
-  const activity = read("native/android/app/src/main/java/me/grok/dealdex/MainActivity.kt");
+  const activity = read("apps/android/app/src/main/java/me/grok/dealdex/MainActivity.kt");
   assert.match(activity, /AppUpdateManagerFactory/);
   assert.match(activity, /AppUpdateType\.FLEXIBLE/);
   assert.match(activity, /UpdateAvailability\.UPDATE_AVAILABLE/);
@@ -81,7 +81,7 @@ test("Android on-open Play check uses flexible In-App Updates, not a force gate"
   assert.doesNotMatch(activity, /Toast\.makeText/);
   assert.doesNotMatch(activity, /coordinator|Jay|owner/i);
 
-  const strings = read("native/android/app/src/main/res/values/strings.xml");
+  const strings = read("apps/android/app/src/main/res/values/strings.xml");
   assert.match(strings, /play_update_title/);
   assert.match(strings, /play_update_not_now/);
 });

@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">DealDex</string>
+    <string name="app_subtitle">Compare Pokémon card listing prices</string>
+    <string name="play_update_title">Update Available</string>
+    <string name="play_update_message">A newer version is on Google Play.  You can keep using this one.</string>
+    <string name="play_update_confirm">Update</string>
+    <string name="play_update_not_now">Not Now</string>
+</resources>

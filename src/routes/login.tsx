@@ -78,8 +78,9 @@ function Login() {
           <DealDexWordmark className="mx-auto h-12 max-w-[18rem] sm:h-14 sm:max-w-[22rem]" />
           <p className="mt-3 text-center text-sm font-medium text-muted">{APP_SUBTITLE}</p>
           <h1 className="mt-4 text-lg font-semibold tracking-tight">Sign in to DealDex</h1>
-          <p className="mt-1.5 text-xs text-muted leading-relaxed">
-            Guests can scan freely.  An account backs up your saved deals and API desk keys across devices.
+          <p className="mt-1.5 text-sm text-muted leading-relaxed">
+            Guests can scan without an account.{"\u00A0 "}
+            Sign in to back up saved deals and price-source keys.
           </p>
         </div>
 
@@ -101,11 +102,13 @@ function Login() {
         ) : (
           <p className="text-sm text-muted">Sign-in is disabled.</p>
         )}
-        <Link to="/" className="block text-center text-xs font-medium text-muted hover:text-fg">
-          ← Back to the desk
+        <Link
+          to="/"
+          className="flex h-11 items-center justify-center text-center text-sm font-medium text-muted hover:text-fg"
+        >
+          Back to Scan
         </Link>
       </div>
     </main>
   );
 }
-
