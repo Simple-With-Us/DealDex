@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { COOLDOWN_MS, classify, assertProject, assertCi, assertReceipt, deploymentSha, request } from './vercel-catch-up.mjs';
+import { COOLDOWN_MS, classify, assertProject, assertCi, ciGate, assertReceipt, deploymentSha, request } from './vercel-catch-up.mjs';
 const A = 'a'.repeat(40), B = 'b'.repeat(40), now = 1_800_000_000_000;
 const config = { projectId: 'prj_test', teamId: 'team_test', repoId: 17, rootDirectory: 'site' };
 const baseline = { projectId: 'prj_test', target: 'production', readyState: 'READY', created: now - COOLDOWN_MS - 1, gitSource: { sha: A }, url: 'test.vercel.app' };
@@ -39,9 +39,11 @@ test('binding checks stable repo ID and preserves root', () => {
 test('CI requires latest exact main successful trusted event', () => {
  const good = {id:1,name:'CI',head_sha:B,head_branch:'main',event:'push',status:'completed',conclusion:'success'};
  assert.doesNotThrow(() => assertCi([good],['CI'],B));
+ assert.equal(ciGate([good],['CI'],B), null);
  for (const change of [{head_sha:A},{event:'pull_request'},{status:'in_progress'},{conclusion:'failure'},{conclusion:'skipped'}]) assert.throws(() => assertCi([{...good,...change}],['CI'],B));
  assert.throws(() => assertCi([good,{...good,id:2,conclusion:'failure'}],['CI'],B));
  assert.throws(() => assertCi([good],['CI','Site CI'],B));
+ assert.match(ciGate([{...good,status:'queued'}],['CI'],B), /CI/);
 });
 test('receipt verifies project/target/sha/READY/url, not CLI exit code', () => {
  assert.equal(assertReceipt(baseline,config,A),'https://test.vercel.app');
@@ -84,7 +86,8 @@ test('entrypoint reconciles skipped site changes behind docs, rechecks and verif
   const execute=(...args)=>{writeFileSync(fixtureFile,JSON.stringify(fixture));writeFileSync(output,'');return spawnSync(process.execPath,['--import',join(dir,'mock.mjs'),'scripts/deploy/vercel-catch-up.mjs',...args],{cwd:dir,encoding:'utf8',env:{...process.env,GITHUB_REPOSITORY:'owner/repo',GH_TOKEN:'fixture',VERCEL_TOKEN:'fixture',FIXTURE:fixtureFile,GITHUB_OUTPUT:output}});};
   let result=execute('prepare');assert.equal(result.status,0,result.stderr);assert.equal(readFileSync(output,'utf8'),'deploy=true\n');
   fixture.head=A;result=execute();assert.equal(result.status,0,result.stderr);assert.equal(readFileSync(output,'utf8'),'deploy=false\n');fixture.head=latest;
-  fixture.ci.workflow_runs[0].conclusion='failure';result=execute();assert.equal(result.status,1);assert.match(result.stderr,/Exact-main CI/);fixture.ci.workflow_runs[0].conclusion='success';
+  fixture.ci.workflow_runs[0].conclusion='failure';result=execute();assert.equal(result.status,0,result.stderr);assert.equal(readFileSync(output,'utf8'),'deploy=false\n');fixture.ci.workflow_runs[0].conclusion='success';
+  fixture.ci.workflow_runs[0].status='queued';result=execute();assert.equal(result.status,0,result.stderr);assert.equal(readFileSync(output,'utf8'),'deploy=false\n');fixture.ci.workflow_runs[0].status='completed';
   fixture.history.pagination.next=1;fixture.history.deployments[0].created=Date.now()-1;result=execute();assert.equal(result.status,1);assert.match(result.stderr,/history truncated/);fixture.history.pagination={};
   fixture.baseline.gitSource.sha=latest;result=execute('receipt',receipt);assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/https:\/\/test.vercel.app/);
   fixture.project.targets.production.id='dpl_other';result=execute('receipt',receipt);assert.equal(result.status,1);assert.match(result.stderr,/current production target/);

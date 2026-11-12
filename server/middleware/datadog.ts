@@ -1,12 +1,13 @@
 /**
  * Agentless Datadog logs + APM for the Nitro / Vercel function.
  *
- * Production is fail-closed when DD_API_KEY is missing.  Missing RUM tokens
- * stay dark and must not 503 the site.
+ * Opt-in:  no DD_* keys means the middleware passes through dark.  DD_REQUIRE=1
+ * restores the fail-closed 503 guard when DD_API_KEY is missing.  Missing RUM
+ * tokens stay dark and must not 503 the site.
  * Application errors are rethrown after they are shipped — they stay visible.
  */
 import {
-  isProductionObservability,
+  isDatadogRequired,
   missingServerKeys,
   requireServerObservability,
 } from "../../src/lib/observability/config";
@@ -49,7 +50,7 @@ export default async function datadogMiddleware(
   event: DatadogEvent,
   next: () => unknown | Promise<unknown>,
 ): Promise<unknown> {
-  if (isProductionObservability(process.env) && missingServerKeys(process.env).length) {
+  if (isDatadogRequired(process.env) && missingServerKeys(process.env).length) {
     return failClosedResponse();
   }
 

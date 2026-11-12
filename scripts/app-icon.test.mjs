@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const ICONSET = "native/ios/DealDex/Assets.xcassets/AppIcon.appiconset";
+const ICONSET = "apps/ios/DealDex/Assets.xcassets/AppIcon.appiconset";
 
 function read(rel) {
   return readFileSync(join(ROOT, rel), "utf8");
@@ -18,7 +18,7 @@ function pngSize(rel) {
 }
 
 test("Info.plist sets CFBundleIconName to AppIcon", () => {
-  const plist = read("native/ios/DealDex/Info.plist");
+  const plist = read("apps/ios/DealDex/Info.plist");
   assert.match(
     plist,
     /<key>CFBundleIconName<\/key>\s*<string>AppIcon<\/string>/,
@@ -26,7 +26,7 @@ test("Info.plist sets CFBundleIconName to AppIcon", () => {
 });
 
 test("iPad multitasking lists all four orientations including PortraitUpsideDown", () => {
-  const plist = read("native/ios/DealDex/Info.plist");
+  const plist = read("apps/ios/DealDex/Info.plist");
   const required = [
     "UIInterfaceOrientationPortrait",
     "UIInterfaceOrientationPortraitUpsideDown",
@@ -48,7 +48,7 @@ test("iPad multitasking lists all four orientations including PortraitUpsideDown
 });
 
 test("XcodeGen spec names the AppIcon catalog", () => {
-  const spec = read("native/ios/project.yml");
+  const spec = read("apps/ios/project.yml");
   assert.match(spec, /^\s+ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon$/m);
   assert.match(spec, /^\s+INFOPLIST_KEY_CFBundleIconName: AppIcon$/m);
 });
@@ -70,7 +70,7 @@ test("AppIcon catalog includes 120, 152, and 1024 PNGs", () => {
 });
 
 test("generated pbxproj compiles AppIcon from the asset catalog", () => {
-  const pbx = read("native/ios/DealDex.xcodeproj/project.pbxproj");
+  const pbx = read("apps/ios/DealDex.xcodeproj/project.pbxproj");
   assert.match(pbx, /ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;/);
   assert.match(pbx, /Assets\.xcassets/);
   assert.match(pbx, /PBXResourcesBuildPhase/);
@@ -79,20 +79,20 @@ test("generated pbxproj compiles AppIcon from the asset catalog", () => {
 
 test("Android launcher uses the DD adaptive icon and mipmaps", () => {
   const adaptive = read(
-    "native/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
+    "apps/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
   );
   assert.match(adaptive, /@drawable\/ic_launcher_foreground/);
   assert.match(adaptive, /@color\/launcher_bg/);
   assert.doesNotMatch(adaptive, /ic_delta/);
-  const colors = read("native/android/app/src/main/res/values/colors.xml");
+  const colors = read("apps/android/app/src/main/res/values/colors.xml");
   assert.match(colors, /<color name="launcher_bg">#FFFFFF<\/color>/);
   const xxx = pngSize(
-    "native/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+    "apps/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
   );
   assert.deepEqual({ width: xxx.width, height: xxx.height }, { width: 192, height: 192 });
-  const xxxBuf = readFileSync(join(ROOT, "native/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"));
+  const xxxBuf = readFileSync(join(ROOT, "apps/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"));
   assert.equal(xxxBuf[25], 6, "Android mipmaps must keep the isolated DD alpha");
-  const fg = readFileSync(join(ROOT, "native/android/app/src/main/res/drawable/ic_launcher_foreground.png"));
+  const fg = readFileSync(join(ROOT, "apps/android/app/src/main/res/drawable/ic_launcher_foreground.png"));
   assert.equal(fg[25], 6, "Android adaptive foreground must keep the isolated DD alpha");
 });
 
@@ -114,7 +114,7 @@ test("web favicon is a transparent DD PNG/ICO, not an SVG letter tile", () => {
   const pwaBuf = readFileSync(join(ROOT, "public/__grok/icon-180.png"));
   assert.equal(pwaBuf[25], 6, "PWA 180 must keep the isolated DD alpha");
   assert.ok(pwa.bytes > 4_000, "PWA 180 should be the glossy DD, not a stub");
-  const source = pngSize("native/brand/dealdex-dd-icon-1024.png");
+  const source = pngSize("assets/brand/dealdex-dd-icon-1024.png");
   assert.deepEqual({ width: source.width, height: source.height }, { width: 1024, height: 1024 });
 });
 

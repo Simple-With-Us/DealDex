@@ -24,13 +24,21 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    outputs:
+      sentry_check_in_id: ${{ steps.sentry-cron-start.outputs.check_in_id }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Sentry cron in_progress
+        if: github.event_name == 'schedule'
+        id: sentry-cron-start
+        env:
+          SENTRY_FLEET_DSN: ${{ secrets.SENTRY_FLEET_DSN }}
+        run: python3 scripts/sentry-ci-report.py --cron-checkin "Vercel production catch-up" in_progress
       - uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: '26'
       - run: node --test scripts/deploy/vercel-catch-up.test.mjs
 
   deploy:
@@ -51,7 +59,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: '26'
       - name: Load deploy token from shared Fleet-OPS secret scope
         env:
           INFISICAL_PROJECT_ID: 8dae6d03-8f12-48b2-adf3-e5c1b881c8c5
@@ -86,3 +94,30 @@ jobs:
             --meta githubCommitSha="$(git rev-parse HEAD)" \
             --meta githubCommitRef=main > "$RUNNER_TEMP/vercel-deployment.json"
           node scripts/deploy/vercel-catch-up.mjs receipt "$RUNNER_TEMP/vercel-deployment.json"
+
+  sentry-cron-finish:
+    needs: [test, deploy]
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Sentry cron ok or error
+        env:
+          SENTRY_FLEET_DSN: ${{ secrets.SENTRY_FLEET_DSN }}
+          SENTRY_CHECK_IN_ID: ${{ needs.test.outputs.sentry_check_in_id }}
+        run: |
+          set -euo pipefail
+          status=ok
+          if [[ "${{ needs.test.result }}" != "success" ]]; then
+            status=error
+          elif [[ "${{ needs.deploy.result }}" == "failure" ]]; then
+            status=error
+          fi
+          args=(--cron-checkin "Vercel production catch-up" "$status")
+          if [[ -n "${SENTRY_CHECK_IN_ID:-}" ]]; then
+            args+=(--check-in-id "$SENTRY_CHECK_IN_ID")
+          fi
+          python3 scripts/sentry-ci-report.py "${args[@]}"

@@ -17,12 +17,17 @@ export function describeVsBook(
   high: number | null | undefined,
 ): VsBook {
   if (ask == null || !Number.isFinite(ask) || ask < 0) {
-    return { headline: "No ask yet", detail: "Need a listing price to place it on the book.", short: "—", tone: "fair" };
+    return {
+      headline: "No ask yet",
+      detail: "Add a listing price to compare it.",
+      short: "—",
+      tone: "fair",
+    };
   }
   if (book == null || !Number.isFinite(book) || book <= 0) {
     return {
-      headline: "No book yet",
-      detail: "Desks have not returned a usable range for this printing.",
+      headline: "No price yet",
+      detail: "No usable price range for this printing yet.",
       short: "no book",
       tone: "fair",
     };
@@ -34,7 +39,7 @@ export function describeVsBook(
 
   if (inside && Math.abs(dollars) / book <= 0.08) {
     return {
-      headline: "Ask sits in the middle of the desks",
+      headline: "Ask sits in the middle of the range",
       detail: `${formatUsd(ask)} is inside ${formatUsd(low)}–${formatUsd(high)}.`,
       short: "in the book",
       tone: "fair",
@@ -44,7 +49,7 @@ export function describeVsBook(
     const pct = Math.round((under / book) * 100);
     return {
       headline: `${pct}% under the middle, still inside the range`,
-      detail: `${formatUsd(ask)} ask vs ${formatUsd(low)}–${formatUsd(high)} across desks.`,
+      detail: `${formatUsd(ask)} ask vs ${formatUsd(low)}–${formatUsd(high)} across price sources.`,
       short: `${pct}% under`,
       tone: "fair",
     };
@@ -53,7 +58,7 @@ export function describeVsBook(
     const pct = Math.round((dollars / book) * 100);
     return {
       headline: `${pct}% over the middle, still inside the range`,
-      detail: `${formatUsd(ask)} ask vs ${formatUsd(low)}–${formatUsd(high)} across desks.`,
+      detail: `${formatUsd(ask)} ask vs ${formatUsd(low)}–${formatUsd(high)} across price sources.`,
       short: `${pct}% over`,
       tone: "fair",
     };

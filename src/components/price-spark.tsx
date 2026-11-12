@@ -21,12 +21,15 @@ export function PriceSpark({ ticks }: { ticks: PriceTick[] }) {
   const delta = last - first;
   const down = delta < 0;
   return (
-    <span className="inline-flex items-center gap-1.5" title="Ask history on this desk">
+    <span className="inline-flex items-center gap-1.5" title="Ask history for this listing">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         width={width}
         height={height}
-        className={cn("h-5 w-[4.5rem]", down ? "text-deal-good" : delta > 0 ? "text-deal-bad" : "text-muted")}
+        className={cn(
+          "h-5 w-[4.5rem]",
+          down ? "text-deal-good" : delta > 0 ? "text-deal-bad" : "text-muted",
+        )}
         aria-hidden
       >
         <path d={path} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />

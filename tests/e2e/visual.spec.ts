@@ -32,12 +32,6 @@ import { fileURLToPath } from "node:url";
 //     advances) differ between the baseline machine and the CI runner and
 //     shifted every glyph by subpixels.  Grayscale, unhinted, integer-
 //     positioned text renders identically from identical font files.
-//   - The "⚡" in the home page's SCAN MARKET button is not in IBM Plex
-//     Sans, so it falls back to a system symbol/emoji font that differs
-//     per machine (and even its span metrics differ, so masking
-//     misaligns).  The test strips it from the DOM before screenshotting:
-//     the app cannot control that glyph, and it renders differently on
-//     every user's machine anyway.
 //   - Screenshot comparisons allow up to 1% differing pixels
 //     (maxDiffPixelRatio).  Identical font files + pinned rendering still
 //     leave sub-1% per-pixel intensity differences on glyph fringes from
@@ -60,10 +54,6 @@ import { fileURLToPath } from "node:url";
 //     server-function abort already empties it).
 //
 // Deliberately NOT covered here:
-//   - /settings renders the app's error boundary under the Playwright dev
-//     server (client bundle hits "node:crypto has been externalized for
-//     browser compatibility" via the server-module import chain).  That is
-//     a pre-existing app bug, not a visual state worth baselining.
 //   - /card/$cardId shows live per-card market data with no stable fixture.
 //   - /privacy-policy 301-redirects to /privacy.
 test.use({ animations: "disabled" });
@@ -107,7 +97,7 @@ test.beforeEach(async ({ page }) => {
 async function gotoSettled(
   page: Page,
   path: string,
-  opts: { awaitAuthSlot?: boolean } = {},
+  opts: { awaitAuthSlot?: boolean; pause?: boolean } = {},
 ): Promise<void> {
   await page.goto(path, { waitUntil: "networkidle" });
   // The home page auto-runs a market scan on mount; with server functions
@@ -153,23 +143,7 @@ async function gotoSettled(
       throw new Error("expected webfonts to load, but no font faces reached 'loaded'");
     }
   });
-  await page.waitForTimeout(500);
-}
-
-// The "⚡" in the SCAN MARKET button is not in IBM Plex Sans, so it falls
-// back to a system symbol/emoji font — Noto Color Emoji on one machine, a
-// monochrome symbol font on another.  The app cannot control that glyph,
-// so strip it from the test DOM before screenshotting.
-async function removeZapGlyph(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    while (walker.nextNode()) {
-      const node = walker.currentNode as Text;
-      if (node.nodeValue?.includes("⚡")) {
-        node.nodeValue = node.nodeValue.replaceAll("⚡ ", "").replaceAll("⚡", "");
-      }
-    }
-  });
+  if (opts.pause !== false) await page.waitForTimeout(500);
 }
 
 // See the header comment: 1% absorbs OS FreeType fringe differences.
@@ -187,7 +161,6 @@ test("home: full-page screenshot", async ({ page }) => {
       has: page.getByRole("heading", { name: "A few cards on TCGPlayer" }),
     })
     .locator("div.grid");
-  await removeZapGlyph(page);
   await expect(page, "home page should match the committed baseline").toHaveScreenshot(
     "home-full.png",
     { fullPage: true, mask: [boardGrid], ...VISUAL_TOLERANCE },
@@ -204,6 +177,21 @@ test("login: full-page screenshot", async ({ page }) => {
   ).toBeVisible();
   await expect(page, "login page should match the committed baseline").toHaveScreenshot(
     "login-full.png",
+    { fullPage: true, ...VISUAL_TOLERANCE },
+  );
+});
+
+test("settings: full-page screenshot", async ({ page }) => {
+  await gotoSettled(page, "/settings", { pause: false });
+  await expect(
+    page.getByRole("heading", { name: "Settings", level: 1 }),
+    "settings page should render instead of the error boundary",
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Price sources" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
+  await expect(page.getByText("Not connected")).toBeVisible();
+  await expect(page, "settings page should match the committed baseline").toHaveScreenshot(
+    "settings-full.png",
     { fullPage: true, ...VISUAL_TOLERANCE },
   );
 });
@@ -262,6 +250,36 @@ test("shell footer renders the SWU attribution", async ({ page }) => {
   await expect(footer.getByRole("link", { name: "From Simple With Us" })).toBeVisible();
   await expect(footer, "shell footer should match the committed baseline").toHaveScreenshot(
     "shell-footer.png",
+    VISUAL_TOLERANCE,
+  );
+});
+
+test("shell footer wordmark follows the resolved theme, not the OS", async ({ page }) => {
+  // DealDex resolves its own theme (src/lib/theme.tsx) and toggles .dark on
+  // <html>; Tailwind keys off that class, not prefers-color-scheme.  A dark-OS
+  // visitor whose app preference is still the default "light" must therefore
+  // see the light wordmark.  This is the regression the first pass shipped when
+  // the footer used a <picture> with an OS media query.
+  await page.emulateMedia({ colorScheme: "dark" });
+  await gotoSettled(page, "/privacy", { awaitAuthSlot: false });
+
+  const footer = page.locator("footer");
+  const light = footer.locator('img[src*="swu-wordmark-light"]');
+  const dark = footer.locator('img[src*="swu-wordmark-dark"]');
+
+  await expect(light, "dark OS must not override the default light app theme").toBeVisible();
+  await expect(dark).toBeHidden();
+  await expect(footer, "light footer should match the committed baseline").toHaveScreenshot(
+    "shell-footer-light-os-dark-app.png",
+    VISUAL_TOLERANCE,
+  );
+
+  // Flip the app-level class the way the theme toggle does.
+  await page.evaluate(() => document.documentElement.classList.add("dark"));
+  await expect(dark, "the .dark class must reveal the dark wordmark").toBeVisible();
+  await expect(light).toBeHidden();
+  await expect(footer, "dark footer should match the committed baseline").toHaveScreenshot(
+    "shell-footer-dark.png",
     VISUAL_TOLERANCE,
   );
 });
