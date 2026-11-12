@@ -97,7 +97,7 @@ test.beforeEach(async ({ page }) => {
 async function gotoSettled(
   page: Page,
   path: string,
-  opts: { awaitAuthSlot?: boolean } = {},
+  opts: { awaitAuthSlot?: boolean; pause?: boolean } = {},
 ): Promise<void> {
   await page.goto(path, { waitUntil: "networkidle" });
   // The home page auto-runs a market scan on mount; with server functions
@@ -143,7 +143,7 @@ async function gotoSettled(
       throw new Error("expected webfonts to load, but no font faces reached 'loaded'");
     }
   });
-  await page.waitForTimeout(500);
+  if (opts.pause !== false) await page.waitForTimeout(500);
 }
 
 // See the header comment: 1% absorbs OS FreeType fringe differences.
@@ -182,12 +182,14 @@ test("login: full-page screenshot", async ({ page }) => {
 });
 
 test("settings: full-page screenshot", async ({ page }) => {
-  await gotoSettled(page, "/settings");
+  await gotoSettled(page, "/settings", { pause: false });
   await expect(
     page.getByRole("heading", { name: "Settings", level: 1 }),
     "settings page should render instead of the error boundary",
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Price sources" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
+  await expect(page.getByText("Not connected")).toBeVisible();
   await expect(page, "settings page should match the committed baseline").toHaveScreenshot(
     "settings-full.png",
     { fullPage: true, ...VISUAL_TOLERANCE },

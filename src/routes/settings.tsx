@@ -393,7 +393,7 @@ type SettingsView = {
 async function fetchSettings(): Promise<SettingsView | null> {
   if (typeof window === "undefined") return null;
   const res = await fetch("/api/settings", { credentials: "include" });
-  if (res.status === 401 || res.status === 404) return null;
+  if (res.status === 401) return null;
   if (!res.ok) throw new Error("Connected accounts did not load.");
   return (await res.json()) as SettingsView;
 }
