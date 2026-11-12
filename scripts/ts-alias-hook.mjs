@@ -35,11 +35,12 @@ export function resolve(specifier, context, nextResolve) {
     const hit = firstExisting(new URL(specifier.slice(2), SRC));
     if (hit) return nextResolve(hit.href, context);
   }
-  // Relative TS imports written without an extension (`./types`, `./appraise`).
+  // Relative TS imports written without an extension (`./types`, `./appraise`),
+  // including dotted server names such as `./desk-keys.server`.
   if (
     (specifier.startsWith("./") || specifier.startsWith("../")) &&
     context.parentURL?.match(/\.(ts|tsx|mts)$/) &&
-    !/\.[a-z]+$/i.test(specifier)
+    !/\.(ts|tsx|mts|js|mjs|cjs|json)$/i.test(specifier)
   ) {
     const hit = firstExisting(new URL(specifier, context.parentURL));
     if (hit) return nextResolve(hit.href, context);

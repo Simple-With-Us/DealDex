@@ -14,7 +14,7 @@ function read(rel) {
 }
 
 test("XcodeGen spec uses net.dealdex and team CC8UTF7ATG", () => {
-  const spec = read("native/ios/project.yml");
+  const spec = read("apps/ios/project.yml");
   assert.match(spec, /^\s{4}bundleId: net\.dealdex$/m);
   assert.match(spec, /^\s+PRODUCT_BUNDLE_IDENTIFIER: net\.dealdex$/m);
   assert.match(spec, /^\s+DEVELOPMENT_TEAM: CC8UTF7ATG$/m);
@@ -23,13 +23,13 @@ test("XcodeGen spec uses net.dealdex and team CC8UTF7ATG", () => {
 });
 
 test("XcodeGen pins display name DealDex, iOS 17.0, and Xcode 26.3 format", () => {
-  const spec = read("native/ios/project.yml");
+  const spec = read("apps/ios/project.yml");
   assert.match(spec, /INFOPLIST_KEY_CFBundleDisplayName: DealDex/);
   assert.match(spec, /iOS: "17\.0"/);
   assert.match(spec, /IPHONEOS_DEPLOYMENT_TARGET: "17\.0"/);
   assert.match(spec, /xcodeVersion: "26\.3"/);
   assert.match(spec, /xcodegen-post\.py/);
-  const plist = read("native/ios/DealDex/Info.plist");
+  const plist = read("apps/ios/DealDex/Info.plist");
   assert.match(
     plist,
     /<key>CFBundleDisplayName<\/key>\s*<string>DealDex<\/string>/,
@@ -38,7 +38,7 @@ test("XcodeGen pins display name DealDex, iOS 17.0, and Xcode 26.3 format", () =
 });
 
 test("generated pbxproj is Xcode 26.3 format on iOS 17", () => {
-  const pbx = read("native/ios/DealDex.xcodeproj/project.pbxproj");
+  const pbx = read("apps/ios/DealDex.xcodeproj/project.pbxproj");
   assert.match(pbx, /objectVersion = 100;/);
   assert.match(pbx, /preferredProjectObjectVersion = 100;/);
   assert.match(pbx, /LastUpgradeCheck = 2630;/);
@@ -48,7 +48,7 @@ test("generated pbxproj is Xcode 26.3 format on iOS 17", () => {
 });
 
 test("Info.plist CFBundleIdentifier is net.dealdex", () => {
-  const plist = read("native/ios/DealDex/Info.plist");
+  const plist = read("apps/ios/DealDex/Info.plist");
   assert.match(
     plist,
     /<key>CFBundleIdentifier<\/key>\s*<string>net\.dealdex<\/string>/,
@@ -57,7 +57,7 @@ test("Info.plist CFBundleIdentifier is net.dealdex", () => {
 });
 
 test("generated pbxproj matches XcodeGen identity", () => {
-  const pbx = read("native/ios/DealDex.xcodeproj/project.pbxproj");
+  const pbx = read("apps/ios/DealDex.xcodeproj/project.pbxproj");
   const bundleHits = pbx.match(/PRODUCT_BUNDLE_IDENTIFIER = [^;]+;/g) ?? [];
   assert.ok(bundleHits.length >= 2, "expected Debug and Release bundle ids");
   for (const hit of bundleHits) {
@@ -76,27 +76,33 @@ test("generated pbxproj matches XcodeGen identity", () => {
 
 test("iOS identity includes DealDexWordmark imageset and official marketplace paths", () => {
   const wordmark = read(
-    "native/ios/DealDex/Assets.xcassets/DealDexWordmark.imageset/Contents.json",
+    "apps/ios/DealDex/Assets.xcassets/DealDexWordmark.imageset/Contents.json",
   );
   assert.match(wordmark, /dealdex-wordmark\.png/);
-  const marks = read("native/ios/DealDex/MarketplaceMarks.swift");
+  const marks = read("apps/ios/DealDex/MarketplaceMarks.swift");
   assert.match(marks, /struct EbayWordmark/);
   assert.match(marks, /struct MercariWordmark/);
   assert.match(marks, /viewBox\.width/);
 });
 
-test("iOS version regimen uses 1.0.N marketing and UTC build stamp", () => {
-  const spec = read("native/ios/project.yml");
-  const plist = read("native/ios/DealDex/Info.plist");
-  const pbx = read("native/ios/DealDex.xcodeproj/project.pbxproj");
+test("iOS project version record is the fixed 0.1.0 with a merge-stamp build", () => {
+  const spec = read("apps/ios/project.yml");
+  const plist = read("apps/ios/DealDex/Info.plist");
+  const pbx = read("apps/ios/DealDex.xcodeproj/project.pbxproj");
+  const apps = JSON.parse(read("scripts/ios-fleet/apps.json"));
 
   const marketing = spec.match(/^ {4}MARKETING_VERSION: "([^"]+)"/m)?.[1];
   const build = spec.match(/^ {4}CURRENT_PROJECT_VERSION: "([^"]+)"/m)?.[1];
   assert.ok(marketing, "project.yml MARKETING_VERSION");
   assert.ok(build, "project.yml CURRENT_PROJECT_VERSION");
-  assert.match(marketing, /^1\.0\.\d+$/);
-  assert.match(build, /^\d{12}$/);
-  assert.notEqual(marketing, build);
+  // Fleet regimen (owner 2026-10-29): the marketing version is FIXED (it does
+  // not count up per ship) and the build is the shared merge-timestamp build
+  // max(S, M + 1).  This file records the last shipped pair:  the ship script
+  // passes both on the xcodebuild command line and overrides whatever is
+  // recorded here.
+  assert.equal(marketing, apps.apps.dealdex.fixedMarketingVersion);
+  assert.equal(marketing, "0.1.0");
+  assert.match(build, /^[1-9][0-9]{11}$/);
 
   assert.match(
     plist,
@@ -123,12 +129,12 @@ test("iOS version regimen uses 1.0.N marketing and UTC build stamp", () => {
 
 test("AppUpdatePrompt iOS target matches the in-repo ios-fleet pin", () => {
   const pin = read("scripts/ios-fleet/AppUpdatePrompt.swift");
-  const target = read("native/ios/DealDex/AppUpdatePrompt.swift");
+  const target = read("apps/ios/DealDex/AppUpdatePrompt.swift");
   assert.equal(target, pin, "iOS target must be a byte-identical copy of the pin");
   assert.doesNotMatch(pin, /static let knownAppleIds/);
   assert.doesNotMatch(pin, /"online\.dealdex"/);
   assert.doesNotMatch(pin, /"me\.grok\.dealdex"/);
-  assert.match(pin, /ai-fleet-coordinator/);
+  assert.match(pin, /raw\.githubusercontent\.com\/Simple-With-Us\/AI-Fleet-Coordinator\/main\/site\/ios-versions\.json/);
   assert.match(pin, /Do not wrap this in a Swift package/);
   assert.match(pin, /Do not hardcode knownAppleIds here/);
 });
@@ -143,23 +149,23 @@ test("live DealDex Apple ID lives in apps.json and Info.plist, not Swift", () =>
   assert.doesNotMatch(dealdex.notes, /online\.dealdex/);
   assert.doesNotMatch(dealdex.notes, /dealdex\.online/);
 
-  const plist = read("native/ios/DealDex/Info.plist");
+  const plist = read("apps/ios/DealDex/Info.plist");
   assert.match(
     plist,
     /<key>AppUpdateAppleId<\/key>\s*<integer>6804249232<\/integer>/,
   );
   assert.doesNotMatch(plist, /online\.dealdex/);
 
-  const spec = read("native/ios/project.yml");
+  const spec = read("apps/ios/project.yml");
   assert.match(spec, /AppUpdateAppleId: 6804249232/);
 });
 
 test("Apple bundle resource id is documented, never a team setting", () => {
-  const spec = read("native/ios/project.yml");
-  const onboarding = read("native/ios/CLAUDE.md");
+  const spec = read("apps/ios/project.yml");
+  const onboarding = read("apps/ios/CLAUDE.md");
   assert.match(spec, new RegExp(BUNDLE_RESOURCE_ID));
   assert.match(onboarding, new RegExp(BUNDLE_RESOURCE_ID));
   assert.match(onboarding, /not.*team/i);
-  const pbx = read("native/ios/DealDex.xcodeproj/project.pbxproj");
+  const pbx = read("apps/ios/DealDex.xcodeproj/project.pbxproj");
   assert.doesNotMatch(pbx, new RegExp(BUNDLE_RESOURCE_ID));
 });

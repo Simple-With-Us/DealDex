@@ -16,9 +16,9 @@ function Home() {
           {APP_SUBTITLE}
         </h1>
         <p className="mt-4 text-left text-muted">
-          Search supported Buy It Now singles on eBay and Mercari, then compare asking prices
-          with available market references. {"  "}Coverage depends on the listing, source access,
-          and any paid data services you configure.
+          Search supported Buy It Now singles on eBay and Mercari, then compare asking prices with
+          available market references. {"  "}Coverage depends on the listing, source access, and any
+          paid data services you configure.
         </p>
       </section>
       <Scanner />
@@ -33,7 +33,7 @@ function Home() {
               Or paste one listing
             </span>
             <span className="mt-0.5 block text-sm text-muted">
-              Drop in a title and price from anywhere and score it against the same desks.
+              Drop in a title and price from anywhere and compare it with the same price sources.
             </span>
           </span>
           <ChevronDown

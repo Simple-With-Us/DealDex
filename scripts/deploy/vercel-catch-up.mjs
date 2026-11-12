@@ -47,12 +47,26 @@ export function classify({ deployments, baseline, target, now, changed, projectI
   if (!changed(deployed, target)) return { deploy: false, reason: 'no site changes since deployed SHA' };
   return { deploy: true, reason: 'eligible main differs from production', target };
 }
-export function assertCi(runs, names, sha) {
+function ciCandidates(runs, name, sha) {
+  return runs
+    .filter(r => r.name === name && r.head_sha === sha && r.head_branch === 'main' && ['push', 'workflow_dispatch'].includes(r.event))
+    .sort((a, b) => b.id - a.id);
+}
+
+/** When missing or not green, returns a short reason; otherwise null (ready to deploy). */
+export function ciGate(runs, names, sha) {
   must(Array.isArray(runs) && Array.isArray(names) && names.length > 0 && names.every(n => typeof n === 'string' && n), 'Invalid CI runs or workflow configuration');
+  const blocked = [];
   for (const name of names) {
-    const candidates = runs.filter(r => r.name === name && r.head_sha === sha && r.head_branch === 'main' && ['push', 'workflow_dispatch'].includes(r.event)).sort((a, b) => b.id - a.id);
-    must(candidates.length > 0 && candidates[0].status === 'completed' && candidates[0].conclusion === 'success', `Exact-main CI not successful: ${name}`);
+    const candidates = ciCandidates(runs, name, sha);
+    if (candidates.length === 0 || candidates[0].status !== 'completed' || candidates[0].conclusion !== 'success') blocked.push(name);
   }
+  return blocked.length ? `exact-main CI not successful: ${blocked.join(', ')}` : null;
+}
+
+export function assertCi(runs, names, sha) {
+  const reason = ciGate(runs, names, sha);
+  must(!reason, reason?.replace(/^exact-main CI not successful: /, 'Exact-main CI not successful: '));
 }
 export function assertReceipt(d, config, sha) {
   must(object(d) && d.projectId === config.projectId && d.target === 'production' && d.readyState === 'READY', 'Deployment is not READY production for this project');
@@ -103,14 +117,15 @@ async function main() {
   // The newest page is enough only if its oldest row is outside the window.
   const oldest = Math.min(...history.deployments.map(d => d.createdAt ?? d.created));
   must(!history.pagination?.next || oldest < Date.now() - COOLDOWN_MS, 'Deployment history truncated inside cooldown window');
-  const decision = classify({ deployments: history.deployments, baseline, target, projectId: config.projectId, now: Date.now(), changed: (from, to) => {
+  let decision = classify({ deployments: history.deployments, baseline, target, projectId: config.projectId, now: Date.now(), changed: (from, to) => {
     must(git(['merge-base', from, to]) === from, 'Deployed SHA is not an ancestor of main; investigate before deploying');
     return git(['diff', '--name-only', from, to, '--', ...config.watch]).length > 0;
   } });
   if (decision.deploy) {
     const ci = await gh(`/actions/runs?head_sha=${target}&per_page=100`);
     must(!ci.total_count || ci.total_count <= 100, 'CI run history truncated');
-    assertCi(ci.workflow_runs, config.ciWorkflows, target);
+    const ciBlock = ciGate(ci.workflow_runs, config.ciWorkflows, target);
+    if (ciBlock) decision = { deploy: false, reason: ciBlock };
   }
   console.log(JSON.stringify(decision));
   if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `deploy=${decision.deploy}\n`);

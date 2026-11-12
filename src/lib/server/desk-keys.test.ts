@@ -1,11 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { getSql } from "@/lib/db";
-import {
-  cleanDeskKeys,
-  fetchUserDeskKeys,
-  upsertUserDeskKeys,
-} from "./desk-keys";
+import { cleanDeskKeys, NativeDeskKeysSchema } from "@/lib/settings/keys";
+import { fetchUserDeskKeys, upsertUserDeskKeys } from "./desk-keys.server";
 
 test("cleanDeskKeys sanitizes keys and trims whitespace", () => {
   assert.deepEqual(cleanDeskKeys(null), {});
@@ -24,6 +21,31 @@ test("cleanDeskKeys sanitizes keys and trims whitespace", () => {
       pokemontcg: "x_api_key_789",
     },
   );
+});
+
+test("native key payload rejects a partial or mistyped body", () => {
+  const ok = NativeDeskKeysSchema.safeParse({
+    justtcg: "  tcg_1  ",
+    pricecharting: "",
+    pokemontcg: "poke",
+  });
+  assert.equal(ok.success, true);
+  if (ok.success) assert.equal(ok.data.justtcg, "tcg_1");
+  assert.equal(NativeDeskKeysSchema.safeParse({ justtcg: "only-one" }).success, false);
+  assert.equal(
+    NativeDeskKeysSchema.safeParse({ justtcg: 1, pricecharting: "", pokemontcg: "" }).success,
+    false,
+  );
+  assert.equal(
+    NativeDeskKeysSchema.safeParse({
+      justtcg: "",
+      pricecharting: "",
+      pokemontcg: "",
+      extra: "no",
+    }).success,
+    false,
+  );
+  assert.equal(NativeDeskKeysSchema.safeParse(null).success, false);
 });
 
 test("fetchUserDeskKeys returns empty object for user without saved keys", async () => {
@@ -57,8 +79,16 @@ test("upsertUserDeskKeys stores encrypted keys and fetchUserDeskKeys decrypts ac
   assert.equal(rawRows.length, 1);
   const rawRow = rawRows[0]!;
   assert.match(rawRow.justtcg ?? "", /^v1\./, "stored justtcg must be encrypted with v1 scheme");
-  assert.match(rawRow.pricecharting ?? "", /^v1\./, "stored pricecharting must be encrypted with v1 scheme");
-  assert.match(rawRow.pokemontcg ?? "", /^v1\./, "stored pokemontcg must be encrypted with v1 scheme");
+  assert.match(
+    rawRow.pricecharting ?? "",
+    /^v1\./,
+    "stored pricecharting must be encrypted with v1 scheme",
+  );
+  assert.match(
+    rawRow.pokemontcg ?? "",
+    /^v1\./,
+    "stored pokemontcg must be encrypted with v1 scheme",
+  );
   assert.ok(!rawRow.justtcg?.includes(originalKeys.justtcg), "plaintext must not be stored");
 
   // Update keys on conflict

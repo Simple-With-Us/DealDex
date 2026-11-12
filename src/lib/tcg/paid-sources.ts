@@ -241,6 +241,6 @@ export async function pingDeskKey(
       ? { ok: true, message: "Pokémon TCG API accepted the key." }
       : { ok: false, message: `pokemontcg.io returned ${res.status}.` };
   } catch {
-    return { ok: false, message: "Could not reach that desk." };
+    return { ok: false, message: "Could not reach that price source." };
   }
 }
