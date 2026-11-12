@@ -30,7 +30,10 @@ test("privacy discloses Sentry scan-hop traces without listing titles", () => {
   const privacy = read("src/routes/privacy.tsx");
   assert.match(privacy, /Website Analytics/);
   assert.match(privacy, /Sentry Performance/);
-  assert.match(privacy, /do not include listing titles, search queries, or desk/);
+  assert.match(
+    privacy,
+    /do not\s+include listing titles, search queries, or paid price-source keys/,
+  );
   assert.match(privacy, /Datadog Session Replay is off/);
 });
 

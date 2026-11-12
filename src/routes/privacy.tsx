@@ -55,8 +55,8 @@ function PrivacyPage() {
             slow requests stay visible. Datadog Session Replay is off. Scan hops (eBay, Mercari,
             match, enrich, and cache hit or miss) are timed with Sentry Performance so a slow
             marketplace step is visible without extra Datadog APM child spans. Those traces do not
-            include listing titles, search queries, or desk keys.{"\u00A0 "}Native apps do not send
-            those web events.
+            include listing titles, search queries, or paid price-source keys.{"\u00A0 "}Native apps
+            do not send those web events.
           </p>
         </section>
         <section className="space-y-2">

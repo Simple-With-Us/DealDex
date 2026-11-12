@@ -117,6 +117,7 @@ export function Scanner() {
             ? "The scan did not finish. Check your connection and try again."
             : raw;
         setRows(null);
+        setMeta({ ebay: 0, mercari: 0, notes: [] });
         setError(message);
       })
       .finally(() => {
