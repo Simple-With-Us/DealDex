@@ -21,7 +21,7 @@ export function PriceSpark({ ticks }: { ticks: PriceTick[] }) {
   const delta = last - first;
   const down = delta < 0;
   return (
-    <span className="inline-flex items-center gap-1.5" title="Ask history on this desk">
+    <span className="inline-flex items-center gap-1.5" title="Ask history for this listing">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         width={width}

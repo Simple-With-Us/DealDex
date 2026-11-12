@@ -28,7 +28,8 @@ export function MarketBoard() {
         <div>
           <h2 className="font-display text-2xl tracking-tight">A few cards on TCGPlayer</h2>
           <p className="text-sm text-muted">
-            One desk’s snapshot. Open a card for the full book — Cardmarket, solds, PriceCharting.
+            Sample prices from TCGPlayer. Open a card for Cardmarket, sold listings, and
+            PriceCharting.
           </p>
         </div>
       </div>
@@ -37,6 +38,11 @@ export function MarketBoard() {
           Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-28 rounded-lg" />
           ))}
+        {cards && cards.length === 0 && (
+          <p className="rounded-xl bg-surface p-6 text-sm text-muted shadow-[var(--shadow-border)]">
+            Sample cards did not load. You can still search above.
+          </p>
+        )}
         {cards?.map((card) => {
           const market = card.finishes.find((f) => f.market != null)?.market ?? null;
           const img = cardImageUrl(card.image, "low");

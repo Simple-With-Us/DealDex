@@ -58,7 +58,7 @@ test("the native scan endpoint refuses desk keys, because /privacy promises it",
   assert.match(scan, /status: 400/);
 
   const privacy = read("src/routes/privacy.tsx");
-  assert.match(privacy, /the scan endpoint refuses one outright/);
+  assert.match(privacy, /the scan refuses one outright/);
 });
 
 test("native scan records Sentry cache and parent spans without accepting keys", () => {
@@ -75,7 +75,7 @@ test("the phone apps' 'never sends a key' claim is qualified wherever it appears
   for (const [file, re] of [
     ["src/routes/privacy.tsx", /Scanning never sends a key/],
     ["src/routes/settings.tsx", /A scan never sends a key/],
-    ["src/routes/install.tsx", /A scan never sends a paid desk key/],
+    ["src/routes/install.tsx", /A scan never\s+sends a paid price-source key/],
     ["README.md", /scanning never sends one/],
   ]) {
     assert.match(read(file), re, `${file} states the claim without qualifying it`);
@@ -301,10 +301,10 @@ test("Android scans on the device first and sends no keys to the website", () =>
   assert.doesNotMatch(market, /put\("keys"/);
   assert.doesNotMatch(market, /"justtcg", keys\.justTcg/);
   const scan = read("apps/android/app/src/main/java/me/grok/dealdex/ui/ScanScreen.kt");
-  assert.match(scan, /Text\("SCAN"/);
+  assert.match(scan, /"Scan Market"/);
   assert.match(scan, /Hide proxies/);
   assert.match(scan, /leave blank to scan everything/);
-  assert.doesNotMatch(scan, /Text\("Scan"\)/);
+  assert.doesNotMatch(scan, /Text\("SCAN"/);
 });
 
 test("iOS scans on the device first and sends no keys to the website", () => {

@@ -1,10 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getSessionUser } from "@/lib/auth/verify.server";
-import {
-  cleanDeskKeys,
-  fetchUserDeskKeys,
-  upsertUserDeskKeys,
-} from "@/lib/server/desk-keys";
+import { cleanDeskKeys } from "@/lib/settings/keys";
+import { fetchUserDeskKeys, upsertUserDeskKeys } from "@/lib/server/desk-keys.server";
 
 function bearer(request: Request): string | undefined {
   const h = request.headers.get("authorization") ?? "";

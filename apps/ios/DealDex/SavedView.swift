@@ -53,7 +53,7 @@ struct SavedView: View {
                 }
             }
             .background(Color(red: 0.95, green: 0.94, blue: 0.90))
-            .navigationTitle("Saved Ledger")
+            .navigationTitle("Saved")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 store.load()

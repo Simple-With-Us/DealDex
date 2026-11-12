@@ -115,7 +115,7 @@ test("an empty book says so rather than inventing a price", () => {
   assert.equal(book.sourcesUsed, 0);
   assert.equal(book.blend, null);
   assert.equal(book.confidence, "low");
-  assert.match(book.note, /No desk/i);
+  assert.match(book.note, /No price source/i);
 });
 
 test("two disagreeing desks are not reported as agreeing", () => {

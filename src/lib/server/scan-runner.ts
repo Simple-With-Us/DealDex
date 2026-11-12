@@ -33,7 +33,7 @@ import {
 } from "./alert-rules-store";
 import { SCAN_SPAN, withScanSpan } from "@/lib/observability/sentry-server";
 import { loadRunUserCredentials } from "./user-settings-store";
-import { fetchUserDeskKeys } from "./desk-keys";
+import { fetchUserDeskKeys } from "./desk-keys.server";
 import {
   getBooleanSetting,
   getNumberSetting,

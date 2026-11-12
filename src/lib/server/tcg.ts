@@ -59,7 +59,7 @@ export const testDeskKey = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     if (!data.key) return { ok: false, message: "Paste a key first." };
     if (data.id !== "justtcg" && data.id !== "pricecharting" && data.id !== "pokemontcg") {
-      return { ok: false, message: "Unknown desk." };
+      return { ok: false, message: "Unknown price source." };
     }
     return pingDeskKey(data.id, data.key);
   });

@@ -458,16 +458,16 @@ function AppraisalPanel({
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Stat
-                  label="Desk range"
+                  label="Price range"
                   value={
                     result.rangeLow != null && result.rangeHigh != null
                       ? `${formatUsd(result.rangeLow, 0)}–${formatUsd(result.rangeHigh, 0)}`
                       : formatUsd(result.adjustedMarket)
                   }
-                  hint={`${result.sourcesUsed} desk${result.sourcesUsed === 1 ? "" : "s"}`}
+                  hint={`${result.sourcesUsed} source${result.sourcesUsed === 1 ? "" : "s"}`}
                 />
                 <Stat
-                  label="Book middle"
+                  label="Middle price"
                   value={formatUsd(result.adjustedMarket)}
                   hint={listing.grade === "raw" ? listing.condition : `${listing.grade} estimate`}
                 />
@@ -490,8 +490,8 @@ function AppraisalPanel({
               {result.verifyNote && (
                 <p className="text-sm text-muted">
                   <span className="text-fg">
-                    {result.confidence} confidence · {result.sourcesUsed} desks
-                    {result.conflict ? " · Desks Differ" : ""}.
+                    {result.confidence} confidence · {result.sourcesUsed} sources
+                    {result.conflict ? " · Sources Disagree" : ""}.
                   </span>{" "}
                   {result.verifyNote}
                 </p>
@@ -516,7 +516,7 @@ function AppraisalPanel({
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-subtle">TCGPlayer listed band (one desk)</p>
+                  <p className="text-xs text-subtle">TCGPlayer listed range</p>
                   <p className="font-mono text-sm tabular-nums text-muted">
                     Low {formatUsd(result.finish?.low)} · Mid {formatUsd(result.finish?.mid)} · High{" "}
                     {formatUsd(result.finish?.high)}
@@ -620,17 +620,18 @@ function AppraisalPanel({
             <Button variant="secondary" asChild className="[&_svg]:h-3.5 [&_svg]:w-auto [&_svg]:size-auto">
               <a href={ebaySoldUrl(card, listing?.grade ?? "raw")} target="_blank" rel="noreferrer">
                 <MarketplaceLogo marketplace="ebay" />
-                sold
+                Sold Listings
               </a>
             </Button>
             <Button variant="secondary" asChild className="[&_svg]:h-3.5 [&_svg]:w-auto [&_svg]:size-auto">
               <a href={mercariSearchUrl(card, listing?.grade ?? "raw")} target="_blank" rel="noreferrer">
                 <MarketplaceLogo marketplace="mercari" />
+                Search
               </a>
             </Button>
             <Button variant="outline" asChild>
               <Link to="/card/$cardId" params={{ cardId: card.id }}>
-                Card Dossier
+                Card Details
               </Link>
             </Button>
             {listing && result && (

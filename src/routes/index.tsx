@@ -33,7 +33,7 @@ function Home() {
               Or paste one listing
             </span>
             <span className="mt-0.5 block text-sm text-muted">
-              Drop in a title and price from anywhere and score it against the same desks.
+              Drop in a title and price from anywhere and compare it with the same price sources.
             </span>
           </span>
           <ChevronDown

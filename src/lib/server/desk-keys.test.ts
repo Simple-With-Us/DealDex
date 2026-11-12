@@ -1,11 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { getSql } from "@/lib/db";
-import {
-  cleanDeskKeys,
-  fetchUserDeskKeys,
-  upsertUserDeskKeys,
-} from "./desk-keys";
+import { cleanDeskKeys } from "@/lib/settings/keys";
+import { fetchUserDeskKeys, upsertUserDeskKeys } from "./desk-keys.server";
 
 test("cleanDeskKeys sanitizes keys and trims whitespace", () => {
   assert.deepEqual(cleanDeskKeys(null), {});

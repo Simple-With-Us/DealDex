@@ -77,6 +77,7 @@ export function Scanner() {
   const [finish, setFinish] = useState<FinishFilter>("any");
   const [sellerFilter, setSellerFilter] = useState<SellerFilter>("any");
   const [hideRepacks, setHideRepacks] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const scanReqIdRef = useRef(0);
 
   function fetchRows(query: string, src: ScanSource[]) {
@@ -87,6 +88,7 @@ export function Scanner() {
     })
       .then((res) => {
         if (reqId !== scanReqIdRef.current) return;
+        setError(null);
         setRows(res.rows);
         setMeta({ ebay: res.ebay, mercari: res.mercari, notes: res.notes });
         rememberListings(res.rows);
@@ -108,7 +110,12 @@ export function Scanner() {
       })
       .catch((err: unknown) => {
         if (reqId !== scanReqIdRef.current) return;
-        toast(err instanceof Error ? err.message : "Scan failed");
+        const raw = err instanceof Error ? err.message : "";
+        const message =
+          !raw || /failed to fetch|network|load failed|abort/i.test(raw)
+            ? "The scan did not finish. Check your connection and try again."
+            : raw;
+        setError(message);
       })
       .finally(() => {
         if (reqId === scanReqIdRef.current) {
@@ -227,7 +234,7 @@ export function Scanner() {
               spellCheck={false}
               name="dealdex-scan"
               inputMode="search"
-              className="h-14 pl-4 pr-16 text-base rounded-xl bg-elevated/40 border-border/40 focus:bg-surface focus:border-border"
+              className="h-14 pl-4 pr-20 text-base rounded-xl bg-elevated/40 border-border/40 focus:bg-surface focus:border-border"
             />
             {q && (
               <button
@@ -238,8 +245,9 @@ export function Scanner() {
                   setQ("");
                   void run("", sources);
                 }}
+                aria-label="Clear search"
                 className={cn(
-                  "absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-muted hover:text-fg px-2 py-1 rounded-md bg-elevated transition-colors",
+                  "absolute right-1.5 top-1/2 inline-flex h-11 -translate-y-1/2 items-center rounded-md bg-elevated px-3 text-sm text-muted hover:text-fg",
                   loading && "cursor-not-allowed opacity-50 pointer-events-none",
                 )}
               >
@@ -259,10 +267,10 @@ export function Scanner() {
             {loading ? (
               <>
                 <LoaderCircle className="size-5 animate-spin shrink-0" />
-                <span>SCANNING...</span>
+                <span>Scanning…</span>
               </>
             ) : (
-              <span>⚡ SCAN MARKET</span>
+              <span>Scan Market</span>
             )}
           </button>
         </div>
@@ -275,8 +283,9 @@ export function Scanner() {
               <span className="relative inline-flex size-2.5 rounded-full bg-deal-good"></span>
             </span>
             <span className="font-medium">
-              Scanning live {sources.map((s) => (s === "ebay" ? "eBay" : "Mercari")).join(" & ")}{" "}
-              Buy It Now listings & scoring spreads...
+              Checking{" "}
+              {sources.map((s) => (s === "ebay" ? "eBay" : "Mercari")).join(" and ")} Buy It Now
+              listings.
             </span>
           </div>
         )}
@@ -288,10 +297,10 @@ export function Scanner() {
             value={verdict}
             onChange={setVerdict}
             options={[
-              ["any", "Any Verdict"],
-              ["steal", "Steal (High Spread)"],
+              ["any", "Any"],
+              ["steal", "Steal"],
               ["good", "Good Deal"],
-              ["fair", "Fair Ask"],
+              ["fair", "Fair"],
               ["high", "High Ask"],
               ["avoid", "Overpriced"],
             ]}
@@ -301,9 +310,9 @@ export function Scanner() {
             value={sellerFilter}
             onChange={setSellerFilter}
             options={[
-              ["any", "Any Seller"],
-              ["top_rated", "Top Rated Only"],
-              ["trusted", "Trusted & Top"],
+              ["any", "Any"],
+              ["top_rated", "Top Rated"],
+              ["trusted", "Trusted"],
               ["hide_risky", "Hide Risky"],
             ]}
           />
@@ -312,7 +321,7 @@ export function Scanner() {
             value={priceCap}
             onChange={setPriceCap}
             options={[
-              ["any", "Any Price"],
+              ["any", "Any"],
               ["25", "Under $25"],
               ["50", "Under $50"],
               ["100", "Under $100"],
@@ -324,9 +333,9 @@ export function Scanner() {
             value={condition}
             onChange={setCondition}
             options={[
-              ["any", "Raw or Graded"],
-              ["raw", "Raw Singles Only"],
-              ["graded", "Graded Slabs Only"],
+              ["any", "Any"],
+              ["raw", "Raw"],
+              ["graded", "Graded"],
             ]}
           />
           <FilterSelect
@@ -334,10 +343,10 @@ export function Scanner() {
             value={spreadMin}
             onChange={setSpreadMin}
             options={[
-              ["any", "Any vs Book"],
-              ["10", "10%+ Under Book"],
-              ["20", "20%+ Under Book"],
-              ["40", "40%+ Under Book"],
+              ["any", "Any"],
+              ["10", "10%+ Off"],
+              ["20", "20%+ Off"],
+              ["40", "40%+ Off"],
             ]}
           />
           <FilterSelect
@@ -345,7 +354,7 @@ export function Scanner() {
             value={finish}
             onChange={setFinish}
             options={[
-              ["any", "Any Finish"],
+              ["any", "Any"],
               ["holo", "Holo"],
               ["reverse", "Reverse Holo"],
               ["promo", "Promo"],
@@ -353,9 +362,9 @@ export function Scanner() {
           />
           <label className="flex min-w-0 cursor-pointer select-none flex-col items-center justify-end">
             <span className="mb-1 block text-center text-xs uppercase tracking-[0.12em] text-subtle">
-              Integrity
+              Proxies
             </span>
-            <span className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border/40 bg-surface px-2 text-xs font-medium text-fg shadow-xs">
+            <span className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-border/40 bg-surface px-2 text-xs font-medium text-fg shadow-xs">
               <input
                 type="checkbox"
                 checked={hideRepacks}
@@ -375,15 +384,16 @@ export function Scanner() {
               [
                 ["all", `All (${rows.length})`],
                 ["deals", `Deals (${dealCount})`],
-                ["verified", `Verified Steals (${verifiedCount})`],
+                ["verified", `Verified (${verifiedCount})`],
               ] as const
             ).map(([key, label]) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => setView(key)}
+                aria-pressed={view === key}
                 className={cn(
-                  "h-8 rounded-lg px-3 text-xs font-medium tabular-nums transition-all select-none cursor-pointer",
+                  "inline-flex h-11 items-center rounded-lg px-3 text-sm font-medium tabular-nums transition-all select-none cursor-pointer",
                   view === key
                     ? "bg-fg text-surface shadow-xs"
                     : "bg-elevated/70 text-muted hover:bg-elevated hover:text-fg",
@@ -404,14 +414,27 @@ export function Scanner() {
         </div>
       )}
 
+      {!loading && error && (
+        <div className="rounded-xl bg-surface p-6 text-sm text-muted shadow-[var(--shadow-border)]">
+          <p>{error}</p>
+          <button
+            type="button"
+            onClick={() => void run()}
+            className="mt-3 inline-flex h-11 items-center rounded-lg bg-scan px-4 text-sm font-medium text-scan-fg"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+
       {rows && (
         <>
           {meta.notes.length > 0 && <p className="text-xs text-subtle">{meta.notes.join(" ")}</p>}
           {!visible.length && (
             <div className="rounded-xl bg-surface p-6 text-sm text-muted shadow-[var(--shadow-border)]">
               {sources.length === 1 && sources[0] === "mercari"
-                ? "No Mercari hits leaked through. Use Open Mercari search, then paste a title here."
-                : "Nothing in this filter. Widen the sliders, or scan the whole market."}
+                ? "No Mercari listings in this scan. Open Mercari, or paste one listing below."
+                : "Nothing matches these filters. Choose Any on a filter, or scan again."}
               {sources.length === 1 && sources[0] === "mercari" && (
                 <a
                   href={mercariSearchPage(q)}
@@ -454,7 +477,7 @@ function FilterSelect<T extends string>({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
-        className="filter-select h-9 w-full rounded-md border border-border bg-surface px-2 text-center text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+        className="filter-select h-11 w-full rounded-md border border-border bg-surface px-2 text-center text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       >
         {options.map(([v, name]) => (
           <option key={v} value={v}>
@@ -486,8 +509,8 @@ function ScanRow({ row }: { row: ScoredListing }) {
   const confidence =
     appraisal && appraisal.sourcesUsed >= 2
       ? appraisal.conflict
-        ? "Desks Differ"
-        : `${appraisal.confidence[0]!.toUpperCase()}${appraisal.confidence.slice(1)} · ${appraisal.sourcesUsed} Desks`
+        ? "Sources Disagree"
+        : `${appraisal.confidence[0]!.toUpperCase()}${appraisal.confidence.slice(1)} · ${appraisal.sourcesUsed} Sources`
       : null;
   return (
     <article className="flex min-w-0 gap-3 overflow-hidden rounded-lg bg-surface p-3 shadow-[var(--shadow-border)] sm:p-4">
@@ -583,9 +606,9 @@ function ScanRow({ row }: { row: ScoredListing }) {
             <Link
               to="/card/$cardId"
               params={{ cardId: card.id }}
-              className="inline-flex h-8 items-center text-muted hover:text-fg"
+              className="inline-flex h-11 items-center text-sm text-muted hover:text-fg"
             >
-              Card Dossier
+              Card Details
             </Link>
           )}
           {appraisal && (
@@ -603,9 +626,9 @@ function ScanRow({ row }: { row: ScoredListing }) {
                 void navigator.clipboard.writeText(text);
                 toast("Deal link copied to clipboard!");
               }}
-              className="inline-flex h-8 items-center gap-1 text-muted hover:text-fg"
+              className="inline-flex h-11 items-center gap-1 text-sm text-muted hover:text-fg"
             >
-              <Copy className="size-3" /> Share
+              <Copy className="size-4" /> Share
             </button>
           )}
         </div>

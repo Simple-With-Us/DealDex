@@ -280,7 +280,7 @@ function SettingsPane({ platform }: { platform: Platform }) {
         ))}
       </div>
       <div className={cn("mt-3 space-y-2 bg-surface p-3 text-xs shadow-[var(--shadow-border)]", box)}>
-        <p className="text-xs uppercase tracking-[0.12em] text-subtle">API Desks</p>
+        <p className="text-xs uppercase tracking-[0.12em] text-subtle">Price Sources</p>
         <p>
           JustTCG
           <span className="mt-1 block rounded-sm bg-elevated px-2 py-1.5 text-muted">tcg_…</span>

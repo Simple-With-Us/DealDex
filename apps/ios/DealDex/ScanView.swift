@@ -32,7 +32,7 @@ struct ScanView: View {
                     } label: {
                         Image(systemName: "camera.viewfinder")
                             .font(.title3)
-                            .frame(width: 40, height: 30)
+                            .frame(width: 44, height: 44)
                     }
                     .buttonStyle(.bordered)
                     .tint(Color(red: 0.25, green: 0.29, blue: 0.20))
@@ -40,7 +40,7 @@ struct ScanView: View {
                 }
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
                     filterMenu("Verdict", selection: $desk.verdictFilter, options: [
-                        ("any", "Any Verdict"),
+                        ("any", "Any"),
                         ("steal", "Steal"),
                         ("good", "Good Deal"),
                         ("fair", "Fair"),
@@ -55,15 +55,15 @@ struct ScanView: View {
                         ("250", "Under $250"),
                     ])
                     filterMenu("Condition", selection: $desk.condition, options: [
-                        ("any", "Raw or Graded"),
-                        ("raw", "Raw Only"),
-                        ("graded", "Graded Only"),
+                        ("any", "Any"),
+                        ("raw", "Raw"),
+                        ("graded", "Graded"),
                     ])
                     filterMenu("Min Discount", selection: $desk.spreadMin, options: [
-                        ("any", "Any vs Book"),
-                        ("10", "10%+ Under Book"),
-                        ("20", "20%+ Under Book"),
-                        ("40", "40%+ Under Book"),
+                        ("any", "Any"),
+                        ("10", "10%+ Off"),
+                        ("20", "20%+ Off"),
+                        ("40", "40%+ Off"),
                     ])
                     filterMenu("Finish", selection: $desk.finish, options: [
                         ("any", "Any Finish"),
@@ -83,7 +83,7 @@ struct ScanView: View {
                             }
                             .font(.subheadline)
                             .foregroundStyle(Color(red: 0.10, green: 0.11, blue: 0.09))
-                            .frame(maxWidth: .infinity, minHeight: 36)
+                            .frame(maxWidth: .infinity, minHeight: 44)
                         }
                         .buttonStyle(.plain)
                     }
@@ -96,9 +96,8 @@ struct ScanView: View {
                             ProgressView()
                                 .tint(Color(red: 0.96, green: 0.95, blue: 0.92))
                         } else {
-                            Text("SCAN")
-                                .font(.system(size: 34, weight: .semibold, design: .default))
-                                .tracking(1.6)
+                            Text("Scan Market")
+                                .font(.system(size: 22, weight: .semibold, design: .default))
                         }
                     }
                     .frame(maxWidth: .infinity, minHeight: 64)
@@ -222,7 +221,7 @@ struct ListingRow: View {
                 HStack {
                     MarketplaceMark(market: row.listing.marketplace)
                     if let v = row.appraisal?.verdict {
-                        Text(v.uppercased())
+                        Text(verdictLabel(v))
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(color(v))
                             .padding(.horizontal, 4)
@@ -238,6 +237,8 @@ struct ListingRow: View {
                             .foregroundStyle(isSaved ? Color(red: 0.25, green: 0.45, blue: 0.25) : .secondary)
                     }
                     .buttonStyle(.plain)
+                    .frame(width: 44, height: 44)
+                    .accessibilityLabel(isSaved ? "Saved" : "Save listing")
                 }
 
                 Text(row.listing.title)
@@ -253,7 +254,7 @@ struct ListingRow: View {
                 HStack(spacing: 12) {
                     Text(money(row.listing.price) + " ask")
                         .font(.system(.caption, design: .monospaced))
-                    Text(money(row.appraisal?.adjusted) + " TCGP")
+                    Text(money(row.appraisal?.adjusted) + " market")
                         .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(.secondary)
                     if let s = row.appraisal?.spread {
@@ -268,8 +269,9 @@ struct ListingRow: View {
                         NavigationLink {
                             CardDossierView(card: card)
                         } label: {
-                            Text("Card Dossier")
-                                .font(.caption.weight(.medium))
+                            Text("Card Details")
+                                .font(.subheadline.weight(.medium))
+                                .frame(minHeight: 44)
                                 .foregroundStyle(Color(red: 0.25, green: 0.29, blue: 0.20))
                         }
                     }
@@ -280,7 +282,8 @@ struct ListingRow: View {
                                 Text("Open Listing")
                                 Image(systemName: "arrow.up.right")
                             }
-                            .font(.caption)
+                            .font(.subheadline)
+                            .frame(minHeight: 44)
                         }
                     }
                 }
@@ -288,6 +291,17 @@ struct ListingRow: View {
             }
         }
         .padding(.vertical, 2)
+    }
+
+    private func verdictLabel(_ verdict: String) -> String {
+        switch verdict {
+        case "steal": return "Steal"
+        case "good": return "Good Deal"
+        case "fair": return "Fair"
+        case "high": return "High Ask"
+        case "avoid": return "Overpriced"
+        default: return verdict.capitalized
+        }
     }
 
     private func toggleSave() {

@@ -127,15 +127,15 @@ export function verdictFromSpread(spread: number | null): Verdict {
 export function verdictCopy(verdict: Verdict) {
   switch (verdict) {
     case "steal":
-      return { label: "Steal", blurb: "Well under the desk book. Strong buy if authentic." };
+      return { label: "Steal", blurb: "Well under recent prices. Strong buy if the card is real." };
     case "good":
-      return { label: "Good Deal", blurb: "Meaningfully cheaper than the middle of the desks." };
+      return { label: "Good Deal", blurb: "Meaningfully cheaper than the middle of recent prices." };
     case "fair":
-      return { label: "Fair", blurb: "Inside the desk range. Shop shipping and fees." };
+      return { label: "Fair", blurb: "Inside the usual price range. Compare shipping and fees." };
     case "high":
-      return { label: "High Ask", blurb: "Above the book. Fine if you need it now." };
+      return { label: "High Ask", blurb: "Above recent prices. Fine if you need the card now." };
     case "avoid":
-      return { label: "Overpriced", blurb: "Far above every desk. Wait or counter." };
+      return { label: "Overpriced", blurb: "Far above recent prices. Wait, or make an offer." };
   }
 }
 
@@ -240,8 +240,8 @@ export function appraise(card: TcgCard, listing: ListingInput): Appraisal {
     verifyNote: repackCheck.suspicious
       ? (repackCheck.reason ?? "Flagged listing")
       : rawMarket == null
-        ? "No desk market on this printing."
-        : "Single-desk start — cross-check still running.",
+        ? "No market price for this printing yet."
+        : "One price source so far. The cross-check is still running.",
     conflictDetail: null,
     grading,
     isSuspiciousRepack: repackCheck.suspicious,

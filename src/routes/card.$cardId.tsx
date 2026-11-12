@@ -17,25 +17,32 @@ export const Route = createFileRoute("/card/$cardId")({ component: CardPage });
 function CardPage() {
   const { cardId } = Route.useParams();
   const [card, setCard] = useState<TcgCard | null | undefined>(undefined);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [prevCardId, setPrevCardId] = useState(cardId);
   if (prevCardId !== cardId) {
     setPrevCardId(cardId);
     setCard(undefined);
+    setFailed(false);
   }
 
   useEffect(() => {
     let live = true;
     getCard({ data: { id: cardId } })
       .then((row) => {
-        if (live) setCard(row);
+        if (!live) return;
+        setFailed(false);
+        setCard(row);
       })
       .catch(() => {
-        if (live) setCard(null);
+        if (!live) return;
+        setFailed(true);
+        setCard(null);
       });
     return () => {
       live = false;
     };
-  }, [cardId]);
+  }, [cardId, attempt]);
 
   const finish = useMemo(() => (card ? pickFinish(card, null) : null), [card]);
   const img = cardImageUrl(card?.image ?? null);
@@ -59,7 +66,24 @@ function CardPage() {
         </div>
       )}
 
-      {card === null && (
+      {card === null && failed && (
+        <div className="rounded-xl bg-surface p-6 text-sm text-muted shadow-[var(--shadow-border)]">
+          <p>This card did not load.</p>
+          <button
+            type="button"
+            onClick={() => {
+              setFailed(false);
+              setCard(undefined);
+              setAttempt((n) => n + 1);
+            }}
+            className="mt-3 inline-flex h-11 items-center rounded-lg bg-accent px-4 text-sm font-medium text-accent-fg"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+
+      {card === null && !failed && (
         <p className="text-muted">That card is not in the catalog.</p>
       )}
 
@@ -86,7 +110,8 @@ function CardPage() {
               TCGPlayer snapshot · {finish?.label ?? "market"}
             </p>
             <p className="mt-2 text-sm text-muted">
-              One desk’s listed band — the full book (Cardmarket, solds, PriceCharting) is below.
+              This is the TCGPlayer price.{"\u00A0 "}Cardmarket, sold listings, and PriceCharting
+              are below.
             </p>
             <p className="mt-2 font-mono text-sm tabular-nums text-muted">
               Low {formatUsd(finish?.low)} · Mid {formatUsd(finish?.mid)} · High {formatUsd(finish?.high)}
@@ -112,12 +137,13 @@ function CardPage() {
               <Button variant="secondary" asChild className="overflow-hidden">
                 <a href={ebaySoldUrl(card, "raw")} target="_blank" rel="noreferrer">
                   <MarketplaceLogo marketplace="ebay" />
-                  sold
+                  Sold Listings
                 </a>
               </Button>
               <Button variant="secondary" asChild className="overflow-hidden">
                 <a href={mercariSearchUrl(card, "raw")} target="_blank" rel="noreferrer">
                   <MarketplaceLogo marketplace="mercari" />
+                  Search
                 </a>
               </Button>
             </div>

@@ -31,7 +31,7 @@ test("iOS title uses DealDexWordmark imageset, not serif Find the best listings"
   const scan = readFileSync(join(ROOT, "apps/ios/DealDex/ScanView.swift"), "utf8");
   const brand = readFileSync(join(ROOT, "apps/ios/DealDex/DealDexBrand.swift"), "utf8");
   assert.match(brand, /Image\("DealDexWordmark"\)/);
-  assert.match(brand, /Find the best-priced Pokémon card listings/);
+  assert.match(brand, /Compare Pokémon card listing prices/);
   assert.match(scan, /DealDexTitle/);
   assert.match(scan, /DealDexCopy\.subtitle/);
   assert.doesNotMatch(scan, /Find the best listings/);
@@ -82,13 +82,13 @@ test("login is social-only: Google, Apple, X — no email/password form", () => 
   assert.doesNotMatch(login, /Create an account/);
 });
 
-test("settings has a 3-way appearance toggle above API desks, not in the hamburger", () => {
+test("settings has a 3-way appearance toggle above price sources, not in the hamburger", () => {
   const settings = readFileSync(join(ROOT, "src/routes/settings.tsx"), "utf8");
   const menu = readFileSync(join(ROOT, "src/components/account-menu.tsx"), "utf8");
   assert.match(settings, /AppearanceToggle/);
-  assert.match(settings, /API desks/);
+  assert.match(settings, /Price sources/);
   const appearanceAt = settings.indexOf("Appearance");
-  const desksAt = settings.indexOf("API desks");
+  const desksAt = settings.indexOf("Price sources");
   assert.ok(appearanceAt > 0 && desksAt > appearanceAt);
   assert.doesNotMatch(menu, /Appearance/);
   const toggle = readFileSync(join(ROOT, "src/components/appearance-toggle.tsx"), "utf8");

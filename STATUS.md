@@ -1,3 +1,7 @@
+## 2026-11-12 — UI polish for GB-Designer
+
+Settings was crashing in the browser because the page imported node:crypto.   Price-source key encryption now lives in a server-only module, and the page renders.   Scan, login, alerts, install, privacy, and the phone apps drop internal words, use title-case buttons, and give the main controls a 44px target.   Filter menus use short labels so they fit on a phone.   A failed scan or a missing card shows a plain error with Try Again.   Rollout: `docs/rollouts/2026-11-12-ui-polish.md`.   Branch: `cursor/ui-polish-4111`.
+
 ## 2026-11-12 — DD-412 — GitHub org live URLs (OPS-734 slice)
 
 Retarget live repo pointers from `jaywedgeworth22/DealDex` to `Simple-With-Us/DealDex` in README, CONTRIBUTING, and Copilot instructions. Dated rollouts, published `@jaywedgeworth22/*` package scope, assignee defaults, and Vercel team slugs unchanged. `jaywedgeworth22/Fleet-OPS` links in AGENTS/CLAUDE left for owner follow-up (no public Simple-With-Us target verified). Rollout: `docs/rollouts/2026-11-12-dd-412-github-org.md`. Branch: `cursor/dd-412-github-org-3d91`.
