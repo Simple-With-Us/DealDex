@@ -54,8 +54,16 @@ test("upsertUserDeskKeys stores encrypted keys and fetchUserDeskKeys decrypts ac
   assert.equal(rawRows.length, 1);
   const rawRow = rawRows[0]!;
   assert.match(rawRow.justtcg ?? "", /^v1\./, "stored justtcg must be encrypted with v1 scheme");
-  assert.match(rawRow.pricecharting ?? "", /^v1\./, "stored pricecharting must be encrypted with v1 scheme");
-  assert.match(rawRow.pokemontcg ?? "", /^v1\./, "stored pokemontcg must be encrypted with v1 scheme");
+  assert.match(
+    rawRow.pricecharting ?? "",
+    /^v1\./,
+    "stored pricecharting must be encrypted with v1 scheme",
+  );
+  assert.match(
+    rawRow.pokemontcg ?? "",
+    /^v1\./,
+    "stored pokemontcg must be encrypted with v1 scheme",
+  );
   assert.ok(!rawRow.justtcg?.includes(originalKeys.justtcg), "plaintext must not be stored");
 
   // Update keys on conflict

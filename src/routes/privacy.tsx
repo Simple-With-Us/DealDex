@@ -40,37 +40,37 @@ function PrivacyPage() {
         <section className="space-y-2">
           <h2 className="font-display text-xl tracking-tight text-fg">Optional Account</h2>
           <p>
-            If you sign in, DealDex stores your email and any keys you choose to back up so you
-            can restore them on another device.  Backed-up keys are encrypted at rest.  You can
-            use the apps without an account.
+            If you sign in, DealDex stores your email and any keys you choose to back up so you can
+            restore them on another device. Backed-up keys are encrypted at rest. You can use the
+            apps without an account.
           </p>
         </section>
         <section className="space-y-2">
           <h2 className="font-display text-xl tracking-tight text-fg">Website Analytics</h2>
           <p>
-            The DealDex website uses Vercel Web Analytics to count visits and page views, and
-            Vercel Speed Insights to measure Core Web Vitals (paint, layout, and interaction
-            timing).  Those products do not use cookies and do not identify you.  The website
-            also sends logs, traces, and Real User Monitoring to Datadog on the existing fleet
-            account so errors and slow requests stay visible.  Datadog Session Replay is off.
-            Scan hops (eBay, Mercari, match, enrich, and cache hit or miss) are timed with
-            Sentry Performance so a slow marketplace step is visible without extra Datadog APM
-            child spans.  Those traces do not include listing titles, search queries, or desk
-            keys.{"\u00A0 "}Native apps do not send those web events.
+            The DealDex website uses Vercel Web Analytics to count visits and page views, and Vercel
+            Speed Insights to measure Core Web Vitals (paint, layout, and interaction timing). Those
+            products do not use cookies and do not identify you. The website also sends logs,
+            traces, and Real User Monitoring to Datadog on the existing fleet account so errors and
+            slow requests stay visible. Datadog Session Replay is off. Scan hops (eBay, Mercari,
+            match, enrich, and cache hit or miss) are timed with Sentry Performance so a slow
+            marketplace step is visible without extra Datadog APM child spans. Those traces do not
+            include listing titles, search queries, or desk keys.{"\u00A0 "}Native apps do not send
+            those web events.
           </p>
         </section>
         <section className="space-y-2">
           <h2 className="font-display text-xl tracking-tight text-fg">Notifications</h2>
           <p>
-            The iPhone app may ask to send local alerts when a listing matches a rule you set.
-            You can decline.  DealDex does not send marketing push.
+            The iPhone app may ask to send local alerts when a listing matches a rule you set. You
+            can decline. DealDex does not send marketing push.
           </p>
         </section>
         <section className="space-y-2">
           <h2 className="font-display text-xl tracking-tight text-fg">Contact</h2>
           <p>
-            Questions: use the email on the App Store or Play listing.  This page is the
-            privacy policy for the DealDex website and the native apps.
+            Questions: use the email on the App Store or Play listing. This page is the privacy
+            policy for the DealDex website and the native apps.
           </p>
         </section>
       </div>

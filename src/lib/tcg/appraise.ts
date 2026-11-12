@@ -129,7 +129,10 @@ export function verdictCopy(verdict: Verdict) {
     case "steal":
       return { label: "Steal", blurb: "Well under recent prices. Strong buy if the card is real." };
     case "good":
-      return { label: "Good Deal", blurb: "Meaningfully cheaper than the middle of recent prices." };
+      return {
+        label: "Good Deal",
+        blurb: "Meaningfully cheaper than the middle of recent prices.",
+      };
     case "fair":
       return { label: "Fair", blurb: "Inside the usual price range. Compare shipping and fees." };
     case "high":

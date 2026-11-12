@@ -296,7 +296,11 @@ function AutoBuyBlock({
   const cfg = rule.autoBuy;
   const updateCfg = (patch: Partial<typeof cfg>) => onChange({ autoBuy: { ...cfg, ...patch } });
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ accepted: number; rejected: number; samples: string[] } | null>(null);
+  const [result, setResult] = useState<{
+    accepted: number;
+    rejected: number;
+    samples: string[];
+  } | null>(null);
 
   async function previewNow() {
     setBusy(true);
@@ -358,7 +362,9 @@ function AutoBuyBlock({
             min="0"
             max="1"
             value={cfg.minSpread}
-            onChange={(e) => updateCfg({ minSpread: Math.max(0, Math.min(1, Number(e.target.value))) })}
+            onChange={(e) =>
+              updateCfg({ minSpread: Math.max(0, Math.min(1, Number(e.target.value))) })
+            }
           />
         </label>
         <label className="text-sm">
@@ -378,7 +384,9 @@ function AutoBuyBlock({
           <Input
             type="number"
             value={cfg.maxMonthlyCents}
-            onChange={(e) => updateCfg({ maxMonthlyCents: Math.max(0, Number(e.target.value) | 0) })}
+            onChange={(e) =>
+              updateCfg({ maxMonthlyCents: Math.max(0, Number(e.target.value) | 0) })
+            }
           />
         </label>
         <label className="text-sm">
@@ -392,7 +400,9 @@ function AutoBuyBlock({
           />
         </label>
         <label className="text-sm">
-          <span className="mb-1 block text-xs uppercase tracking-[0.14em] text-subtle">Marketplace</span>
+          <span className="mb-1 block text-xs uppercase tracking-[0.14em] text-subtle">
+            Marketplace
+          </span>
           <select
             value={cfg.marketplace}
             onChange={(e) => updateCfg({ marketplace: e.target.value as typeof cfg.marketplace })}

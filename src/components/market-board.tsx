@@ -35,9 +35,7 @@ export function MarketBoard() {
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {!cards &&
-          Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-lg" />
-          ))}
+          Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-lg" />)}
         {cards && cards.length === 0 && (
           <p className="rounded-xl bg-surface p-6 text-sm text-muted shadow-[var(--shadow-border)]">
             Sample cards did not load. You can still search above.
@@ -61,7 +59,9 @@ export function MarketBoard() {
               <span className="min-w-0 py-0.5">
                 <span className="block truncate text-sm font-medium">{card.name}</span>
                 <span className="block truncate text-xs text-subtle">{card.setName}</span>
-                <span className="mt-2 block font-mono text-base tabular-nums">{formatUsd(market)}</span>
+                <span className="mt-2 block font-mono text-base tabular-nums">
+                  {formatUsd(market)}
+                </span>
                 <span className="block text-xs uppercase tracking-[0.12em] text-subtle">
                   TCGPlayer
                 </span>

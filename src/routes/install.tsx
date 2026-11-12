@@ -20,8 +20,8 @@ function InstallPage() {
         <h2 className="font-medium text-deal-bad">No sideload build on this site right now</h2>
         <p className="mt-1 text-muted">
           The public APK that used to live here was an older build.{"\u00A0 "}It sent your
-          price-source keys off the phone and stored them without encryption.{"\u00A0 "}That file
-          is gone.{"\u00A0 "}A new Android download will appear only after a signed, device-tested
+          price-source keys off the phone and stored them without encryption.{"\u00A0 "}That file is
+          gone.{"\u00A0 "}A new Android download will appear only after a signed, device-tested
           release.{"\u00A0 "}Do not look for a download button until then.
         </p>
       </aside>
@@ -32,15 +32,16 @@ function InstallPage() {
           <article className="rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
             <h2 className="font-display text-2xl tracking-tight">Android</h2>
             <p className="mt-2 text-sm text-muted">
-              There is no Google Play listing yet, and this site does not offer a download.{"\u00A0 "}
+              There is no Google Play listing yet, and this site does not offer a download.
+              {"\u00A0 "}
               The camera scanner is on iPhone until Android ships one.
             </p>
           </article>
           <article className="rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
             <h2 className="font-display text-2xl tracking-tight">iPhone</h2>
             <p className="mt-2 text-sm text-muted">
-              The iPhone app is on TestFlight for testers.{"\u00A0 "}Apple does not allow an unsigned
-              download.
+              The iPhone app is on TestFlight for testers.{"\u00A0 "}Apple does not allow an
+              unsigned download.
             </p>
           </article>
         </div>

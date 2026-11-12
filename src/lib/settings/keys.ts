@@ -13,7 +13,8 @@ export const DESK_KEY_META: {
   {
     id: "justtcg",
     label: "JustTCG",
-    blurb: "Listed and in-store Pokémon prices for each printing. A free key is available at justtcg.com.",
+    blurb:
+      "Listed and in-store Pokémon prices for each printing. A free key is available at justtcg.com.",
     href: "https://justtcg.com/dashboard",
     hrefLabel: "Get a JustTCG key",
     placeholder: "tcg_…",
@@ -21,7 +22,8 @@ export const DESK_KEY_META: {
   {
     id: "pricecharting",
     label: "PriceCharting",
-    blurb: "Sold prices for raw cards, PSA 9, and PSA 10. Use the token from your PriceCharting subscription.",
+    blurb:
+      "Sold prices for raw cards, PSA 9, and PSA 10. Use the token from your PriceCharting subscription.",
     href: "https://www.pricecharting.com/api-documentation",
     hrefLabel: "Get a PriceCharting token",
     placeholder: "40-character token",

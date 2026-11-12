@@ -66,9 +66,7 @@ export function Scanner() {
   );
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<ScoredListing[] | null>(cached?.rows ?? null);
-  const [meta, setMeta] = useState(
-    cached?.meta ?? { ebay: 0, mercari: 0, notes: [] as string[] },
-  );
+  const [meta, setMeta] = useState(cached?.meta ?? { ebay: 0, mercari: 0, notes: [] as string[] });
   const [view, setView] = useState<ViewFilter>("all");
   const [verdict, setVerdict] = useState<VerdictFilter>("any");
   const [priceCap, setPriceCap] = useState<PriceFilter>("any");
@@ -283,9 +281,8 @@ export function Scanner() {
               <span className="relative inline-flex size-2.5 rounded-full bg-deal-good"></span>
             </span>
             <span className="font-medium">
-              Checking{" "}
-              {sources.map((s) => (s === "ebay" ? "eBay" : "Mercari")).join(" and ")} Buy It Now
-              listings.
+              Checking {sources.map((s) => (s === "ebay" ? "eBay" : "Mercari")).join(" and ")} Buy
+              It Now listings.
             </span>
           </div>
         )}
@@ -534,9 +531,7 @@ function ScanRow({ row }: { row: ScoredListing }) {
           {copy && appraisal && (
             <Badge variant={verdictVariant(appraisal.verdict)}>{copy.label}</Badge>
           )}
-          {listing.seller && (
-            <SellerBadge seller={listing.seller} />
-          )}
+          {listing.seller && <SellerBadge seller={listing.seller} />}
           {appraisal?.isSuspiciousRepack && (
             <Badge variant="bad" title={appraisal.repackReason ?? undefined}>
               Repack / Proxy

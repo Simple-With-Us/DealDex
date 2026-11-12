@@ -83,14 +83,16 @@ function CardPage() {
         </div>
       )}
 
-      {card === null && !failed && (
-        <p className="text-muted">That card is not in the catalog.</p>
-      )}
+      {card === null && !failed && <p className="text-muted">That card is not in the catalog.</p>}
 
       {card && (
         <div className="grid items-start gap-8 lg:grid-cols-[240px_1fr]">
           {img ? (
-            <img src={img} alt={card.name} className="aspect-[600/825] w-full rounded-lg bg-elevated object-cover" />
+            <img
+              src={img}
+              alt={card.name}
+              className="aspect-[600/825] w-full rounded-lg bg-elevated object-cover"
+            />
           ) : (
             <div className="grid aspect-[600/825] place-items-center rounded-lg bg-elevated text-subtle">
               No scan
@@ -114,7 +116,8 @@ function CardPage() {
               are below.
             </p>
             <p className="mt-2 font-mono text-sm tabular-nums text-muted">
-              Low {formatUsd(finish?.low)} · Mid {formatUsd(finish?.mid)} · High {formatUsd(finish?.high)}
+              Low {formatUsd(finish?.low)} · Mid {formatUsd(finish?.mid)} · High{" "}
+              {formatUsd(finish?.high)}
               {finish?.directLow != null ? ` · Direct ${formatUsd(finish.directLow)}` : ""}
             </p>
             {card.cardmarketEur != null && (
@@ -159,8 +162,13 @@ function CardPage() {
 
       {card && (
         <div className="mt-12">
-          <h2 className="mb-4 font-display text-2xl tracking-tight">Appraise a listing of this card</h2>
-          <Evaluator initialQuery={`${card.name} ${card.setName} ${card.localId}`} initialCardId={card.id} />
+          <h2 className="mb-4 font-display text-2xl tracking-tight">
+            Appraise a listing of this card
+          </h2>
+          <Evaluator
+            initialQuery={`${card.name} ${card.setName} ${card.localId}`}
+            initialCardId={card.id}
+          />
         </div>
       )}
     </Shell>

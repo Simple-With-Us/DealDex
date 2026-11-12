@@ -73,12 +73,7 @@ export function ValuationBookPanel({ cardId }: { cardId: string }) {
       </div>
 
       <div className="mb-6 rounded-lg bg-surface p-4 shadow-[var(--shadow-border)]">
-        <PriceRangeBar
-          ask={null}
-          book={book.blend}
-          low={book.rangeLow}
-          high={book.rangeHigh}
-        />
+        <PriceRangeBar ask={null} book={book.blend} low={book.rangeLow} high={book.rangeHigh} />
       </div>
 
       {(["sold", "listed", "retail", "model"] as const).map((family) => {
@@ -89,7 +84,10 @@ export function ValuationBookPanel({ cardId }: { cardId: string }) {
             <p className="mb-2 text-xs uppercase tracking-[0.14em] text-subtle">{FAMILY[family]}</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {rows.map((q) => (
-                <div key={q.source} className="rounded-lg bg-surface p-3 shadow-[var(--shadow-border)]">
+                <div
+                  key={q.source}
+                  className="rounded-lg bg-surface p-3 shadow-[var(--shadow-border)]"
+                >
                   <div className="flex items-baseline justify-between gap-2">
                     <p className="text-sm font-medium">{q.label}</p>
                     <p className="font-mono text-sm tabular-nums">{formatUsd(q.usd)}</p>

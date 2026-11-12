@@ -31,7 +31,14 @@ import {
   verdictCopy,
 } from "@/lib/tcg/appraise";
 import { parseListingBlob, SAMPLE_LISTINGS } from "@/lib/tcg/parse-listing";
-import type { Condition, Grade, ListingInput, Marketplace, TcgCard, Verdict } from "@/lib/tcg/types";
+import type {
+  Condition,
+  Grade,
+  ListingInput,
+  Marketplace,
+  TcgCard,
+  Verdict,
+} from "@/lib/tcg/types";
 import { CONDITIONS, GRADES } from "@/lib/tcg/types";
 import { cardImageUrl, cn, formatUsd } from "@/lib/utils";
 import { PriceRangeBar } from "@/components/price-range";
@@ -162,7 +169,8 @@ export function Evaluator({
       setCondition(res.parsed.condition);
       setGrade(res.parsed.grade);
       if (res.parsed.finishHint) setFinish(res.parsed.finishHint);
-      if (!found.length) toast("No matching Pokémon cards. Try a name + set, like “Charizard 151”.");
+      if (!found.length)
+        toast("No matching Pokémon cards. Try a name + set, like “Charizard 151”.");
     } catch (err) {
       toast(err instanceof Error ? err.message : "Search failed");
     } finally {
@@ -212,7 +220,9 @@ export function Evaluator({
     }
     setSaved(true);
     setSaving(false);
-    toast(user ? "Saved to your ledger." : "Saved on this device. Sign in to keep it across sessions.");
+    toast(
+      user ? "Saved to your ledger." : "Saved on this device. Sign in to keep it across sessions.",
+    );
   }
 
   return (
@@ -260,7 +270,9 @@ export function Evaluator({
                   aria-pressed={marketplace === m}
                   className={cn(
                     "grid h-9 flex-1 place-items-center overflow-hidden rounded-sm transition-[background-color,opacity] duration-150",
-                    marketplace === m ? "bg-surface shadow-[var(--shadow-border)]" : "opacity-60 hover:opacity-100",
+                    marketplace === m
+                      ? "bg-surface shadow-[var(--shadow-border)]"
+                      : "opacity-60 hover:opacity-100",
                   )}
                 >
                   <MarketplaceLogo marketplace={m} />
@@ -272,7 +284,9 @@ export function Evaluator({
                 aria-pressed={marketplace === "other"}
                 className={cn(
                   "h-9 flex-1 rounded-sm text-xs transition-[background-color,color] duration-150",
-                  marketplace === "other" ? "bg-surface text-fg shadow-[var(--shadow-border)]" : "text-muted",
+                  marketplace === "other"
+                    ? "bg-surface text-fg shadow-[var(--shadow-border)]"
+                    : "text-muted",
                 )}
               >
                 Other
@@ -436,7 +450,8 @@ function AppraisalPanel({
             <div className="flex items-center gap-2.5 rounded-lg border border-deal-bad/30 bg-deal-bad/10 p-3 text-sm text-deal-bad">
               <ShieldAlert className="size-5 shrink-0" />
               <span>
-                <strong>Listing Warning:</strong> {result.repackReason ?? "Potential proxy, repack lot, or non-card listing."}
+                <strong>Listing Warning:</strong>{" "}
+                {result.repackReason ?? "Potential proxy, repack lot, or non-card listing."}
               </span>
             </div>
           )}
@@ -471,10 +486,21 @@ function AppraisalPanel({
                   value={formatUsd(result.adjustedMarket)}
                   hint={listing.grade === "raw" ? listing.condition : `${listing.grade} estimate`}
                 />
-                <Stat label="This ask, all-in" value={formatUsd(result.allIn)} hint={`${formatUsd(listing.price)} + ship`} />
+                <Stat
+                  label="This ask, all-in"
+                  value={formatUsd(result.allIn)}
+                  hint={`${formatUsd(listing.price)} + ship`}
+                />
                 <Stat
                   label="Vs the book"
-                  value={describeVsBook(result.allIn, result.adjustedMarket, result.rangeLow, result.rangeHigh).short}
+                  value={
+                    describeVsBook(
+                      result.allIn,
+                      result.adjustedMarket,
+                      result.rangeLow,
+                      result.rangeHigh,
+                    ).short
+                  }
                   hint={
                     result.dollarsOff == null
                       ? undefined
@@ -508,7 +534,9 @@ function AppraisalPanel({
                 <div>
                   <p className="text-xs text-subtle">
                     If you flip after ~{Math.round(result.sellFeeRate * 1000) / 10}% fees
-                    {result.netMarginRate != null ? ` (${Math.round(result.netMarginRate * 100)}% margin)` : ""}
+                    {result.netMarginRate != null
+                      ? ` (${Math.round(result.netMarginRate * 100)}% margin)`
+                      : ""}
                   </p>
                   <p className="font-mono text-lg tabular-nums">
                     {formatUsd(result.flipProfit)}{" "}
@@ -533,7 +561,8 @@ function AppraisalPanel({
                 <div className="rounded-lg border border-border bg-elevated/60 p-4">
                   <div className="flex items-center justify-between">
                     <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-fg">
-                      <Sparkles className="size-3.5 text-accent" /> PSA Grading Arbitrage (Raw → Slab)
+                      <Sparkles className="size-3.5 text-accent" /> PSA Grading Arbitrage (Raw →
+                      Slab)
                     </p>
                     {result.grading.worthGrading && (
                       <Badge variant="good" className="text-xs">
@@ -544,18 +573,24 @@ function AppraisalPanel({
                   <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <div>
                       <p className="text-xs text-subtle">PSA 10 Book Est.</p>
-                      <p className="font-mono text-sm font-medium tabular-nums">{formatUsd(result.grading.psa10Value)}</p>
+                      <p className="font-mono text-sm font-medium tabular-nums">
+                        {formatUsd(result.grading.psa10Value)}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-subtle">Grading + Ship</p>
-                      <p className="font-mono text-sm tabular-nums text-muted">{formatUsd(result.grading.gradingCost)}</p>
+                      <p className="font-mono text-sm tabular-nums text-muted">
+                        {formatUsd(result.grading.gradingCost)}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-subtle">PSA 10 Net Profit</p>
                       <p
                         className={cn(
                           "font-mono text-sm font-medium tabular-nums",
-                          (result.grading.psa10NetProfit ?? 0) > 0 ? "text-deal-good" : "text-muted",
+                          (result.grading.psa10NetProfit ?? 0) > 0
+                            ? "text-deal-good"
+                            : "text-muted",
                         )}
                       >
                         {formatUsd(result.grading.psa10NetProfit)}
@@ -564,13 +599,15 @@ function AppraisalPanel({
                     <div>
                       <p className="text-xs text-subtle">PSA 10 Target ROI</p>
                       <p className="font-mono text-sm tabular-nums text-fg">
-                        {result.grading.psa10Roi != null ? `${Math.round(result.grading.psa10Roi * 100)}%` : "—"}
+                        {result.grading.psa10Roi != null
+                          ? `${Math.round(result.grading.psa10Roi * 100)}%`
+                          : "—"}
                       </p>
                     </div>
                   </div>
                   <p className="mt-2 text-xs text-subtle">
-                    Considers a ~${result.grading.gradingCost.toFixed(0)} grading & shipping fee. PSA 9 net upside is{" "}
-                    {formatUsd(result.grading.psa9NetProfit)}.
+                    Considers a ~${result.grading.gradingCost.toFixed(0)} grading & shipping fee.
+                    PSA 9 net upside is {formatUsd(result.grading.psa9NetProfit)}.
                   </p>
                 </div>
               )}
@@ -617,14 +654,26 @@ function AppraisalPanel({
                 TCGPlayer <ArrowUpRight />
               </a>
             </Button>
-            <Button variant="secondary" asChild className="[&_svg]:h-3.5 [&_svg]:w-auto [&_svg]:size-auto">
+            <Button
+              variant="secondary"
+              asChild
+              className="[&_svg]:h-3.5 [&_svg]:w-auto [&_svg]:size-auto"
+            >
               <a href={ebaySoldUrl(card, listing?.grade ?? "raw")} target="_blank" rel="noreferrer">
                 <MarketplaceLogo marketplace="ebay" />
                 Sold Listings
               </a>
             </Button>
-            <Button variant="secondary" asChild className="[&_svg]:h-3.5 [&_svg]:w-auto [&_svg]:size-auto">
-              <a href={mercariSearchUrl(card, listing?.grade ?? "raw")} target="_blank" rel="noreferrer">
+            <Button
+              variant="secondary"
+              asChild
+              className="[&_svg]:h-3.5 [&_svg]:w-auto [&_svg]:size-auto"
+            >
+              <a
+                href={mercariSearchUrl(card, listing?.grade ?? "raw")}
+                target="_blank"
+                rel="noreferrer"
+              >
                 <MarketplaceLogo marketplace="mercari" />
                 Search
               </a>
@@ -649,7 +698,6 @@ function AppraisalPanel({
         </div>
       </div>
 
-
       {cards.length > 1 && (
         <div>
           <h3 className="mb-3 text-sm font-medium text-muted">Other matches</h3>
@@ -669,7 +717,11 @@ function AppraisalPanel({
                   )}
                 >
                   {thumb ? (
-                    <img src={thumb} alt="" className="h-[66px] w-12 shrink-0 rounded-sm object-cover" />
+                    <img
+                      src={thumb}
+                      alt=""
+                      className="h-[66px] w-12 shrink-0 rounded-sm object-cover"
+                    />
                   ) : (
                     <div className="h-[66px] w-12 shrink-0 rounded-sm bg-elevated" />
                   )}

@@ -16,9 +16,9 @@ function Home() {
           {APP_SUBTITLE}
         </h1>
         <p className="mt-4 text-left text-muted">
-          Search supported Buy It Now singles on eBay and Mercari, then compare asking prices
-          with available market references. {"  "}Coverage depends on the listing, source access,
-          and any paid data services you configure.
+          Search supported Buy It Now singles on eBay and Mercari, then compare asking prices with
+          available market references. {"  "}Coverage depends on the listing, source access, and any
+          paid data services you configure.
         </p>
       </section>
       <Scanner />

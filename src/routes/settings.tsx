@@ -118,9 +118,7 @@ function SettingsPage() {
           : "Free prices run without a key.\u00A0 Paid sources stay off until you paste one.\u00A0 Keys stay in this browser and are sent with each website scan so those sources can be checked.\u00A0 Sign in only if you want them on another browser or phone."}
       </Lead>
       <p className="mt-3 text-sm text-muted">
-        {n === 0
-          ? "No paid price sources yet."
-          : `${n} paid price source${n === 1 ? "" : "s"} on.`}
+        {n === 0 ? "No paid price sources yet." : `${n} paid price source${n === 1 ? "" : "s"} on.`}
         {"\u00A0 "}
         {user ? "Signed in." : "Browsing as a guest."}
       </p>
@@ -135,7 +133,10 @@ function SettingsPage() {
 
       <div className="mt-8 space-y-4">
         {DESK_KEY_META.map((desk) => (
-          <article key={desk.id} className="rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
+          <article
+            key={desk.id}
+            className="rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]"
+          >
             <div>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <h2 className="text-xl font-medium tracking-tight">{desk.label}</h2>
@@ -199,11 +200,11 @@ function SettingsPage() {
         <h2 className="font-display text-xl tracking-tight">Website vs phone apps</h2>
         <p className="mt-2 text-sm text-muted">
           Android and iPhone scan eBay, Mercari, TCGDex, and any paid price sources you added, on
-          the phone.{"\u00A0 "}A scan never sends a key.{"\u00A0 "}The only time one leaves the phone
-          is if you tap Push Phone Keys to Account yourself.{"\u00A0 "}This website is different: a
-          scan here runs on our server, so the keys saved in this browser are sent with each scan
-          so those sources can be checked.{"\u00A0 "}Sign in on the phone only to copy keys from
-          your account.{"\u00A0 "}After that, the keys live on the phone.
+          the phone.{"\u00A0 "}A scan never sends a key.{"\u00A0 "}The only time one leaves the
+          phone is if you tap Push Phone Keys to Account yourself.{"\u00A0 "}This website is
+          different: a scan here runs on our server, so the keys saved in this browser are sent with
+          each scan so those sources can be checked.{"\u00A0 "}Sign in on the phone only to copy
+          keys from your account.{"\u00A0 "}After that, the keys live on the phone.
         </p>
       </aside>
     </Shell>
@@ -302,14 +303,16 @@ function ConnectedAccountsSection() {
 
   const ebayConnected = Boolean(settings?.ebay_connected);
   const ebayExpired = settings
-    ? settings.ebay_oauth_expiry != null && new Date(settings.ebay_oauth_expiry).getTime() < Date.now()
+    ? settings.ebay_oauth_expiry != null &&
+      new Date(settings.ebay_oauth_expiry).getTime() < Date.now()
     : false;
 
   return (
     <section className="mt-10">
       <h2 className="font-display text-2xl tracking-tight">Connected accounts</h2>
       <p className="mt-1 text-sm text-muted">
-        Sign in once with each provider.{"\u00A0 "}DealDex handles the rest.{"\u00A0 "}No copy-pasting keys.
+        Sign in once with each provider.{"\u00A0 "}DealDex handles the rest.{"\u00A0 "}No
+        copy-pasting keys.
       </p>
       <div className="mt-4 space-y-4">
         <article className="rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
@@ -317,11 +320,14 @@ function ConnectedAccountsSection() {
             <div>
               <h3 className="text-xl font-medium tracking-tight">eBay</h3>
               <p className="mt-1 text-sm text-muted">
-                Required for auto-buy.  DealDex can place Buy It Now orders on your behalf when a
+                Required for auto-buy. DealDex can place Buy It Now orders on your behalf when a
                 saved filter matches within your caps.
               </p>
             </div>
-            <Button onClick={() => void (ebayConnected ? disconnectEbay() : connectEbay())} disabled={busy}>
+            <Button
+              onClick={() => void (ebayConnected ? disconnectEbay() : connectEbay())}
+              disabled={busy}
+            >
               {ebayConnected ? "Disconnect" : "Connect eBay"}
             </Button>
           </div>

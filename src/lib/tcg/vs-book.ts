@@ -17,7 +17,12 @@ export function describeVsBook(
   high: number | null | undefined,
 ): VsBook {
   if (ask == null || !Number.isFinite(ask) || ask < 0) {
-    return { headline: "No ask yet", detail: "Add a listing price to compare it.", short: "—", tone: "fair" };
+    return {
+      headline: "No ask yet",
+      detail: "Add a listing price to compare it.",
+      short: "—",
+      tone: "fair",
+    };
   }
   if (book == null || !Number.isFinite(book) || book <= 0) {
     return {

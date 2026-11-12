@@ -54,7 +54,9 @@ export const getValuationBook = createServerFn({ method: "POST" })
 export const testDeskKey = createServerFn({ method: "POST" })
   .validator((input: { id: string; key: string }) => ({
     id: String(input.id ?? ""),
-    key: String(input.key ?? "").trim().slice(0, 200),
+    key: String(input.key ?? "")
+      .trim()
+      .slice(0, 200),
   }))
   .handler(async ({ data }) => {
     if (!data.key) return { ok: false, message: "Paste a key first." };
