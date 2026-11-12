@@ -38,7 +38,7 @@ export const Route = createFileRoute("/api/alerts/run")({
         try {
           body = await request.json();
         } catch {
-          return Response.json({ error: "invalid payload" }, { status: 400 });
+          body = {};
         }
         let input: RunnerInput;
         try {

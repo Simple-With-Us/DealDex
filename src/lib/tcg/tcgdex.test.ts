@@ -31,7 +31,7 @@ test("parseTcgdexCard keeps a null sibling and a numeric string price", () => {
     types: null,
     pricing: {
       cardmarket: { unit: null, trend: "4.5" },
-      tcgplayer: { holofoil: { marketPrice: "nope" }, updated: "2026-01-01" },
+      tcgplayer: { holofoil: { marketPrice: "0x1F" }, updated: "2026-01-01" },
     },
   });
   assert.equal(card.hp, 120);
@@ -45,9 +45,11 @@ test("parseTcgdexCard keeps a null sibling and a numeric string price", () => {
   const bare = parseTcgdexCard({
     id: "sv08-238",
     name: "Pikachu",
+    hp: " ",
     set: { id: null, name: null },
     pricing: { tcgplayer: null },
   });
+  assert.equal(bare.hp, undefined);
   assert.equal(bare.set?.id, undefined);
   assert.equal(bare.set?.name, undefined);
   assert.equal(bare.pricing?.tcgplayer, undefined);

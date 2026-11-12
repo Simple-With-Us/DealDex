@@ -160,14 +160,17 @@ export async function searchCardIndex(
   }
 }
 
-/** A price is a finite number. A numeric string is converted. Anything else is null. */
+/** A price is a finite number. A plain decimal string is converted. Anything else is null. */
 const priceField = z
   .union([z.number(), z.string(), z.null()])
   .optional()
   .transform((value): number | null | undefined => {
     if (value === undefined) return undefined;
-    if (value === null || value === "") return null;
-    const n = typeof value === "number" ? value : Number(value);
+    if (value === null) return null;
+    if (typeof value === "number") return Number.isFinite(value) ? value : null;
+    const trimmed = value.trim();
+    if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(trimmed)) return null;
+    const n = Number(trimmed);
     return Number.isFinite(n) ? n : null;
   });
 

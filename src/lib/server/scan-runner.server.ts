@@ -79,7 +79,7 @@ export const RunnerRequestSchema = z
   .object({
     forceScan: z.boolean().optional(),
     cursorMs: z.number().int().nonnegative().finite().optional(),
-    source: z.string().trim().min(1).optional(),
+    source: z.string().trim().optional(),
     data: z.looseObject({}).optional(),
   })
   .strict();
@@ -93,7 +93,7 @@ export function parseRunnerRequest(input: unknown): RunnerInput {
   return parseRunnerInput({
     forceScan: parsed.data.forceScan,
     cursorMs: parsed.data.cursorMs,
-    source: parsed.data.source,
+    source: parsed.data.source || undefined,
   });
 }
 

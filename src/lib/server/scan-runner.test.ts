@@ -21,6 +21,16 @@ test("parseRunnerInput accepts a runner body and rejects a mistyped one", () => 
       return true;
     },
   );
+  assert.deepEqual(parseRunnerRequest({}), {
+    forceScan: false,
+    cursorMs: 0,
+    source: "cron",
+  });
+  assert.deepEqual(parseRunnerRequest({ source: "  ", data: {} }), {
+    forceScan: false,
+    cursorMs: 0,
+    source: "cron",
+  });
   assert.deepEqual(parseRunnerRequest({ source: "cron", data: {} }), {
     forceScan: false,
     cursorMs: 0,
