@@ -477,7 +477,7 @@ test("the ship job clears a stale archive lock restored from the ship-state cach
   // first runs the ship script, and removed again before the cache is saved
   // so a cancelled run never persists it.
   const yml = read(".github/workflows/ios-ship.yml");
-  const shipStart = yml.search(/^  ship:/m);
+  const shipStart = yml.search(/^ {2}ship:/m);
   assert.ok(shipStart >= 0, "ios-ship.yml must declare a ship job");
   const steps = yml.slice(shipStart).split(/- name:/);
   const lockRm = 'rm -rf "${HOME}/.cache/ios-fleet/archive.lockdir"';
