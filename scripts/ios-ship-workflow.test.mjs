@@ -477,10 +477,23 @@ test("the ship job clears a stale archive lock restored from the ship-state cach
   // first runs the ship script, and removed again before the cache is saved
   // so a cancelled run never persists it.
   const yml = read(".github/workflows/ios-ship.yml");
+  const ship = read("scripts/ios-fleet/ship-testflight.sh");
+  assert.match(
+    ship,
+    /^ARCHIVE_LOCK_DIR="\$\{STATE_DIR\}\/archive\.lockdir"$/m,
+    "the ship script locks archive.lockdir under STATE_DIR",
+  );
+  assert.match(
+    ship,
+    /^STATE_DIR="\$\{IOS_FLEET_STATE_DIR:-\$\{HOME\}\/\.cache\/ios-fleet\}"$/m,
+    "the ship script uses the expected default state directory",
+  );
   const shipStart = yml.search(/^ {2}ship:/m);
   assert.ok(shipStart >= 0, "ios-ship.yml must declare a ship job");
   const steps = yml.slice(shipStart).split(/- name:/);
-  const lockRm = 'rm -rf "${HOME}/.cache/ios-fleet/archive.lockdir"';
+  const lockDirAssign =
+    'lockdir="${IOS_FLEET_STATE_DIR:-${HOME}/.cache/ios-fleet}/archive.lockdir"';
+  const lockRm = 'rm -rf "$lockdir"';
 
   const restore = steps.findIndex((s) => /Restore ship-state cache/.test(s));
   const clear = steps.findIndex((s) => /Clear stale archive lock from ship-state cache/.test(s));
@@ -488,14 +501,16 @@ test("the ship job clears a stale archive lock restored from the ship-state cach
   assert.ok(restore >= 0 && clear >= 0 && plan >= 0, "the ship job has restore, lock-clear and plan-build steps");
   assert.equal(clear, restore + 1, "the lock-clear step runs immediately after the ship-state cache is restored");
   assert.ok(clear < plan, "the lock is cleared before the plan-build step runs ship-testflight.sh");
-  assert.ok(steps[clear].includes(lockRm), "the lock-clear step removes the archive lockdir");
+  assert.ok(steps[clear].includes(lockDirAssign), "the lock-clear step derives lockdir the same way the ship script does");
+  assert.ok(steps[clear].includes(lockRm), "the lock-clear step removes the archive lockdir through $lockdir");
   assert.match(steps[clear], /if \[ -e /, "the lock-clear step checks whether a stale lock exists");
 
   const save = steps.findIndex((s) => /Save ship-state cache/.test(s));
   assert.ok(save > 0, "the ship job saves the ship-state cache");
   const beforeSave = steps[save - 1];
   assert.match(beforeSave, /if: always\(\)/, "the step before the cache save runs even when the ship is cancelled");
-  assert.ok(beforeSave.includes(lockRm), "the archive lock is removed before the ship-state cache is saved");
+  assert.ok(beforeSave.includes(lockDirAssign), "the pre-save step derives lockdir the same way the ship script does");
+  assert.ok(beforeSave.includes(lockRm), "the archive lock is removed through $lockdir before the ship-state cache is saved");
 });
 
 test("ios-ship.yml gives the manifest publisher the org token on the ship step only", () => {

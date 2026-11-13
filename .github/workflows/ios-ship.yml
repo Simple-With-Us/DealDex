@@ -140,9 +140,9 @@ jobs:
           # (archive.lockdir) into the ship-state cache.  Hosted runners are
           # single-use, so no other ship can hold it when this job starts;
           # left in place it blocks this run until "archive lock timeout".
-          lockdir="${HOME}/.cache/ios-fleet/archive.lockdir"
+          lockdir="${IOS_FLEET_STATE_DIR:-${HOME}/.cache/ios-fleet}/archive.lockdir"
           if [ -e "$lockdir" ]; then
-            rm -rf "${HOME}/.cache/ios-fleet/archive.lockdir"
+            rm -rf "$lockdir"
             echo "Stale archive lock found and removed."
           else
             echo "No stale archive lock found."
@@ -439,7 +439,8 @@ jobs:
       - name: Remove archive lock before saving ship-state cache
         if: always()
         run: |
-          rm -rf "${HOME}/.cache/ios-fleet/archive.lockdir"
+          lockdir="${IOS_FLEET_STATE_DIR:-${HOME}/.cache/ios-fleet}/archive.lockdir"
+          rm -rf "$lockdir"
 
       # Always: a skipped tick still needs its (unchanged) state persisted,
       # and a partial failure after record_successful_ship still ran should
