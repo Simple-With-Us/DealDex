@@ -1,53 +1,34 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ],
+  "extends": ["config:recommended"],
   "dependencyDashboard": true,
   "minimumReleaseAge": "5 days",
   "packageRules": [
     {
-      "matchUpdateTypes": [
-        "minor",
-        "patch",
-        "pin",
-        "digest"
-      ],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "groupName": "non-major dependencies",
       "automerge": true,
       "automergeType": "pr",
       "platformAutomerge": true
     },
     {
-      "matchUpdateTypes": [
-        "major"
-      ],
+      "matchUpdateTypes": ["major"],
       "automerge": false,
-      "labels": [
-        "dependencies",
-        "major"
-      ]
+      "labels": ["dependencies", "major"]
     },
     {
-      "matchPackageNames": [
-        "typescript",
-        "@typescript/typescript6"
-      ],
+      "matchPackageNames": ["typescript", "@typescript/typescript6"],
       "allowedVersions": ">=4.8.4 <6.1.0",
       "description": "Hold the TypeScript 6 API shim within the range the installed typescript-eslint 8.71.2 supports (peerDependencies: typescript >=4.8.4 <6.1.0; typescript-eslint#10940 tracks TS 7 compiler API support). Typecheck runs TypeScript 7 via @typescript/native. Revisit when the installed typescript-eslint supports a newer TypeScript."
     },
     {
-      "matchPackageNames": [
-        "@typescript/native"
-      ],
+      "matchPackageNames": ["@typescript/native"],
       "allowedVersions": ">=7 <8",
       "description": "TypeScript 7 native tsc, installed as an npm alias of typescript. Do not collapse this back into the typescript key; that key is the v6 API shim eslint imports."
     }
   ],
   "vulnerabilityAlerts": {
-    "labels": [
-      "security"
-    ],
+    "labels": ["security"],
     "minimumReleaseAge": null
   }
 }
