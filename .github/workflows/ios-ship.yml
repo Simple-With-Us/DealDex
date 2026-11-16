@@ -134,6 +134,20 @@ jobs:
             ios-fleet-state-dealdex-${{ github.run_id }}-
             ios-fleet-state-dealdex-
 
+      - name: Clear stale archive lock from ship-state cache
+        run: |
+          # A cancelled ship can save ship-testflight.sh's mkdir lock
+          # (archive.lockdir) into the ship-state cache.  Hosted runners are
+          # single-use, so no other ship can hold it when this job starts;
+          # left in place it blocks this run until "archive lock timeout".
+          lockdir="${HOME}/.cache/ios-fleet/archive.lockdir"
+          if [ -e "$lockdir" ]; then
+            rm -rf "${HOME}/.cache/ios-fleet/archive.lockdir"
+            echo "Stale archive lock found and removed."
+          else
+            echo "No stale archive lock found."
+          fi
+
       # Runs FIRST so a tick with nothing to ship costs seconds and cannot go
       # red on an unrelated environment problem. The logic lives in a script,
       # not inline YAML, so Ubuntu CI can unit-test it on every PR -- otherwise
@@ -419,6 +433,13 @@ jobs:
               echo "- DealDex: post-sync readiness check did not run or produced no summary"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # Never persist the archive lock: a cancelled ship can leave it held,
+      # and saving it would hand the next run a stale lock to wait on.
+      - name: Remove archive lock before saving ship-state cache
+        if: always()
+        run: |
+          rm -rf "${HOME}/.cache/ios-fleet/archive.lockdir"
 
       # Always: a skipped tick still needs its (unchanged) state persisted,
       # and a partial failure after record_successful_ship still ran should
