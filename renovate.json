@@ -7,35 +7,100 @@
   "minimumReleaseAge": "5 days",
   "packageRules": [
     {
-      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ],
       "groupName": "non-major dependencies",
       "automerge": true,
       "automergeType": "pr",
       "platformAutomerge": true
     },
     {
-      "matchUpdateTypes": ["major"],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "automerge": false,
-      "labels": ["dependencies", "major"]
+      "labels": [
+        "dependencies",
+        "major"
+      ]
     },
     {
-      "matchDepNames": ["typescript"],
+      "matchDepNames": [
+        "typescript"
+      ],
       "allowedVersions": ">=4.8.4 <6.1.0",
       "description": "Hold the dependency slot 'typescript' (currently the TypeScript 6 API shim via npm:@typescript/typescript6) within the range the installed typescript-eslint 8.71.2 supports (peerDependencies: typescript >=4.8.4 <6.1.0; typescript-eslint#10940 tracks TS 7 compiler API support). Typecheck runs TypeScript 7 via @typescript/native. Revisit when the installed typescript-eslint supports a newer TypeScript."
     },
     {
-      "matchPackageNames": ["@typescript/typescript6"],
+      "matchPackageNames": [
+        "@typescript/typescript6"
+      ],
       "allowedVersions": ">=4.8.4 <6.1.0",
       "description": "Hold the resolved TypeScript 6 shim package within the range the installed typescript-eslint 8.71.2 supports, regardless of which manifest key installs it. Same constraint and revisit condition as the 'typescript' depName rule."
     },
     {
-      "matchDepNames": ["@typescript/native"],
+      "matchDepNames": [
+        "@typescript/native"
+      ],
       "allowedVersions": ">=7 <8",
       "description": "TypeScript 7 native tsc, installed as an npm alias of typescript (depName @typescript/native, packageName typescript). Keyed on depName because matchPackageNames compares the resolved packageName, which is typescript. Do not collapse this back into the typescript key; that key is the v6 API shim eslint imports."
+    },
+    {
+      "description": "Major updates come once a month as their own PRs and never automerge.  Dependency Dashboard approval is not used because every fleet repo has GitHub issues turned off, so Renovate has no dashboard to approve from and majors would vanish silently.  Repos keep their own major labels, holds and PR text.",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "schedule": [
+        "before 6am on the first day of the month"
+      ],
+      "automerge": false,
+      "addLabels": [
+        "major"
+      ]
+    },
+    {
+      "description": "Keep the npm <12 constraint above in place.  npm 12 defaults allow-remote to none, and `npm install --package-lock-only` (what Renovate runs for lockfiles) then refuses registry tarballs of packages with bundleDependencies, such as @tailwindcss/oxide-wasm32-wasi, with EALLOWREMOTE (npm/cli#9800, still open on npm 12.2.1).  Drop the constraint and this rule once a fixed npm 12 ships.",
+      "matchManagers": [
+        "renovate-config"
+      ],
+      "matchDepTypes": [
+        "tool-constraint"
+      ],
+      "enabled": false
     }
   ],
   "vulnerabilityAlerts": {
-    "labels": ["security"],
-    "minimumReleaseAge": null
+    "labels": [
+      "security"
+    ],
+    "minimumReleaseAge": null,
+    "schedule": [
+      "at any time"
+    ]
+  },
+  "timezone": "America/Chicago",
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "updateNotScheduled": false,
+  "prConcurrentLimit": 2,
+  "prHourlyLimit": 2,
+  "rebaseWhen": "conflicted",
+  "labels": [
+    "dependencies"
+  ],
+  "constraints": {
+    "npm": "<12"
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "before 6am on the first day of the month"
+    ],
+    "automerge": true
   }
 }
