@@ -7,39 +7,35 @@
   "minimumReleaseAge": "5 days",
   "packageRules": [
     {
-      "matchUpdateTypes": [
-        "minor",
-        "patch",
-        "pin",
-        "digest"
-      ],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "groupName": "non-major dependencies",
       "automerge": true,
       "automergeType": "pr",
       "platformAutomerge": true
     },
     {
-      "matchUpdateTypes": [
-        "major"
-      ],
+      "matchUpdateTypes": ["major"],
       "automerge": false,
-      "labels": [
-        "dependencies",
-        "major"
-      ]
+      "labels": ["dependencies", "major"]
     },
     {
-      "matchPackageNames": [
-        "typescript"
-      ],
+      "matchDepNames": ["typescript"],
       "allowedVersions": ">=4.8.4 <6.1.0",
-      "description": "Hold TypeScript within the range the installed typescript-eslint 8.71.2 supports (peerDependencies: typescript >=4.8.4 <6.1.0; typescript-eslint#10940). Revisit when the installed typescript-eslint supports a newer TypeScript."
+      "description": "Hold the dependency slot 'typescript' (currently the TypeScript 6 API shim via npm:@typescript/typescript6) within the range the installed typescript-eslint 8.71.2 supports (peerDependencies: typescript >=4.8.4 <6.1.0; typescript-eslint#10940 tracks TS 7 compiler API support). Typecheck runs TypeScript 7 via @typescript/native. Revisit when the installed typescript-eslint supports a newer TypeScript."
+    },
+    {
+      "matchPackageNames": ["@typescript/typescript6"],
+      "allowedVersions": ">=4.8.4 <6.1.0",
+      "description": "Hold the resolved TypeScript 6 shim package within the range the installed typescript-eslint 8.71.2 supports, regardless of which manifest key installs it. Same constraint and revisit condition as the 'typescript' depName rule."
+    },
+    {
+      "matchDepNames": ["@typescript/native"],
+      "allowedVersions": ">=7 <8",
+      "description": "TypeScript 7 native tsc, installed as an npm alias of typescript (depName @typescript/native, packageName typescript). Keyed on depName because matchPackageNames compares the resolved packageName, which is typescript. Do not collapse this back into the typescript key; that key is the v6 API shim eslint imports."
     }
   ],
   "vulnerabilityAlerts": {
-    "labels": [
-      "security"
-    ],
+    "labels": ["security"],
     "minimumReleaseAge": null
   }
 }
