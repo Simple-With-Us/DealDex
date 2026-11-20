@@ -69,6 +69,8 @@ CRON_SCHEDULES = {
     "Vercel production catch-up": "41 * * * *",
     "Effort Issues Sync": "18 6 * * *",
     "iOS TestFlight ship (GitHub-hosted macOS)": "22 * * * *",
+    # auto-merge-prs.yml: fleet auto-merge sweep (15 min).
+    "Auto-merge PRs": "*/15 * * * *",
 }
 
 # This reporter only ever sends ONE check-in per scheduled run, after the
