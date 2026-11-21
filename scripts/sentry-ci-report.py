@@ -105,6 +105,12 @@ CRON_CHECKIN_MARGIN_MINUTES = {
     # #3387 / C3, #3389 / BY, Autorotate #219 / CD, UM #1491 / CF,
     # ST #3390 / C0).
     "Effort Issues Sync": 600,
+    # Auto-merge PRs is a 15-minute cron whose check-in is sent only after
+    # the run finishes (plus workflow_run dispatch).  15 minutes of grace
+    # equals the cadence, so ordinary GitHub lag plus a short sweep is
+    # enough to false-page.  30 minutes covers one late start without
+    # hiding a dropped tick the next window would also miss.
+    "Auto-merge PRs": 30,
 }
 _CRON_CHECKIN_MARGINS_FOLDED = {
     name.casefold(): margin for name, margin in CRON_CHECKIN_MARGIN_MINUTES.items()
