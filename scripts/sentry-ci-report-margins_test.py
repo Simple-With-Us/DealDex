@@ -33,6 +33,7 @@ def main() -> int:
         "Vercel production catch-up": 75,
         "iOS TestFlight ship (GitHub-hosted macOS)": 100,
         "Effort Issues Sync": 600,
+        "Auto-merge PRs": 30,
     }
     assert overrides == expected, overrides
     assert schedules.get("Vercel production catch-up") == "41 * * * *", schedules

@@ -69,6 +69,8 @@ CRON_SCHEDULES = {
     "Vercel production catch-up": "41 * * * *",
     "Effort Issues Sync": "18 6 * * *",
     "iOS TestFlight ship (GitHub-hosted macOS)": "22 * * * *",
+    # auto-merge-prs.yml: fleet auto-merge sweep (15 min).
+    "Auto-merge PRs": "*/15 * * * *",
 }
 
 # This reporter only ever sends ONE check-in per scheduled run, after the
@@ -103,6 +105,12 @@ CRON_CHECKIN_MARGIN_MINUTES = {
     # #3387 / C3, #3389 / BY, Autorotate #219 / CD, UM #1491 / CF,
     # ST #3390 / C0).
     "Effort Issues Sync": 600,
+    # Auto-merge PRs is a 15-minute cron whose check-in is sent only after
+    # the run finishes (plus workflow_run dispatch).  15 minutes of grace
+    # equals the cadence, so ordinary GitHub lag plus a short sweep is
+    # enough to false-page.  30 minutes covers one late start without
+    # hiding a dropped tick the next window would also miss.
+    "Auto-merge PRs": 30,
 }
 _CRON_CHECKIN_MARGINS_FOLDED = {
     name.casefold(): margin for name, margin in CRON_CHECKIN_MARGIN_MINUTES.items()
