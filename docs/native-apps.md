@@ -37,7 +37,7 @@ ANDROID_HOME="${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}"
 ANDROID_HOME="$ANDROID_HOME" JAVA_HOME="$JAVA_HOME" ./gradlew :app:assembleDebug --no-daemon
 ```
 
-The repo ships a Gradle 9.8 wrapper (AGP 9.4.1).  Point `local.properties` `sdk.dir` at your Android SDK (copy `local.properties.example`).  Need JDK 17+.
+The repo ships a Gradle 9.9.1 wrapper (AGP 9.5.1).  Point `local.properties` `sdk.dir` at your Android SDK (copy `local.properties.example`).  Need JDK 17+.
 
 - Package `me.grok.dealdex`, min SDK 26, target 35.
 - Launcher name: DealDex.
