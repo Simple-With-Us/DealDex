@@ -145,6 +145,11 @@ def _check_runtime_behaviour() -> None:
     with mock.patch.dict(reporter.CRON_SCHEDULES, {"Auto-merge PRs": "*/15 * * * *"}):
         live = set(reporter.CRON_SCHEDULES) | set(unmonitored)
         assert reporter.find_cron_schedule_drift(live) == ["Auto-merge PRs"]
+    # A duplicate that differs only by case reports both spellings.
+    with mock.patch.dict(reporter.CRON_SCHEDULES, {"AUTO-MERGE PRS": "*/15 * * * *"}):
+        live = set(reporter.CRON_SCHEDULES) | set(unmonitored)
+        drift = reporter.find_cron_schedule_drift(live)
+        assert drift == ["AUTO-MERGE PRS", "Auto-merge PRs"], drift
     assert reporter.find_cron_schedule_drift(reporter.discover_workflow_names()) == []
     sent = _run_schedule(
         reporter, "CI", "success", event="push", workflow_names=set(reporter.CRON_SCHEDULES)
