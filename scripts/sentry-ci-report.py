@@ -196,15 +196,19 @@ def discover_workflow_names(workflows_dir: Path = WORKFLOWS_DIR) -> set[str] | N
 
 
 def find_cron_schedule_drift(known_names: set[str] | None) -> list[str]:
-    """CRON_SCHEDULES keys that match no real workflow `name:`, case-insensitively.
+    """CRON_SCHEDULES keys and UNMONITORED_SCHEDULES names that match no real
+    workflow `name:`, case-insensitively.
 
-    Empty when the workflow set is unknown (None) or empty — "I could not read
-    the workflows" must never masquerade as "every key is stale".
+    A stale UNMONITORED_SCHEDULES entry is drift too: after a rename it exempts
+    nothing, while the renamed workflow raises unmapped-schedule drift on every
+    tick.  Empty when the workflow set is unknown (None) or empty — "I could
+    not read the workflows" must never masquerade as "every key is stale".
     """
     if not known_names:
         return []
     folded = {name.casefold() for name in known_names}
-    return sorted(key for key in CRON_SCHEDULES if key.casefold() not in folded)
+    configured = set(CRON_SCHEDULES) | set(UNMONITORED_SCHEDULES)
+    return sorted(key for key in configured if key.casefold() not in folded)
 
 
 def parse_dsn(dsn: str) -> tuple[str, str, str]:
@@ -292,7 +296,7 @@ def monitor_config_for(workflow_name: str, cron_expr: str) -> dict:
         "timezone": "UTC",
     }
     threshold = _CRON_FAILURE_THRESHOLD_FOLDED.get(folded)
-    if threshold:
+    if threshold is not None:
         config["failure_issue_threshold"] = threshold
         config["recovery_threshold"] = 1
     return config
@@ -303,7 +307,13 @@ def build_cron_checkin_payload(
     status: str,
     check_in_id: str | None = None,
 ) -> tuple[str, dict] | None:
-    """Return (monitor_slug, payload) for a Crons check-in, or None when unmapped."""
+    """Return (monitor_slug, payload) for a Crons check-in, or None when unmapped.
+
+    A name listed in UNMONITORED_SCHEDULES is None too, even if it is also
+    mapped in CRON_SCHEDULES, so no check-in path can re-enable it (AFC-626).
+    """
+    if workflow_name.casefold() in _UNMONITORED_FOLDED:
+        return None
     cron_expr = _CRON_SCHEDULES_FOLDED.get(workflow_name.casefold())
     if not cron_expr:
         return None
@@ -428,15 +438,17 @@ def main() -> int:
     if stale_keys:
         joined = ", ".join(repr(key) for key in stale_keys)
         print(
-            f"::error::CRON_SCHEDULES key(s) {joined} match no workflow `name:` under "
-            ".github/workflows/ — those cron check-ins are not being sent.  "
-            "Re-key CRON_SCHEDULES in scripts/sentry-ci-report.py to the current name."
+            f"::error::CRON_SCHEDULES / UNMONITORED_SCHEDULES name(s) {joined} match no "
+            "workflow `name:` under .github/workflows/ — a stale CRON_SCHEDULES key "
+            "sends no cron check-in, and a stale UNMONITORED_SCHEDULES entry exempts "
+            "nothing.  Re-key it in scripts/sentry-ci-report.py to the current name."
         )
         send_config_drift_event(
             envelope_url,
             auth_header,
             "stale-cron-key",
-            f"sentry-ci-report CRON_SCHEDULES has stale workflow name(s): {joined} [{APP}]",
+            f"sentry-ci-report CRON_SCHEDULES/UNMONITORED_SCHEDULES has stale workflow "
+            f"name(s): {joined} [{APP}]",
             ["ci-report-config-drift", APP, "stale-cron-key"],
             {"stale_keys": stale_keys, "run_url": run_url},
         )
