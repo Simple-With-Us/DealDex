@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Assert Effort Issues Sync uses the 600-minute GitHub-delay margin.
+"""Assert Effort Issues Sync uses the 600-minute GitHub-delay margin, the
+15-minute auto-merge sweep sends no Crons check-in, and the hourly monitors
+need three misses in a row before they turn red (AFC-626).
 
 Run: python3 scripts/sentry-ci-report-margins_test.py
 """
@@ -7,8 +9,11 @@ Run: python3 scripts/sentry-ci-report-margins_test.py
 from __future__ import annotations
 
 import ast
+import importlib.util
+import os
 import sys
 from pathlib import Path
+from unittest import mock
 
 SCRIPT = Path(__file__).with_name("sentry-ci-report.py")
 
@@ -33,7 +38,6 @@ def main() -> int:
         "Vercel production catch-up": 75,
         "iOS TestFlight ship (GitHub-hosted macOS)": 100,
         "Effort Issues Sync": 600,
-        "Auto-merge PRs": 30,
     }
     assert overrides == expected, overrides
     assert schedules.get("Vercel production catch-up") == "41 * * * *", schedules
@@ -42,7 +46,78 @@ def main() -> int:
     print("MARGIN_PARSE_OK", overrides)
     print("EFFORT_SYNC_CRON_OK", schedules["Effort Issues Sync"])
     print("IOS_SHIP_CRON_OK", schedules["iOS TestFlight ship (GitHub-hosted macOS)"])
+
+    # AFC-626: the 15-minute auto-merge sweep is deliberately unmonitored.
+    assert "Auto-merge PRs" not in schedules, schedules
+    thresholds = _assign_value(tree, "CRON_FAILURE_ISSUE_THRESHOLDS")
+    assert thresholds == {
+        "Vercel production catch-up": 3,
+        "iOS TestFlight ship (GitHub-hosted macOS)": 3,
+    }, thresholds
+    _check_runtime_behaviour()
+    print("AFC_626_OK", thresholds)
     return 0
+
+
+def _load_reporter():
+    sys.dont_write_bytecode = True
+    spec = importlib.util.spec_from_file_location("sentry_ci_report", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _run_schedule(reporter, workflow_name: str, conclusion: str) -> list:
+    sent = []
+    env = {
+        "SENTRY_FLEET_DSN": "https://abc123@o1.ingest.example.test/42",
+        "WORKFLOW_NAME": workflow_name,
+        "WORKFLOW_CONCLUSION": conclusion,
+        "WORKFLOW_EVENT": "schedule",
+        "WORKFLOW_BRANCH": "main",
+        "WORKFLOW_ACTOR": "agent",
+        "WORKFLOW_RUN_URL": "https://example.test/run/1",
+        "WORKFLOW_RUN_ID": "1",
+    }
+    with mock.patch.object(
+        reporter, "send_envelope", lambda url, auth, item_type, payload: sent.append((item_type, payload))
+    ), mock.patch.dict(os.environ, env, clear=False):
+        assert reporter.main() == 0
+    return sent
+
+
+def _check_runtime_behaviour() -> None:
+    reporter = _load_reporter()
+    assert "Auto-merge PRs" in reporter.UNMONITORED_SCHEDULES
+
+    # A scheduled sweep sends nothing: no check-in and no unmapped-schedule drift.
+    sent = _run_schedule(reporter, "Auto-merge PRs", "success")
+    assert sent == [], sent
+    # A failed sweep still raises its conclusion-based error event, and only that.
+    sent = _run_schedule(reporter, "Auto-merge PRs", "failure")
+    assert [item_type for item_type, _ in sent] == ["event"], sent
+    assert sent[0][1]["fingerprint"] == ["ci-failure", "dealdex", "Auto-merge PRs"], sent
+    # An unlisted, unmapped schedule is still reported as config drift.
+    sent = _run_schedule(reporter, "Some new scheduled job", "success")
+    assert len(sent) == 1 and "unmapped-schedule" in sent[0][1]["fingerprint"], sent
+
+    ship = reporter.monitor_config_for("iOS TestFlight ship (GitHub-hosted macOS)", "22 * * * *")
+    assert ship["failure_issue_threshold"] == 3 and ship["recovery_threshold"] == 1, ship
+    assert ship["checkin_margin"] == 100 and ship["max_runtime"] == 120, ship
+    _, catch_up = reporter.build_cron_checkin_payload("Vercel production catch-up", "in_progress")
+    assert catch_up["monitor_config"]["failure_issue_threshold"] == 3, catch_up
+    assert catch_up["monitor_config"]["checkin_margin"] == 75, catch_up
+    daily = reporter.monitor_config_for("Effort Issues Sync", "18 6 * * *")
+    assert "failure_issue_threshold" not in daily and "recovery_threshold" not in daily, daily
+    assert daily["checkin_margin"] == 600, daily
+
+    # The --park-ios-ship heartbeat upserts the same config as a real ship run.
+    sent = []
+    with mock.patch.object(
+        reporter, "send_envelope", lambda url, auth, item_type, payload: sent.append((item_type, payload))
+    ), mock.patch.dict(os.environ, {"SENTRY_FLEET_DSN": "https://abc123@o1.ingest.example.test/42"}):
+        assert reporter.send_parked_ios_ship_checkin() == 0
+    assert sent[0][1]["monitor_config"] == ship, sent
 
 
 if __name__ == "__main__":
