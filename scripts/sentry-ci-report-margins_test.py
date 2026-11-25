@@ -141,6 +141,10 @@ def _check_runtime_behaviour() -> None:
     assert reporter.find_cron_schedule_drift(set(reporter.CRON_SCHEDULES)) == unmonitored
     live_folded = {name.casefold() for name in set(reporter.CRON_SCHEDULES) | set(unmonitored)}
     assert reporter.find_cron_schedule_drift(live_folded) == []
+    # A name listed in both maps is drift too, since it would never check in.
+    with mock.patch.dict(reporter.CRON_SCHEDULES, {"Auto-merge PRs": "*/15 * * * *"}):
+        live = set(reporter.CRON_SCHEDULES) | set(unmonitored)
+        assert reporter.find_cron_schedule_drift(live) == ["Auto-merge PRs"]
     assert reporter.find_cron_schedule_drift(reporter.discover_workflow_names()) == []
     sent = _run_schedule(
         reporter, "CI", "success", event="push", workflow_names=set(reporter.CRON_SCHEDULES)
