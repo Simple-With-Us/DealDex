@@ -67,21 +67,35 @@ def _load_reporter():
     return module
 
 
-def _run_schedule(reporter, workflow_name: str, conclusion: str) -> list:
+def _run_schedule(
+    reporter, workflow_name: str, conclusion: str, event: str = "schedule", workflow_names=None
+) -> list:
+    """Run main() with send_envelope recorded.
+
+    The stale-key drift guard is stubbed to report nothing, so these assertions
+    do not depend on the live checkout's workflow names, unless workflow_names
+    is given: then discover_workflow_names() returns it and the real drift
+    guard runs against it.
+    """
     sent = []
     env = {
         "SENTRY_FLEET_DSN": "https://abc123@o1.ingest.example.test/42",
         "WORKFLOW_NAME": workflow_name,
         "WORKFLOW_CONCLUSION": conclusion,
-        "WORKFLOW_EVENT": "schedule",
+        "WORKFLOW_EVENT": event,
         "WORKFLOW_BRANCH": "main",
         "WORKFLOW_ACTOR": "agent",
         "WORKFLOW_RUN_URL": "https://example.test/run/1",
         "WORKFLOW_RUN_ID": "1",
     }
+    if workflow_names is None:
+        drift_patch = mock.patch.object(reporter, "find_cron_schedule_drift", return_value=[])
+    else:
+        drift_patch = mock.patch.object(
+            reporter, "discover_workflow_names", return_value=set(workflow_names))
     with mock.patch.object(
         reporter, "send_envelope", lambda url, auth, item_type, payload: sent.append((item_type, payload))
-    ), mock.patch.dict(os.environ, env, clear=False):
+    ), mock.patch.dict(os.environ, env, clear=False), drift_patch:
         assert reporter.main() == 0
     return sent
 
@@ -110,6 +124,30 @@ def _check_runtime_behaviour() -> None:
     daily = reporter.monitor_config_for("Effort Issues Sync", "18 6 * * *")
     assert "failure_issue_threshold" not in daily and "recovery_threshold" not in daily, daily
     assert daily["checkin_margin"] == 600, daily
+    # A configured threshold of 0 is sent, not dropped by a truthiness check.
+    with mock.patch.dict(reporter._CRON_FAILURE_THRESHOLD_FOLDED, {"effort issues sync": 0}):
+        zero = reporter.monitor_config_for("Effort Issues Sync", "18 6 * * *")
+    assert zero["failure_issue_threshold"] == 0 and zero["recovery_threshold"] == 1, zero
+
+    # An unmonitored name never builds a check-in, even if it is also mapped.
+    with mock.patch.dict(reporter._CRON_SCHEDULES_FOLDED, {"auto-merge prs": "*/15 * * * *"}):
+        assert reporter.build_cron_checkin_payload("Auto-merge PRs", "ok") is None
+        sent = _run_schedule(reporter, "Auto-merge PRs", "success")
+        assert sent == [], sent
+
+    # A stale UNMONITORED_SCHEDULES entry is drift, like a stale CRON_SCHEDULES key,
+    # matched case-insensitively.
+    unmonitored = sorted(reporter.UNMONITORED_SCHEDULES)
+    assert reporter.find_cron_schedule_drift(set(reporter.CRON_SCHEDULES)) == unmonitored
+    live_folded = {name.casefold() for name in set(reporter.CRON_SCHEDULES) | set(unmonitored)}
+    assert reporter.find_cron_schedule_drift(live_folded) == []
+    assert reporter.find_cron_schedule_drift(reporter.discover_workflow_names()) == []
+    sent = _run_schedule(
+        reporter, "CI", "success", event="push", workflow_names=set(reporter.CRON_SCHEDULES)
+    )
+    assert [item_type for item_type, _ in sent] == ["event"], sent
+    assert sent[0][1]["fingerprint"] == ["ci-report-config-drift", "dealdex", "stale-cron-key"], sent
+    assert sent[0][1]["extra"]["stale_keys"] == unmonitored, sent
 
     # The --park-ios-ship heartbeat upserts the same config as a real ship run.
     sent = []
