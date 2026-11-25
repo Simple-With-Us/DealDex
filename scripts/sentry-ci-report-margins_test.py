@@ -124,10 +124,11 @@ def _check_runtime_behaviour() -> None:
     daily = reporter.monitor_config_for("Effort Issues Sync", "18 6 * * *")
     assert "failure_issue_threshold" not in daily and "recovery_threshold" not in daily, daily
     assert daily["checkin_margin"] == 600, daily
-    # A configured threshold of 0 is sent, not dropped by a truthiness check.
+    # A configured threshold of 0 is sent, not dropped by a truthiness check,
+    # as Sentry's minimum of 1.
     with mock.patch.dict(reporter._CRON_FAILURE_THRESHOLD_FOLDED, {"effort issues sync": 0}):
         zero = reporter.monitor_config_for("Effort Issues Sync", "18 6 * * *")
-    assert zero["failure_issue_threshold"] == 0 and zero["recovery_threshold"] == 1, zero
+    assert zero["failure_issue_threshold"] == 1 and zero["recovery_threshold"] == 1, zero
 
     # An unmonitored name never builds a check-in, even if it is also mapped.
     with mock.patch.dict(reporter._CRON_SCHEDULES_FOLDED, {"auto-merge prs": "*/15 * * * *"}):
