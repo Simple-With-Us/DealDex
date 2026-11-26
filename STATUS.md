@@ -1,3 +1,7 @@
+## 2026-11-25 ZC — Fleet-Wide PR Title Header Rule ([OPS-1122](https://linear.app/simple-with-us/issue/OPS-1122))
+
+States the owner ruling (November 26, 2026) that every PR title begins with the compact lettered fleet header for the session that opened the PR (`[<SEAT>:` + three U+200A + `<PAIR>.<GEN>.<HOST>]`), then one ASCII space, then the human title; the title header is never omitted and never stacked under a formatter prefix.  PR descriptions and comments keep carrying the header as their first line.  Rollout: `docs/rollouts/2026-11-25-ops-1122-pr-title-headers.md`.  Canonical definition: AI-Fleet-Coordinator `FLEET-PROTOCOL.md`.
+
 ## 2026-11-22 — Renovate PR #604 verify green (Sentry Gradle 6.27.0)
 
 Renovate PR #604 bumps `io.sentry.android.gradle` from 6.26.0 to 6.27.0 in `apps/android/build.gradle.kts`.  The branch merges `main` twice, so its net diff against `main` is that one line.  `verify` failed on a stale Sentry version pin in `sentry.test.ts`; the pin is now aligned with 6.27.0, matching the DD-411 / PR #579 fix.  Rollout: `docs/rollouts/2026-11-22-renovate-604-sentry-gradle-ci.md`.  Branch: `renovate/non-major-dependencies`.
