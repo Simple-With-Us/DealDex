@@ -1,3 +1,5 @@
+<p><img src="apps/ios/DealDex/Assets.xcassets/AppIcon.appiconset/Icon-1024.png" alt="DealDex logo" width="96" height="96"></p>
+
 # DealDex
 
 Compare Pokémon card listing prices.  Search supported eBay and Mercari Buy It Now singles and compare asking prices with available market references.  Sources may include TCGPlayer, Cardmarket, TCGCSV, eBay solds, or paid desks you configure; coverage and freshness vary by listing and source.
