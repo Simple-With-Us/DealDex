@@ -55,8 +55,8 @@ test("PR Autofix is not pinned to a reusable revision that deadlocks", () => {
 });
 
 test("autofix callers pass only secrets their reusable declares", () => {
-  assert.deepEqual(passedSecrets(read(".github/workflows/autofix.yml")), ["MINIMAX_API_KEY", "META_MODEL_API_TOKEN", "AUTOFIX_GITHUB_APP_PRIVATE_KEY", "USAGE_INGEST_TOKEN"]);
-  assert.deepEqual(passedSecrets(read(".github/workflows/claude-code-autofix.yml")), ["MINIMAX_API_KEY", "META_MODEL_API_TOKEN", "USAGE_INGEST_TOKEN"]);
+  assert.deepEqual(passedSecrets(read(".github/workflows/autofix.yml")), ["MINIMAX_API_KEY", "META_MODEL_API_TOKEN", "SWU_AUTOFIX_OPENROUTER_API_KEY", "AUTOFIX_GITHUB_APP_PRIVATE_KEY", "USAGE_INGEST_TOKEN"]);
+  assert.deepEqual(passedSecrets(read(".github/workflows/claude-code-autofix.yml")), ["MINIMAX_API_KEY", "META_MODEL_API_TOKEN", "SWU_AUTOFIX_OPENROUTER_API_KEY", "USAGE_INGEST_TOKEN"]);
 });
 
 test("autofix callers keep their least-privilege and fork guards", () => {
@@ -76,7 +76,7 @@ test("Claude Autofix keeps the Sentry-capable pin and same-repository bot gate",
   // older pin.
   assert.match(
     claude,
-    /claude-code-autofix-reusable\.yml@a4c48f013a2108be517ee933dccb1b37e9403920/,
+    /claude-code-autofix-reusable\.yml@f8e13e6baebc7fdbcb451b8b1a0b97822bd1fe0b/,
   );
   assert.doesNotMatch(claude, /^\s+allowed_bots:/m);
   const guard = claude.match(/^ {4}if: >-\n([\s\S]*?)^ {4}uses:/m)?.[1];
@@ -97,6 +97,6 @@ test("PR Autofix retains the reviewed stream-json CLI repair", () => {
   // (verified against the coordinator repo) and adds the model-switch guard.
   assert.equal(
     pin(read(".github/workflows/autofix.yml")).ref,
-    "a4c48f013a2108be517ee933dccb1b37e9403920",
+    "f8e13e6baebc7fdbcb451b8b1a0b97822bd1fe0b",
   );
 });
